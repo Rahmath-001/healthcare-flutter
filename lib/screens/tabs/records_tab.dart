@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
+enum _Source { doctor, mine }
+
 class _HealthDocument {
   final String title;
   final String date;
-  final bool fromDoctor;
+  final _Source source;
   final String? doctorName;
   final IconData icon;
 
   const _HealthDocument({
     required this.title,
     required this.date,
-    required this.fromDoctor,
+    required this.source,
     this.doctorName,
     required this.icon,
   });
@@ -20,39 +22,37 @@ const _documents = [
   _HealthDocument(
     title: 'Blood Test Report',
     date: '24 Jun 2026',
-    fromDoctor: true,
+    source: _Source.doctor,
     doctorName: 'Dr. Anjali Rao',
     icon: Icons.science_outlined,
   ),
   _HealthDocument(
     title: 'Prescription - Diabetes',
     date: '24 Jun 2026',
-    fromDoctor: true,
+    source: _Source.doctor,
     doctorName: 'Dr. Anjali Rao',
     icon: Icons.description_outlined,
   ),
   _HealthDocument(
     title: 'X-Ray - Right Knee',
     date: '18 Jun 2026',
-    fromDoctor: true,
+    source: _Source.doctor,
     doctorName: 'Dr. Karthik Iyer',
     icon: Icons.image_outlined,
   ),
   _HealthDocument(
     title: 'Old prescription scan',
     date: '10 Jun 2026',
-    fromDoctor: false,
+    source: _Source.mine,
     icon: Icons.picture_as_pdf_outlined,
   ),
   _HealthDocument(
     title: 'Insurance card photo',
     date: '02 Jun 2026',
-    fromDoctor: false,
+    source: _Source.mine,
     icon: Icons.image_outlined,
   ),
 ];
-
-const _filters = ['All', 'From Doctor', 'My Uploads'];
 
 class RecordsTab extends StatefulWidget {
   const RecordsTab({super.key});
@@ -63,18 +63,14 @@ class RecordsTab extends StatefulWidget {
 
 class _RecordsTabState extends State<RecordsTab> {
   String _query = '';
-  String _filter = 'All';
+  _Source _source = _Source.doctor;
 
   List<_HealthDocument> get _filtered {
+    final q = _query.trim().toLowerCase();
     return _documents.where((d) {
-      final matchesFilter = switch (_filter) {
-        'From Doctor' => d.fromDoctor,
-        'My Uploads' => !d.fromDoctor,
-        _ => true,
-      };
-      final q = _query.trim().toLowerCase();
+      final matchesSource = d.source == _source;
       final matchesQuery = q.isEmpty || d.title.toLowerCase().contains(q);
-      return matchesFilter && matchesQuery;
+      return matchesSource && matchesQuery;
     }).toList();
   }
 
@@ -102,35 +98,48 @@ class _RecordsTabState extends State<RecordsTab> {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: TextField(
-              onChanged: (v) => setState(() => _query = v),
-              decoration: InputDecoration(
-                hintText: 'Search records',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+            child: Column(
+              children: [
+                TextField(
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: InputDecoration(
+                    hintText: 'Search records',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-          SizedBox(
-            height: 56,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              scrollDirection: Axis.horizontal,
-              itemCount: _filters.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final f = _filters[i];
-                return ChoiceChip(
-                  label: Text(f),
-                  selected: _filter == f,
-                  onSelected: (_) => setState(() => _filter = f),
-                );
-              },
+                const SizedBox(height: 12),
+                SegmentedButton<_Source>(
+                  segments: const [
+                    ButtonSegment(
+                      value: _Source.doctor,
+                      label: Text('From Doctor'),
+                      icon: Icon(Icons.medical_services_outlined),
+                    ),
+                    ButtonSegment(
+                      value: _Source.mine,
+                      label: Text('My Uploads'),
+                      icon: Icon(Icons.person_outline),
+                    ),
+                  ],
+                  selected: {_source},
+                  onSelectionChanged: (s) =>
+                      setState(() => _source = s.first),
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.standard,
+                  ).copyWith(
+                    minimumSize: const WidgetStatePropertyAll(
+                      Size(double.infinity, 0),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -141,11 +150,20 @@ class _RecordsTabState extends State<RecordsTab> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.description_outlined,
-                              size: 64, color: theme.colorScheme.primary),
+                          Icon(
+                            _source == _Source.doctor
+                                ? Icons.medical_services_outlined
+                                : Icons.upload_file_outlined,
+                            size: 64,
+                            color: theme.colorScheme.primary,
+                          ),
                           const SizedBox(height: 16),
-                          Text('No records found',
-                              style: theme.textTheme.titleMedium),
+                          Text(
+                            _source == _Source.doctor
+                                ? 'No documents shared yet'
+                                : 'No uploads yet',
+                            style: theme.textTheme.titleMedium,
+                          ),
                         ],
                       ),
                     ),
@@ -159,6 +177,8 @@ class _RecordsTabState extends State<RecordsTab> {
                       return Card(
                         margin: EdgeInsets.zero,
                         child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
                           leading: CircleAvatar(
                             backgroundColor:
                                 theme.colorScheme.primaryContainer,
@@ -166,7 +186,7 @@ class _RecordsTabState extends State<RecordsTab> {
                           ),
                           title: Text(d.title),
                           subtitle: Text(
-                            d.fromDoctor
+                            d.source == _Source.doctor
                                 ? '${d.date} · Shared by ${d.doctorName}'
                                 : '${d.date} · Uploaded by you',
                           ),

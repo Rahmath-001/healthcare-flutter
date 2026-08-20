@@ -1,21 +1,33 @@
 {
   "name": "functions",
-  "description": "Cloud Functions: India carrier/VoIP verification via Twilio Lookup",
+  "description": "MiDoctor API: auth/session, doctors, booking, consent, provider verification, plus India carrier/VoIP verification via Twilio Lookup",
   "engines": {
     "node": "20"
   },
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
+    "watch": "tsc --watch",
+    "serve": "pnpm run build && firebase emulators:start --only functions,firestore",
+    "seed": "pnpm run build && node lib/seed.js",
+    "grant-role": "pnpm run build && node lib/grant-role.js",
+    "test": "vitest run",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
     "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.0.1"
+    "firebase-functions": "^6.0.1",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
-    "typescript": "^5.5.4"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "typescript": "^5.5.4",
+    "vitest": "^4.1.11"
   },
   "private": true
 }

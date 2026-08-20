@@ -19,9 +19,8 @@ class AppUser {
   });
 
   factory AppUser.fromFirebase(User u) {
-    final pid = u.providerData.isNotEmpty
-        ? u.providerData.first.providerId
-        : '';
+    final pid =
+        u.providerData.isNotEmpty ? u.providerData.first.providerId : '';
     final provider = pid.contains('google')
         ? 'google'
         : (pid.contains('phone') || u.phoneNumber != null)

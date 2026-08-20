@@ -1,30 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/onboarding_service.dart';
-import 'dashboard_screen.dart';
+import '../core/error/failure.dart';
+import '../core/feature_providers.dart';
+import '../core/session/onboarding_controller.dart';
+import '../features/settings/domain/patient_profile.dart';
+import '../features/settings/presentation/account_controller.dart';
+import '../l10n/l10n.dart';
+import '../shared/formatters.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pageCtrl = PageController();
   int _currentPage = 0;
 
-  String? _selectedAge;
-  String? _selectedBloodGroup;
-
-  static const _ageRanges = [
-    '18-24', '25-34', '35-44', '45-54', '55-64', '65+',
-  ];
-
-  static const _bloodGroups = [
-    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-',
-  ];
+  DateTime? _dateOfBirth;
+  BloodGroup? _selectedBloodGroup;
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -41,15 +39,48 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  Future<void> _pickDateOfBirth() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dateOfBirth ?? DateTime(now.year - 30, now.month, now.day),
+      firstDate: DateTime(1900),
+      lastDate: now,
+      helpText: context.l10n.onboardingDateOfBirth,
+    );
+    if (picked != null) setState(() => _dateOfBirth = picked);
+  }
+
   Future<void> _finish() async {
-    final svc = context.read<OnboardingService>();
-    await svc.saveProfile(age: _selectedAge, bloodGroup: _selectedBloodGroup);
-    await svc.markComplete();
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      );
+    setState(() => _saving = true);
+
+    // Clinical data is never written to the device: it goes straight to
+    // `patientProfiles` behind the session. Both fields are optional here — a
+    // patient who skips them should still reach the app, so a failure to save
+    // them must not block onboarding.
+    if (_dateOfBirth != null || _selectedBloodGroup != null) {
+      try {
+        await ref.read(accountRepositoryProvider).updateProfile(
+              PatientProfileDraft(
+                dateOfBirth: _dateOfBirth,
+                bloodGroup: _selectedBloodGroup,
+              ),
+            );
+        ref.invalidate(patientProfileProvider);
+      } on Failure catch (f) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${f.message} You can add this later in Profile.'),
+            ),
+          );
+        }
+      }
     }
+
+    await ref.read(onboardingControllerProvider.notifier).markComplete();
+    // The router redirect moves the user to the patient shell once onboarding
+    // is marked complete, so this screen does not navigate itself.
   }
 
   @override
@@ -78,7 +109,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 width: double.infinity,
                 height: 52,
                 child: FilledButton(
-                  onPressed: _currentPage < 2 ? _next : _finish,
+                  onPressed:
+                      _saving ? null : (_currentPage < 2 ? _next : _finish),
                   child: Text(
                     _currentPage < 2 ? 'Next' : 'Get Started',
                     style: const TextStyle(fontSize: 16),
@@ -135,31 +167,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               style: theme.textTheme.headlineSmall,
               textAlign: TextAlign.center),
           const SizedBox(height: 8),
-          Text('Help us personalize your experience.',
+          Text(context.l10n.onboardingHealthBody,
               style: theme.textTheme.bodyMedium),
           const SizedBox(height: 28),
-          Text('Age range', style: theme.textTheme.titleSmall),
+          Text(context.l10n.onboardingDateOfBirth,
+              style: theme.textTheme.titleSmall),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _ageRanges
-                .map((a) => ChoiceChip(
-                      label: Text(a),
-                      selected: _selectedAge == a,
-                      onSelected: (_) => setState(() => _selectedAge = a),
-                    ))
-                .toList(),
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.cake_outlined),
+              title: Text(
+                _dateOfBirth == null
+                    ? context.l10n.onboardingNotSet
+                    : Fmt.date(_dateOfBirth!),
+              ),
+              subtitle: Text(context.l10n.onboardingDateOfBirthHelp),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _pickDateOfBirth,
+            ),
           ),
           const SizedBox(height: 24),
-          Text('Blood group', style: theme.textTheme.titleSmall),
+          Text(context.l10n.onboardingBloodGroup,
+              style: theme.textTheme.titleSmall),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _bloodGroups
+            children: BloodGroup.values
                 .map((bg) => ChoiceChip(
-                      label: Text(bg),
+                      label: Text(bg.label),
                       selected: _selectedBloodGroup == bg,
                       onSelected: (_) =>
                           setState(() => _selectedBloodGroup = bg),

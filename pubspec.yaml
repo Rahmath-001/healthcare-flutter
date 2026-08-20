@@ -9,29 +9,69 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
   google_sign_in: ^6.2.1
   cloud_functions: ^5.1.3
-  provider: ^6.1.2
   shared_preferences: ^2.3.4
   shimmer: ^3.0.0
   connectivity_plus: ^6.1.1
   cupertino_icons: ^1.0.8
+  flutter_riverpod: ^3.4.2
+  go_router: ^17.5.0
+  dio: ^5.11.0
+  flutter_secure_storage: ^11.0.0
+  sign_in_with_apple: ^8.1.0
+  crypto: ^3.0.7
+  file_picker: ^12.0.0
+  image_picker: ^1.2.3
+  pdf: ^3.13.0
+  printing: ^5.15.0
+  intl: 0.20.2
+  hmssdk_flutter: ^1.11.1
+  firebase_crashlytics: ^4.3.10
 
 dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_native_splash: ^2.4.3
   flutter_test:
     sdk: flutter
-
+  integration_test:
+    sdk: flutter
+  # Deterministic timer control for debounce/timeout/retry tests. Pinned
+  # explicitly rather than relied on transitively via flutter_test.
+  fake_async: ^1.3.1
+  http_mock_adapter: ^0.6.1
+  flutter_launcher_icons: ^0.14.4
 flutter:
   uses-material-design: true
+  generate: true
   assets:
     - assets/
+    - assets/icon/
 
 flutter_native_splash:
   color: "#0E8388"
   android_12:
     color: "#0E8388"
     icon_background_color: "#0E8388"
+
+# Launcher icons.
+#
+# Generated from a single source by `python tool/make_icon.py`, so the mark and
+# the brand colour live in one place rather than in a folder of PNGs nobody can
+# regenerate. Re-run that, then `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  image_path: "assets/icon/icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  # Android masks the foreground to whatever shape the launcher uses, so the
+  # mark is inset and the background is a flat brand colour rather than part of
+  # the artwork.
+  adaptive_icon_background: "#0E8388"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  web:
+    generate: false

@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../services/auth_service.dart';
+import '../core/router/routes.dart';
+import '../core/service_providers.dart';
 import '../services/carrier_service.dart';
 import '../utils/debouncer.dart';
-import '../utils/page_transitions.dart';
 import '../utils/phone_validator.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/shimmer_placeholder.dart';
-import 'otp_screen.dart';
 
-class PhoneInputScreen extends StatefulWidget {
+class PhoneInputScreen extends ConsumerStatefulWidget {
   final String? displayName;
 
   const PhoneInputScreen({super.key, this.displayName});
 
   @override
-  State<PhoneInputScreen> createState() => _PhoneInputScreenState();
+  ConsumerState<PhoneInputScreen> createState() => _PhoneInputScreenState();
 }
 
-class _PhoneInputScreenState extends State<PhoneInputScreen> {
+class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
   final _ctrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final _carrier = CarrierService();
@@ -39,7 +39,8 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
       if (mounted) {
         final text = _ctrl.text;
         setState(() {
-          _phoneValid = text.isEmpty ? null : PhoneValidator.isValidNational(text);
+          _phoneValid =
+              text.isEmpty ? null : PhoneValidator.isValidNational(text);
         });
       }
     });
@@ -58,7 +59,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
     setState(() => _loading = true);
 
     final e164 = PhoneValidator.toE164(_ctrl.text);
-    final auth = context.read<AuthService>();
+    final auth = ref.read(authServiceProvider);
 
     final result = await _carrier.verify(e164);
     if (!result.ok) {
@@ -75,8 +76,14 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
       onCodeSent: () {
         if (!mounted) return;
         setState(() => _loading = false);
-        Navigator.of(context).push(
-          slideUpRoute(OtpScreen(e164: e164, displayName: widget.displayName)),
+        context.push(
+          Uri(
+            path: Routes.otp,
+            queryParameters: {
+              'phone': e164,
+              if (widget.displayName != null) 'name': widget.displayName!,
+            },
+          ).toString(),
         );
       },
       onAutoVerified: () {
@@ -103,14 +110,9 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Auto-verification can complete sign-in before navigating to OtpScreen.
-    // AuthGate swaps underneath; pop this pushed route so it isn't stranded.
-    final signedIn = context.watch<AuthService>().isSignedIn;
-    if (signedIn) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-      });
-    }
+    // Android can auto-retrieve the SMS code and complete sign-in before the
+    // user ever reaches the OTP screen. The router's redirect owns where they
+    // go next, so this screen no longer navigates on sign-in itself.
 
     return Scaffold(
       appBar: AppBar(title: const Text('Phone number')),

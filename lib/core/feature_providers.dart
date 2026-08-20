@@ -1,0 +1,140 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../features/appointments/data/api_appointment_repository.dart';
+import '../features/appointments/data/appointment_repository.dart';
+import '../features/availability/data/api_availability_repository.dart';
+import '../features/availability/data/availability_repository.dart';
+import '../features/booking/data/api_booking_repository.dart';
+import '../features/booking/data/booking_repository.dart';
+import '../features/consent/data/api_consent_repository.dart';
+import '../features/consent/data/consent_repository.dart';
+import '../features/consultation/data/api_consultation_repository.dart';
+import '../features/consultation/data/consultation_repository.dart';
+import '../features/consultation/data/hms_telehealth_provider.dart';
+import '../features/consultation/data/telehealth_provider.dart';
+import '../features/credentials/data/api_credentials_repository.dart';
+import '../features/credentials/data/credentials_repository.dart';
+import '../features/prescriptions/data/api_prescription_repository.dart';
+import '../features/prescriptions/data/prescription_repository.dart';
+import '../features/providers_search/data/api_doctor_repository.dart';
+import '../features/providers_search/data/doctor_repository.dart';
+import '../features/ratings/data/api_ratings_repository.dart';
+import '../features/ratings/data/ratings_repository.dart';
+import '../features/records/data/api_records_repository.dart';
+import '../features/records/data/records_repository.dart';
+import '../features/settings/data/account_repository.dart';
+import '../features/support/data/api_support_repository.dart';
+import '../features/support/data/support_repository.dart';
+import 'files/blob_client.dart';
+import 'providers.dart';
+
+/// Repository bindings for every feature.
+///
+/// Every surface now resolves to an API-backed implementation when
+/// `USE_FIXTURES=false`, and to an in-memory fixture otherwise. The fixtures are
+/// not scaffolding to be deleted: they are what keeps the whole app — router,
+/// shells, interceptors, screens — runnable and testable without a backend, and
+/// they mirror the server's semantics closely enough to be worth trusting.
+///
+///
+/// Tests override any of these via `ProviderScope(overrides: [...])`. Keeping
+/// them in one file makes a backend cutover a single reviewable diff rather
+/// than a change scattered across a dozen feature folders.
+
+final doctorRepositoryProvider = Provider<DoctorRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureDoctorRepository();
+  return ApiDoctorRepository(ref.watch(apiClientProvider));
+});
+
+final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureBookingRepository();
+  return ApiBookingRepository(ref.watch(apiClientProvider));
+});
+
+final appointmentRepositoryProvider = Provider<AppointmentRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureAppointmentRepository();
+  return ApiAppointmentRepository(ref.watch(apiClientProvider));
+});
+
+final recordsRepositoryProvider = Provider<RecordsRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureRecordsRepository();
+  return ApiRecordsRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(blobClientProvider),
+  );
+});
+
+/// Profile plus the two DPDP rights that act on the whole account.
+///
+/// Backed by `/v1/me`, `/v1/me/export` and `DELETE /v1/me`, all of which exist.
+final accountRepositoryProvider = Provider<AccountRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureAccountRepository();
+  return ApiAccountRepository(ref.watch(apiClientProvider));
+});
+
+final consentRepositoryProvider = Provider<ConsentRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureConsentRepository();
+  return ApiConsentRepository(ref.watch(apiClientProvider));
+});
+
+final prescriptionRepositoryProvider = Provider<PrescriptionRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixturePrescriptionRepository();
+  return ApiPrescriptionRepository(ref.watch(apiClientProvider));
+});
+
+final credentialsRepositoryProvider = Provider<CredentialsRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureCredentialsRepository();
+  return ApiCredentialsRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(blobClientProvider),
+  );
+});
+
+final availabilityRepositoryProvider = Provider<AvailabilityRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureAvailabilityRepository();
+  return ApiAvailabilityRepository(ref.watch(apiClientProvider));
+});
+
+final ratingsRepositoryProvider = Provider<RatingsRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureRatingsRepository();
+  return ApiRatingsRepository(ref.watch(apiClientProvider));
+});
+
+final supportRepositoryProvider = Provider<SupportRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureSupportRepository();
+  return ApiSupportRepository(ref.watch(apiClientProvider));
+});
+
+final consultationRepositoryProvider = Provider<ConsultationRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureConsultationRepository();
+  return ApiConsultationRepository(
+    ref.watch(apiClientProvider),
+    // Chat needs to know which messages are the caller's own; the server sends
+    // a sender id rather than a flag, because "mine" differs per participant.
+    currentUserId: ref.watch(currentSessionProvider)?.userId ?? '',
+  );
+});
+
+/// Media vendor for live consultations.
+///
+/// Resolves to 100ms once the API can mint join tokens; until then the fixture
+/// keeps the whole consultation flow — consent gate, waiting room, controls,
+/// chat, audio fallback — exercisable without a vendor account.
+///
+/// Nothing outside [TelehealthProvider] knows which one is in use.
+final telehealthProviderProvider = Provider<TelehealthProvider>((ref) {
+  if (ref.watch(useFixturesProvider)) {
+    final provider = FixtureTelehealthProvider();
+    ref.onDispose(provider.dispose);
+    return provider;
+  }
+  // 100ms is Android/iOS only. Its method-channel Dart surface compiles for web
+  // and then throws MissingPluginException on join, so web is bound to the
+  // unsupported stub and fails as a readable message instead of a crash.
+  if (kIsWeb) return const UnsupportedTelehealthProvider();
+
+  final provider = HmsTelehealthProvider(api: ref.watch(apiClientProvider));
+  ref.onDispose(provider.dispose);
+  return provider;
+});

@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "CI STUB — placeholder values only, no real credentials.",
+    "The real android/app/google-services.json is gitignored. CI copies this in",
+    "so the com.google.gms.google-services plugin can run during a compile-only",
+    "build. package_name MUST match applicationId in android/app/build.gradle.kts",
+    "or the plugin fails with 'No matching client found for package name'.",
+    "An APK built with this cannot reach Firebase and must never be distributed."
+  ],
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "ci-stub-project",
+    "storage_bucket": "ci-stub-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "com.healthcare.healthcare_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "ci-stub-api-key-000000000000000000000000"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

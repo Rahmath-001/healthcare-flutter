@@ -1,8 +1,63 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ====================================================================
+         Permissions actually used by the app today.
+
+         INTERNET is otherwise only merged in implicitly by plugins; declaring
+         it explicitly makes the dependency visible and auditable.
+         ==================================================================== -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- connectivity_plus reads Wi-Fi state to distinguish connection types. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Android 13+ runtime notification permission (onboarding asks for it). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Media capture and selection: medical record uploads (FR-MR-001) and
+         provider credential documents (FR-PROV-001). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Pre-33 devices still need the legacy storage read for the gallery. -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Telemedicine (FR-TEL-001). Required by the 100ms SDK for live audio
+         and video consultations. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Routing a call to a Bluetooth headset (31+). -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Keeps the consultation alive when the app is backgrounded mid-call. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- The camera is used for document capture and video consultations, but
+         the app must still install on tablets without one. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- ====================================================================
+         Deliberately never declared:
+           READ_SMS / RECEIVE_SMS — Firebase phone auth uses the SMS Retriever
+           API, which needs no permission. Requesting SMS access triggers a Play
+           policy review and is not justifiable for this app.
+           ACCESS_FINE_LOCATION — only if a "doctors near me" feature ships, and
+           then coarse-only, requested on tap.
+         ==================================================================== -->
+
     <application
-        android:label="healthcare_mobile"
+        android:label="MiDoctor"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false"
+        android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -24,7 +79,39 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Android App Links.
+
+                 `autoVerify` makes Android check
+                 https://midoctor.in/.well-known/assetlinks.json at install
+                 time and, if it matches this package and signing certificate,
+                 open these URLs directly instead of showing a chooser. Until
+                 that file is hosted the links still work — they just present
+                 a disambiguation dialog first.
+
+                 Scoped to specific paths rather than the whole domain, so the
+                 marketing site keeps opening in a browser. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"
+                      android:host="midoctor.in"
+                      android:pathPrefix="/app"/>
+                <!-- Prescription verification, for a pharmacy scanning a QR. -->
+                <data android:scheme="https"
+                      android:host="midoctor.in"
+                      android:pathPrefix="/rx"/>
+            </intent-filter>
         </activity>
+        <!-- Keeps audio and video flowing when the user switches apps during
+             a consultation. Android 14+ requires the service type to be
+             declared and to match the permissions above. -->
+        <service
+            android:name="live.hms.video.services.HMSVideoService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="camera|microphone" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

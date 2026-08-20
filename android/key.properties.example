@@ -1,0 +1,18 @@
+# Copy to android/key.properties and fill in. That file is gitignored and must
+# never be committed.
+#
+# Generate an upload keystore (once, and back it up somewhere durable):
+#
+#   keytool -genkey -v -keystore upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# Then enable Play App Signing so Google holds the app-signing key and this
+# keystore is only the *upload* key — which can be reset if it is ever lost.
+#
+# In CI the keystore is base64-encoded into a secret and decoded at build time;
+# storeFile then points at the decoded path.
+
+storeFile=/absolute/path/to/upload-keystore.jks
+storePassword=
+keyAlias=upload
+keyPassword=

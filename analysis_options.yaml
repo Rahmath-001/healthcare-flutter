@@ -9,6 +9,22 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+    strict-inference: true
+  errors:
+    # A missing await on a Future is a real bug class in async repository code.
+    unawaited_futures: error
+    # Generated files are excluded below, so anything unused here is dead code.
+    unused_import: error
+    unused_local_variable: error
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/generated_plugin_registrant.dart"
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
@@ -21,8 +37,18 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # Health data: never let a stray print() leak PHI into logcat.
+    avoid_print: true
+    prefer_single_quotes: true
+    always_declare_return_types: true
+    prefer_final_locals: true
+    unnecessary_await_in_return: true
+    avoid_slow_async_io: true
+    cancel_subscriptions: true
+    close_sinks: true
+    # Repository/DTO layers are public API to the rest of the app.
+    use_super_parameters: true
+    sort_child_properties_last: true
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

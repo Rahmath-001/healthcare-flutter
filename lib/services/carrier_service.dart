@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 
 /// Result of the server-side carrier/VoIP check.
 class CarrierResult {
@@ -18,6 +19,16 @@ class CarrierResult {
 /// Calls the `verifyIndianCarrier` Cloud Function. The function uses Twilio
 /// Lookup to confirm the number is a mobile line on Airtel/Jio/Vi and is NOT
 /// VoIP. Twilio credentials live only on the server.
+///
+/// SECURITY: this check is **advisory by construction**. The client calls the
+/// function and then separately calls Firebase Auth, so a repackaged APK can
+/// simply skip it. Treat it as a UX filter that gives the user a clear message
+/// before an OTP is burned — not as an access control.
+///
+/// Real enforcement moves server-side in Phase 1: the API re-runs Twilio Lookup
+/// on the phone number inside the verified Firebase ID token before minting a
+/// MiDoctor session, and Firebase App Check (Play Integrity / App Attest)
+/// becomes the actual anti-abuse control. This class is deleted at that point.
 class CarrierService {
   final FirebaseFunctions _functions;
 
@@ -36,12 +47,22 @@ class CarrierService {
         reason: data['reason'] as String?,
       );
     } on FirebaseFunctionsException catch (e) {
-      // Cloud Function not deployed yet (e.g. Twilio/Blaze not set up):
-      // degrade to "unverified" rather than blocking sign-in entirely.
+      // Function not deployed (e.g. Twilio/Blaze not set up yet).
+      //
+      // In debug this degrades to "unverified" so the app is usable without a
+      // deployed backend. In release it fails CLOSED: a healthcare app must not
+      // silently drop a fraud control because a dependency is missing, and an
+      // undeployed function in production is an outage, not a pass.
       if (e.code == 'not-found') {
+        if (kDebugMode) {
+          return const CarrierResult(
+            ok: true,
+            reason: 'Carrier not verified (server check unavailable, debug).',
+          );
+        }
         return const CarrierResult(
-          ok: true,
-          reason: 'Carrier not verified (server check unavailable).',
+          ok: false,
+          reason: 'Verification is temporarily unavailable. Please try again.',
         );
       }
       return CarrierResult(ok: false, reason: e.message ?? 'Lookup failed');

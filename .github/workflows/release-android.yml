@@ -1,0 +1,125 @@
+name: Release Android
+
+# Tag-driven, because a release is a deliberate act and a push to main is not.
+#   git tag v0.2.0 && git push origin v0.2.0
+#
+# `workflow_dispatch` is kept for dry runs: it produces the same artifact
+# without needing a tag, which is how you check the signing config works before
+# you have anything to release.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: release-android-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: "3.44.4"
+
+jobs:
+  bundle:
+    name: Build signed App Bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # The real Firebase config is gitignored. A release build needs the
+      # genuine article, not the CI stub the other workflows use — a stub would
+      # produce an installable bundle that cannot reach Firebase at all.
+      - name: Restore Firebase config
+        env:
+          FIREBASE_OPTIONS_DART: ${{ secrets.FIREBASE_OPTIONS_DART }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$FIREBASE_OPTIONS_DART" ] || [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::FIREBASE_OPTIONS_DART and GOOGLE_SERVICES_JSON secrets are required."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_OPTIONS_DART" | base64 -d > lib/firebase_options.dart
+          printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+
+      # Release builds fail closed without this — deliberately. See
+      # android/app/build.gradle.kts.
+      - name: Restore upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 secret is required to sign a release."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=../upload-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - run: flutter pub get
+
+      - name: Verify the tag matches pubspec
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          PUBSPEC=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          if [ "$TAG" != "$PUBSPEC" ]; then
+            echo "::error::Tag v$TAG does not match pubspec version $PUBSPEC."
+            exit 1
+          fi
+
+      - run: flutter analyze --fatal-infos
+      - run: flutter test
+
+      # The App Bundle, never the universal APK: Play delivers only the matching
+      # ABI, which takes a ~97 MB install down to roughly 40 MB. On Indian
+      # mobile data that difference converts directly into installs.
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+
+      - name: Check it is really signed
+        run: |
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          test -f "$AAB" || { echo "::error::No bundle produced."; exit 1; }
+          # A debug-signed artifact must never leave this job.
+          if unzip -p "$AAB" META-INF/*.RSA 2>/dev/null | keytool -printcert 2>/dev/null | grep -qi "Android Debug"; then
+            echo "::error::Bundle is debug-signed. Refusing to publish."
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      # R8 obfuscates the release build, so a stack trace from Play is
+      # unreadable without this file. Keeping it with the artifact is what makes
+      # a production crash diagnosable later.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r8-mapping
+          path: build/app/outputs/mapping/release/mapping.txt
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Remove signing material
+        if: always()
+        run: rm -f android/upload-keystore.jks android/key.properties

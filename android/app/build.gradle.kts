@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -7,9 +9,29 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing material lives in android/key.properties, which is gitignored.
+// See android/key.properties.example for the expected keys.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+val hasReleaseSigning = keystorePropertiesFile.exists()
+
+// Escape hatch for `flutter run --release` on a dev machine that has no keystore.
+// Must be passed explicitly, so a debug-signed artifact can never be produced by
+// accident: ./gradlew assembleRelease -PallowDebugSigning=true
+val allowDebugSigning = (project.findProperty("allowDebugSigning") as String?) == "true"
+
 android {
+    // TODO(phase-0): rename to "in.midoctor.app" at the same time as creating the
+    // fresh midoctor-prod Firebase project. Changing it before then breaks the
+    // google-services plugin, which matches on package name, and requires moving
+    // the MainActivity Kotlin package. Android applicationIds are immutable once
+    // published to Play, so this must happen before the first release.
     namespace = "com.healthcare.healthcare_mobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -18,22 +40,70 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.healthcare.healthcare_mobile"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // firebase_auth requires 23; 24 is the practical floor and covers >99% of
+        // the Indian Android install base.
+        minSdk = 24
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // NOTE: this block is evaluated during Gradle's configuration phase for
+            // EVERY task, including assembleDebug. Never throw from here — the
+            // missing-keystore check lives in the taskGraph hook below so that
+            // debug builds keep working on machines with no signing material.
+            signingConfig = when {
+                hasReleaseSigning -> signingConfigs.getByName("release")
+                allowDebugSigning -> signingConfigs.getByName("debug")
+                // Deliberately unsigned. The taskGraph guard fails the build before
+                // this can produce an artifact.
+                else -> null
+            }
+
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
+    }
+}
+
+// Fail only when a release artifact is actually being assembled, so that a
+// missing keystore never silently yields a debug-signed or unsigned release,
+// while `assembleDebug` remains unaffected.
+gradle.taskGraph.whenReady {
+    val buildingRelease = allTasks.any { task ->
+        task.name.contains("Release") &&
+            listOf("assemble", "bundle", "package", "install").any { task.name.startsWith(it) }
+    }
+    if (buildingRelease && !hasReleaseSigning && !allowDebugSigning) {
+        throw GradleException(
+            "No release signing config found.\n" +
+                "Create android/key.properties (see key.properties.example), " +
+                "or pass -PallowDebugSigning=true for a local-only build."
+        )
+    }
+    if (buildingRelease && !hasReleaseSigning && allowDebugSigning) {
+        logger.warn(
+            "WARNING: signing release build with the DEBUG keystore because " +
+                "-PallowDebugSigning=true was passed. Never distribute this artifact."
+        )
     }
 }
 

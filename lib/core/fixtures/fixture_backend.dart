@@ -1,0 +1,806 @@
+import 'dart:async';
+import 'dart:math';
+
+import '../../features/appointments/domain/appointment.dart';
+import '../../features/availability/domain/availability.dart';
+import '../../features/consent/domain/consent.dart';
+import '../../features/credentials/domain/credential.dart';
+import '../../features/prescriptions/domain/prescription.dart';
+import '../../features/providers_search/data/doctor_fixtures.dart';
+import '../../features/providers_search/domain/doctor.dart';
+import '../../features/ratings/domain/rating.dart';
+import '../../features/records/domain/medical_record.dart';
+import '../../features/settings/domain/patient_profile.dart';
+import '../../features/support/domain/support_ticket.dart';
+import '../error/failure.dart';
+import 'fixture_seed.dart';
+import 'provider_application.dart';
+
+/// One in-memory backend behind every fixture repository.
+///
+/// The fixtures used to be independent: booking an appointment returned an
+/// `Appointment` that the appointments list had never heard of, an uploaded
+/// record stayed "checking…" forever because nothing ever finished the scan,
+/// and a prescription written by a doctor never reached the patient who was
+/// prescribed it. Each screen demoed correctly and the product did not work.
+///
+/// This is the thing that makes it work: a single store with the same
+/// cross-feature consequences the server has. Book and it appears in your
+/// appointments; complete a consultation and you can rate it; grant consent and
+/// the doctor's patient list changes; submit credentials and an application
+/// shows up in the operator console's queue.
+///
+/// It is deliberately *not* a mock in the test-double sense. It enforces the
+/// same rules — slot exclusivity, consent expiry, the 14-day rating window, the
+/// MoHFW drug lists, the verification gate — because a fixture that accepts
+/// what the server rejects teaches the UI the wrong lessons.
+class FixtureBackend {
+  FixtureBackend._();
+
+  /// The instance the app uses.
+  ///
+  /// Shared rather than per-repository, which is the entire point: two
+  /// repositories holding separate copies of "the appointments" is how the
+  /// old fixtures drifted.
+  static FixtureBackend shared = FixtureBackend._().._seed();
+
+  /// Fresh state, for tests that must not see each other's writes.
+  static FixtureBackend fresh() => FixtureBackend._().._seed();
+
+  /// Restores the shared instance to its seeded state.
+  static void resetShared() => shared = fresh();
+
+  final _random = Random();
+
+  // --- collections ---------------------------------------------------------
+
+  final List<Appointment> _appointments = [];
+  final List<MedicalRecord> _records = [];
+  final List<Prescription> _prescriptions = [];
+  final List<RecordAccessGrant> _grants = [];
+  final List<RecordAccessRequest> _requests = [];
+  final List<RecordAccessEvent> _accessLog = [];
+  final List<Rating> _ratings = [];
+  final List<SupportTicket> _tickets = [];
+  final List<AvailabilityRule> _rules = [];
+  final List<AvailabilityException> _exceptions = [];
+  final List<ProviderApplicationRecord> _applications = [];
+
+  /// Slot ids that are booked or held, mapped to when a hold lapses.
+  ///
+  /// The same deterministic id the server uses (`<doctorId>__<startMillis>`),
+  /// so the fixture reproduces the real no-double-booking behaviour rather than
+  /// approximating it.
+  final Map<String, DateTime?> _slotLocks = {};
+
+  late PatientProfile _profile;
+  late VerificationChecklist _checklist;
+
+  /// Consultations that have captured telemedicine consent.
+  final Set<String> _consentCaptured = {};
+
+  /// Pending scans, so an upload can finish asynchronously the way a real one
+  /// does rather than being instantly readable.
+  final Map<String, Timer> _scans = {};
+
+  // --- seeding -------------------------------------------------------------
+
+  void _seed() {
+    _profile = FixtureSeed.profile();
+    _checklist = FixtureSeed.checklist();
+    _appointments.addAll(FixtureSeed.appointments());
+    _records.addAll(FixtureSeed.records());
+    _prescriptions.addAll(FixtureSeed.prescriptions());
+    _grants.addAll(FixtureSeed.grants());
+    _requests.addAll(FixtureSeed.requests());
+    _accessLog.addAll(FixtureSeed.accessLog());
+    _ratings.addAll(FixtureSeed.ratings());
+    _tickets.addAll(FixtureSeed.tickets());
+    _rules.addAll(FixtureSeed.availabilityRules());
+    _applications.addAll(FixtureSeed.applications());
+
+    // Every seeded appointment already owns its slot.
+    for (final a in _appointments) {
+      if (a.status.isUpcoming) _slotLocks[slotId(a.doctor.id, a.start)] = null;
+    }
+  }
+
+  /// Cancels outstanding timers. Called when the app's provider scope disposes.
+  void dispose() {
+    for (final timer in _scans.values) {
+      timer.cancel();
+    }
+    _scans.clear();
+  }
+
+  // --- doctors -------------------------------------------------------------
+
+  List<Doctor> get doctors => List.unmodifiable(DoctorFixtures.all);
+
+  Doctor doctorById(String id) => DoctorFixtures.byId(id);
+
+  // --- slots and booking ---------------------------------------------------
+
+  static String slotId(String doctorId, DateTime start) =>
+      '${doctorId}__${start.millisecondsSinceEpoch}';
+
+  bool isSlotTaken(String id) {
+    if (!_slotLocks.containsKey(id)) return false;
+    final holdExpiry = _slotLocks[id];
+    // A booking has no expiry; an abandoned hold releases itself, exactly as
+    // the server treats a lapsed `holdExpiresAt`.
+    if (holdExpiry == null) return true;
+    if (holdExpiry.isAfter(DateTime.now())) return true;
+    _slotLocks.remove(id);
+    return false;
+  }
+
+  void holdSlot(String id, Duration duration) {
+    if (isSlotTaken(id)) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'Someone is booking this slot right now.',
+        code: 'SLOT_TAKEN',
+      );
+    }
+    _slotLocks[id] = DateTime.now().add(duration);
+  }
+
+  void releaseSlot(String id) {
+    if (_slotLocks[id] != null) _slotLocks.remove(id);
+  }
+
+  /// Books a slot and files the appointment where the patient will look for it.
+  Appointment book({
+    required Doctor doctor,
+    required DateTime start,
+    required DateTime end,
+    required ConsultationMode mode,
+    required String patientName,
+    String? reasonForVisit,
+  }) {
+    final id = slotId(doctor.id, start);
+    final holdExpiry = _slotLocks[id];
+    final heldByUs = holdExpiry != null && holdExpiry.isAfter(DateTime.now());
+
+    if (!heldByUs && isSlotTaken(id)) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'That time was just booked by someone else.',
+        code: 'SLOT_TAKEN',
+      );
+    }
+
+    // null expiry = booked, not merely held.
+    _slotLocks[id] = null;
+
+    final appointmentId = 'a-${_nextId()}';
+    final appointment = Appointment(
+      id: appointmentId,
+      referenceCode: _reference(),
+      doctor: doctor,
+      patientName: patientName,
+      start: start,
+      end: end,
+      mode: mode,
+      status: AppointmentStatus.confirmed,
+      paymentStatus: PaymentStatus.notRequired,
+      feeInr: doctor.feeFor(mode),
+      reasonForVisit: reasonForVisit,
+      consultationId: mode == ConsultationMode.inPerson ? null : appointmentId,
+    );
+
+    _appointments.insert(0, appointment);
+    return appointment;
+  }
+
+  // --- appointments --------------------------------------------------------
+
+  List<Appointment> appointments() {
+    final sorted = [..._appointments]
+      ..sort((a, b) => b.start.compareTo(a.start));
+    return List.unmodifiable(sorted);
+  }
+
+  Appointment appointmentById(String id) => _appointments.firstWhere(
+        (a) => a.id == id,
+        orElse: () => throw const Failure(
+          kind: FailureKind.notFound,
+          message: 'That appointment no longer exists.',
+          code: 'APPOINTMENT_NOT_FOUND',
+        ),
+      );
+
+  Appointment cancelAppointment(String id, {String? reason}) {
+    final existing = appointmentById(id);
+    if (!existing.canCancel) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'This appointment can no longer be cancelled.',
+        code: 'CANCELLATION_WINDOW_CLOSED',
+      );
+    }
+
+    final updated = existing.copyWith(
+      status: AppointmentStatus.cancelledByPatient,
+      cancellationReason: reason,
+    );
+    _replaceAppointment(updated);
+    // The slot goes back into the pool, which is what makes a cancellation
+    // useful to the next patient rather than merely to this one.
+    _slotLocks.remove(slotId(existing.doctor.id, existing.start));
+    return updated;
+  }
+
+  Appointment checkIn(String id) {
+    final updated =
+        appointmentById(id).copyWith(status: AppointmentStatus.checkedIn);
+    _replaceAppointment(updated);
+    return updated;
+  }
+
+  void _replaceAppointment(Appointment updated) {
+    final index = _appointments.indexWhere((a) => a.id == updated.id);
+    if (index >= 0) _appointments[index] = updated;
+  }
+
+  // --- records -------------------------------------------------------------
+
+  List<MedicalRecord> records() {
+    final sorted = [..._records]
+      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    return List.unmodifiable(sorted);
+  }
+
+  /// Records a provider may read, resolved against a live grant.
+  ///
+  /// The intersection is computed here rather than returning everything,
+  /// because the whole point of the consent model is that a provider's view is
+  /// narrower than the patient's.
+  List<MedicalRecord> recordsVisibleTo(String providerId) {
+    final grant = activeGrantFor(providerId);
+    if (grant == null) {
+      _accessLog.insert(
+        0,
+        RecordAccessEvent(
+          id: 'ev-${_nextId()}',
+          actorName: _providerName(providerId),
+          recordTitle: 'All records',
+          action: AccessAction.denied,
+          at: DateTime.now(),
+        ),
+      );
+      throw const Failure(
+        kind: FailureKind.forbidden,
+        message: 'You do not have access to these records.',
+        code: 'NO_CONSENT',
+      );
+    }
+
+    final visible = _records
+        .where((r) => r.isReadable && _grantCovers(grant, r))
+        .toList(growable: false);
+
+    _accessLog.insert(
+      0,
+      RecordAccessEvent(
+        id: 'ev-${_nextId()}',
+        actorName: grant.providerName,
+        recordTitle: '${visible.length} record(s)',
+        action: AccessAction.viewMetadata,
+        purpose: grant.purpose,
+        at: DateTime.now(),
+      ),
+    );
+    _noteGrantUse(grant.id);
+
+    return List.unmodifiable(visible);
+  }
+
+  bool _grantCovers(RecordAccessGrant grant, MedicalRecord record) =>
+      switch (grant.scopeKind) {
+        ConsentScopeKind.allRecords => true,
+        ConsentScopeKind.specificRecords => grant.recordIds.contains(record.id),
+        ConsentScopeKind.recordTypes =>
+          grant.recordTypeLabels.contains(record.type.label),
+      };
+
+  /// Adds a record and schedules the scan that makes it readable.
+  ///
+  /// The delay is the honest part: on the real system an upload lands in
+  /// quarantine and a trigger promotes it, so a record genuinely is not
+  /// readable for a moment. A fixture that returned `clean` immediately would
+  /// hide the one state the UI most needs to handle.
+  MedicalRecord addRecord({
+    required String title,
+    required RecordType type,
+    required DateTime recordedAt,
+    required String fileName,
+    required int sizeBytes,
+    required String contentType,
+    String? notes,
+    Duration scanDuration = const Duration(seconds: 3),
+  }) {
+    if (sizeBytes > 25 * 1024 * 1024) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Files must be smaller than 25 MB.',
+        code: 'FILE_TOO_LARGE',
+      );
+    }
+
+    final record = MedicalRecord(
+      id: 'r-${_nextId()}',
+      title: title,
+      type: type,
+      source: RecordSource.patient,
+      recordedAt: recordedAt,
+      uploadedAt: DateTime.now(),
+      scanStatus: ScanStatus.pending,
+      sizeBytes: sizeBytes,
+      contentType: contentType,
+      notes: notes,
+    );
+
+    _records.insert(0, record);
+    _scheduleScan(record.id, scanDuration);
+    return record;
+  }
+
+  void _scheduleScan(String recordId, Duration after) {
+    if (after == Duration.zero) {
+      _completeScan(recordId);
+      return;
+    }
+    _scans[recordId] = Timer(after, () {
+      _scans.remove(recordId);
+      _completeScan(recordId);
+    });
+  }
+
+  void _completeScan(String recordId) {
+    final index = _records.indexWhere((r) => r.id == recordId);
+    if (index < 0) return;
+    _records[index] = _records[index].copyWith(scanStatus: ScanStatus.clean);
+  }
+
+  void deleteRecord(String id) {
+    _scans.remove(id)?.cancel();
+    _records.removeWhere((r) => r.id == id);
+    // Nothing can be shared that no longer exists.
+    for (var i = 0; i < _grants.length; i++) {
+      final g = _grants[i];
+      if (g.recordIds.contains(id)) {
+        _grants[i] = g.copyWith(
+          recordIds: [...g.recordIds]..remove(id),
+        );
+      }
+    }
+  }
+
+  MedicalRecord recordById(String id) => _records.firstWhere(
+        (r) => r.id == id,
+        orElse: () => throw const Failure(
+          kind: FailureKind.notFound,
+          message: 'That record is no longer available.',
+          code: 'RECORD_NOT_FOUND',
+        ),
+      );
+
+  // --- consent -------------------------------------------------------------
+
+  List<RecordAccessGrant> grants() {
+    final sorted = [..._grants]
+      ..sort((a, b) => b.grantedAt.compareTo(a.grantedAt));
+    return List.unmodifiable(sorted);
+  }
+
+  List<RecordAccessRequest> pendingRequests() => List.unmodifiable(
+        _requests.where((r) => r.status == AccessRequestStatus.pending),
+      );
+
+  List<RecordAccessEvent> accessLog() => List.unmodifiable(_accessLog);
+
+  RecordAccessGrant? activeGrantFor(String providerId) {
+    final live =
+        _grants.where((g) => g.providerId == providerId && g.isActive).toList();
+    if (live.isEmpty) return null;
+
+    // Narrowest wins, so a later broad grant does not silently widen an earlier
+    // consultation's reach.
+    const rank = <ConsentScopeKind, int>{
+      ConsentScopeKind.specificRecords: 0,
+      ConsentScopeKind.recordTypes: 1,
+      ConsentScopeKind.allRecords: 2,
+    };
+    live.sort((a, b) => rank[a.scopeKind]!.compareTo(rank[b.scopeKind]!));
+    return live.first;
+  }
+
+  RecordAccessGrant addGrant(RecordAccessGrant grant) {
+    _grants.insert(0, grant);
+    _accessLog.insert(
+      0,
+      RecordAccessEvent(
+        id: 'ev-${_nextId()}',
+        actorName: 'You',
+        recordTitle: 'Access granted to ${grant.providerName}',
+        action: AccessAction.viewMetadata,
+        purpose: grant.purpose,
+        at: DateTime.now(),
+      ),
+    );
+    return grant;
+  }
+
+  void revokeGrant(String id) {
+    final index = _grants.indexWhere((g) => g.id == id);
+    if (index < 0) return;
+    final revoked = _grants[index].copyWith(revokedAt: DateTime.now());
+    _grants[index] = revoked;
+    _accessLog.insert(
+      0,
+      RecordAccessEvent(
+        id: 'ev-${_nextId()}',
+        actorName: 'You',
+        recordTitle: 'Access revoked for ${revoked.providerName}',
+        action: AccessAction.viewMetadata,
+        at: DateTime.now(),
+      ),
+    );
+  }
+
+  void resolveRequest(String id, {required bool approved}) {
+    final index = _requests.indexWhere((r) => r.id == id);
+    if (index < 0) return;
+    _requests[index] = _requests[index].copyWith(
+      status:
+          approved ? AccessRequestStatus.approved : AccessRequestStatus.denied,
+    );
+  }
+
+  RecordAccessRequest requestById(String id) =>
+      _requests.firstWhere((r) => r.id == id);
+
+  void _noteGrantUse(String id) {
+    final index = _grants.indexWhere((g) => g.id == id);
+    if (index < 0) return;
+    _grants[index] =
+        _grants[index].copyWith(usesCount: _grants[index].usesCount + 1);
+  }
+
+  String _providerName(String providerId) {
+    try {
+      return doctorById(providerId).name;
+    } catch (_) {
+      return 'A provider';
+    }
+  }
+
+  // --- prescriptions -------------------------------------------------------
+
+  List<Prescription> prescriptions() {
+    final sorted = [..._prescriptions]
+      ..sort((a, b) => b.issuedAt.compareTo(a.issuedAt));
+    return List.unmodifiable(sorted);
+  }
+
+  Prescription prescriptionById(String id) => _prescriptions.firstWhere(
+        (p) => p.id == id,
+        orElse: () => throw const Failure(
+          kind: FailureKind.notFound,
+          message: 'That prescription is no longer available.',
+          code: 'PRESCRIPTION_NOT_FOUND',
+        ),
+      );
+
+  /// Issues a prescription and marks the appointment it came from.
+  Prescription issuePrescription(Prescription prescription,
+      {String? appointmentId}) {
+    _prescriptions.insert(0, prescription);
+
+    if (appointmentId != null) {
+      final index = _appointments.indexWhere((a) => a.id == appointmentId);
+      if (index >= 0) {
+        _appointments[index] =
+            _appointments[index].copyWith(hasPrescription: true);
+      }
+    }
+    return prescription;
+  }
+
+  // --- ratings -------------------------------------------------------------
+
+  List<Rating> ratings() {
+    final sorted = [..._ratings]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return List.unmodifiable(sorted);
+  }
+
+  Rating addRating(Rating rating) {
+    if (rating.stars < 1 || rating.stars > 5) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Choose between one and five stars.',
+        code: 'INVALID_RATING',
+      );
+    }
+    if (_ratings.any((r) => r.appointmentId == rating.appointmentId)) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'You have already rated this consultation.',
+        code: 'ALREADY_RATED',
+      );
+    }
+    _ratings.insert(0, rating);
+
+    final index = _appointments.indexWhere((a) => a.id == rating.appointmentId);
+    if (index >= 0) {
+      _appointments[index] = _appointments[index].copyWith(hasRating: true);
+    }
+    return rating;
+  }
+
+  Rating editRating(String id, {required int stars, String? comment}) {
+    final index = _ratings.indexWhere((r) => r.id == id);
+    if (index < 0) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That rating no longer exists.',
+        code: 'RATING_NOT_FOUND',
+      );
+    }
+    if (!_ratings[index].canEdit) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'Ratings can only be changed within 14 days.',
+        code: 'EDIT_WINDOW_CLOSED',
+      );
+    }
+
+    // An edited rating re-enters moderation, or the queue is trivially
+    // bypassed: submit something bland, wait, rewrite.
+    final updated = _ratings[index].copyWith(
+      stars: stars,
+      comment: comment,
+      editedAt: DateTime.now(),
+      status: RatingStatus.pendingModeration,
+    );
+    _ratings[index] = updated;
+    return updated;
+  }
+
+  List<Rating> pendingRatings() => List.unmodifiable(
+        _ratings.where((r) => r.status == RatingStatus.pendingModeration),
+      );
+
+  void moderateRating(String id, RatingStatus status) {
+    final index = _ratings.indexWhere((r) => r.id == id);
+    if (index >= 0) _ratings[index] = _ratings[index].copyWith(status: status);
+  }
+
+  // --- support -------------------------------------------------------------
+
+  List<SupportTicket> tickets() {
+    final sorted = [..._tickets]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return List.unmodifiable(sorted);
+  }
+
+  SupportTicket ticketById(String id) => _tickets.firstWhere(
+        (t) => t.id == id,
+        orElse: () => throw const Failure(
+          kind: FailureKind.notFound,
+          message: 'That ticket no longer exists.',
+          code: 'TICKET_NOT_FOUND',
+        ),
+      );
+
+  SupportTicket addTicket(SupportTicket ticket) {
+    _tickets.insert(0, ticket);
+    return ticket;
+  }
+
+  SupportTicket appendMessage(String ticketId, TicketMessage message) {
+    final index = _tickets.indexWhere((t) => t.id == ticketId);
+    if (index < 0) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That ticket no longer exists.',
+        code: 'TICKET_NOT_FOUND',
+      );
+    }
+
+    final ticket = _tickets[index];
+    final updated = ticket.copyWith(
+      messages: [...ticket.messages, message],
+      updatedAt: DateTime.now(),
+      // A support reply picks the ticket up; a user reply reopens it.
+      status: message.isFromSupport
+          ? TicketStatus.assigned
+          : (ticket.status == TicketStatus.closed
+              ? TicketStatus.open
+              : ticket.status),
+    );
+    _tickets[index] = updated;
+    return updated;
+  }
+
+  SupportTicket setTicketStatus(String id, TicketStatus status) {
+    final index = _tickets.indexWhere((t) => t.id == id);
+    if (index < 0) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That ticket no longer exists.',
+        code: 'TICKET_NOT_FOUND',
+      );
+    }
+    final updated =
+        _tickets[index].copyWith(status: status, updatedAt: DateTime.now());
+    _tickets[index] = updated;
+    return updated;
+  }
+
+  // --- availability --------------------------------------------------------
+
+  List<AvailabilityRule> rules() => List.unmodifiable(_rules);
+  List<AvailabilityException> exceptions() => List.unmodifiable(_exceptions);
+
+  AvailabilityRule addRule(AvailabilityRule rule) {
+    if (!rule.isValid) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'The end time must be after the start time.',
+        code: 'INVALID_TIME_RANGE',
+      );
+    }
+
+    final clash = _rules.any(
+      (r) =>
+          r.isActive &&
+          r.weekday == rule.weekday &&
+          r.mode == rule.mode &&
+          rule.start.totalMinutes < r.end.totalMinutes &&
+          rule.end.totalMinutes > r.start.totalMinutes,
+    );
+    if (clash) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'That overlaps hours you have already set for this day.',
+        code: 'OVERLAPPING_AVAILABILITY',
+      );
+    }
+    _rules.add(rule);
+    return rule;
+  }
+
+  void deleteRule(String id) => _rules.removeWhere((r) => r.id == id);
+
+  AvailabilityRule toggleRule(String id, {required bool active}) {
+    final index = _rules.indexWhere((r) => r.id == id);
+    if (index < 0) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'Those hours no longer exist.',
+        code: 'RULE_NOT_FOUND',
+      );
+    }
+    final updated = _rules[index].copyWith(isActive: active);
+    _rules[index] = updated;
+    return updated;
+  }
+
+  AvailabilityException blockDay(AvailabilityException exception) {
+    _exceptions.add(exception);
+    return exception;
+  }
+
+  void deleteException(String id) => _exceptions.removeWhere((e) => e.id == id);
+
+  /// Whether a doctor has blocked a calendar day.
+  ///
+  /// Consulted by slot generation, so a blocked day genuinely produces no
+  /// slots — the bug the real backend had until this rule was wired in.
+  bool isDayBlocked(DateTime day) => _exceptions.any(
+        (e) =>
+            e.isBlocked &&
+            e.date.year == day.year &&
+            e.date.month == day.month &&
+            e.date.day == day.day,
+      );
+
+  // --- consultation --------------------------------------------------------
+
+  bool hasConsent(String consultationId) =>
+      _consentCaptured.contains(consultationId);
+
+  void captureConsent(String consultationId) =>
+      _consentCaptured.add(consultationId);
+
+  // --- profile -------------------------------------------------------------
+
+  PatientProfile profile() => _profile;
+
+  PatientProfile updateProfile(PatientProfileDraft draft) {
+    _profile = _profile.withDraft(draft);
+    return _profile;
+  }
+
+  // --- credentials and provider verification -------------------------------
+
+  VerificationChecklist checklist() => _checklist;
+
+  VerificationChecklist updateChecklist(VerificationChecklist checklist) {
+    _checklist = checklist;
+    return _checklist;
+  }
+
+  /// Files a verification application so it appears in the operator console.
+  ///
+  /// This is the join that makes the two apps one product in fixture mode: a
+  /// doctor submitting on their phone shows up in a reviewer's queue on the web.
+  void submitForReview({
+    required String userId,
+    required String displayName,
+    String? email,
+  }) {
+    _applications.removeWhere((a) => a.userId == userId);
+    _applications.insert(
+      0,
+      ProviderApplicationRecord(
+        userId: userId,
+        displayName: displayName,
+        email: email,
+        registrationNumber: _checklist.registrationNumber,
+        mfaEnrolled: _checklist.mfaEnrolled,
+        submittedAt: DateTime.now(),
+        status: ProviderApplicationStatus.submitted,
+        documents: _checklist.credentials
+            .map(
+              (c) => ProviderApplicationDocument(
+                id: '$userId-${c.kind.wire}',
+                kind: c.kind,
+                status: c.status,
+                fileName: c.fileName,
+                uploadedAt: c.uploadedAt ?? DateTime.now(),
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  List<ProviderApplicationRecord> applications() =>
+      List.unmodifiable(_applications);
+
+  ProviderApplicationRecord applicationById(String userId) =>
+      _applications.firstWhere(
+        (a) => a.userId == userId,
+        orElse: () => throw const Failure(
+          kind: FailureKind.notFound,
+          message: 'No such application.',
+          code: 'APPLICATION_NOT_FOUND',
+        ),
+      );
+
+  void updateApplication(ProviderApplicationRecord updated) {
+    final index = _applications.indexWhere((a) => a.userId == updated.userId);
+    if (index >= 0) _applications[index] = updated;
+  }
+
+  // --- helpers -------------------------------------------------------------
+
+  int _counter = 0;
+  String _nextId() => '${DateTime.now().millisecondsSinceEpoch}-${_counter++}';
+
+  /// Human-quotable reference, e.g. MD-8K2P4Q. Excludes easily confused
+  /// characters so it survives being read out over a phone call.
+  String _reference() {
+    const alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    final code = List.generate(
+      6,
+      (_) => alphabet[_random.nextInt(alphabet.length)],
+    ).join();
+    return 'MD-$code';
+  }
+}

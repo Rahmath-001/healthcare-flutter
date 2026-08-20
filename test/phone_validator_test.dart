@@ -19,8 +19,7 @@ void main() {
       expect(PhoneValidator.normalizeNational('09876543210'), '9876543210');
     });
     test('strips spaces and dashes', () {
-      expect(
-          PhoneValidator.normalizeNational('+91 98765-43210'), '9876543210');
+      expect(PhoneValidator.normalizeNational('+91 98765-43210'), '9876543210');
     });
   });
 

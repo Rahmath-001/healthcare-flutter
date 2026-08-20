@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext HTTP is disabled everywhere. All traffic goes to Firebase and, from
+  Phase 1, the MiDoctor API over TLS. There is no exception domain on purpose:
+  this app carries health data and must never fall back to plaintext.
+
+  Certificate pinning is deliberately NOT configured here. It lands in Phase 0/1
+  in the Dio client instead, where it can carry a backup pin and a Remote Config
+  kill-switch — a pin baked into the manifest cannot be rotated without shipping
+  a new build, which would brick the installed fleet on certificate renewal.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Debug builds additionally trust user-installed CAs so a proxy (Charles,
+         mitmproxy) can be used during development. This block is ignored in
+         release builds. -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

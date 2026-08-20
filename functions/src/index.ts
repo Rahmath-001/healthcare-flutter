@@ -1,5 +1,79 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { initializeApp } from "firebase-admin/app";
 import { defineSecret } from "firebase-functions/params";
+import { onRequest } from "firebase-functions/v2/https";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
+
+import { buildApp } from "./api/app";
+
+export { inspectUpload } from "./inspect_upload";
+export { completeErasures, sweepNightly, sweepShortLived } from "./maintenance";
+
+initializeApp();
+
+/**
+ * Signing key for MiDoctor access tokens. Set with:
+ *   firebase functions:secrets:set JWT_SECRET
+ *
+ * Rotating it invalidates every access token immediately — which is the
+ * emergency lever, since refresh tokens live in Firestore and can be revoked
+ * separately. Generate at least 32 random bytes; a guessable value here lets
+ * anyone mint an admin token.
+ */
+const JWT_SECRET = defineSecret("JWT_SECRET");
+
+/**
+ * 100ms credentials for minting consultation join tokens.
+ *
+ * Server-only, and that is the whole point: the app secret signs a token that
+ * authorises joining a room, so shipping it in the client would let anyone sit
+ * in on any consultation. Set with:
+ *   firebase functions:secrets:set HMS_APP_ACCESS_KEY
+ *   firebase functions:secrets:set HMS_APP_SECRET
+ *
+ * Absent, video consultations fail with a clear message rather than a
+ * signature error nobody can act on.
+ */
+const HMS_APP_ACCESS_KEY = defineSecret("HMS_APP_ACCESS_KEY");
+const HMS_APP_SECRET = defineSecret("HMS_APP_SECRET");
+
+/**
+ * The MiDoctor API.
+ *
+ * asia-south1 (Mumbai): domain data stays India-resident, and RTT from Indian
+ * mobile networks is a fraction of a US or EU region's.
+ *
+ * Point the client at it with:
+ *   --dart-define=API_BASE_URL=https://asia-south1-<project>.cloudfunctions.net/api
+ *   --dart-define=USE_FIXTURES=false
+ */
+function optionalSecret(param: { value: () => string }): string | undefined {
+  try {
+    return param.value() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export const api = onRequest(
+  {
+    region: "asia-south1",
+    secrets: [JWT_SECRET, HMS_APP_ACCESS_KEY, HMS_APP_SECRET],
+    // India's mobile networks are slow rather than absent; a request that has
+    // reached us deserves room to finish.
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    // Cold starts on an auth endpoint are felt directly at the sign-in button.
+    minInstances: 0,
+    maxInstances: 20,
+  },
+  buildApp({
+    secret: () => JWT_SECRET.value(),
+    // `value()` throws if the secret was never set, so an unconfigured
+    // deployment must degrade to undefined rather than take the API down.
+    hmsAccessKey: () => optionalSecret(HMS_APP_ACCESS_KEY),
+    hmsSecret: () => optionalSecret(HMS_APP_SECRET),
+  })
+);
 
 // Twilio creds live only on the server. Set with:
 //   firebase functions:secrets:set TWILIO_SID

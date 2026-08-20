@@ -1,0 +1,45 @@
+name: Cloud Functions
+
+on:
+  push:
+    branches: [main]
+    paths: ["functions/**", ".github/workflows/functions.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["functions/**", ".github/workflows/functions.yml"]
+
+concurrency:
+  group: functions-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          # Must match "engines.node" in functions/package.json.
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: functions/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build

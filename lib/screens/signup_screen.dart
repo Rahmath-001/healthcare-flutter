@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../services/auth_service.dart';
+import '../core/providers.dart';
+import '../core/router/routes.dart';
+import '../core/service_providers.dart';
+import '../l10n/l10n.dart';
 import '../utils/debouncer.dart';
-import '../utils/page_transitions.dart';
+import '../widgets/apple_button.dart';
 import '../widgets/google_button.dart';
 import '../widgets/primary_button.dart';
-import 'phone_input_screen.dart';
 
-class SignupScreen extends StatefulWidget {
+class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _nameCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final _debouncer = Debouncer();
   bool _googleLoading = false;
+  bool _appleLoading = false;
   bool? _nameValid;
 
   @override
@@ -46,7 +50,13 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _google() async {
     setState(() => _googleLoading = true);
     try {
-      await context.read<AuthService>().signInWithGoogle();
+      await ref.read(authServiceProvider).signInWithGoogle();
+      // Firebase proved who they are; this turns that into a session
+      // that says what they may do. Without it the router sees no
+      // session and bounces straight back to sign-in.
+      await ref
+          .read(sessionControllerProvider.notifier)
+          .completeFirebaseSignIn();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -57,10 +67,30 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
+  Future<void> _apple() async {
+    setState(() => _appleLoading = true);
+    try {
+      await ref.read(authServiceProvider).signInWithApple();
+      await ref
+          .read(sessionControllerProvider.notifier)
+          .completeFirebaseSignIn();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Apple sign-in failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _appleLoading = false);
+    }
+  }
+
   void _phone() {
     if (!_formKey.currentState!.validate()) return;
-    Navigator.of(context).push(
-      slideUpRoute(PhoneInputScreen(displayName: _nameCtrl.text.trim())),
+    context.push(
+      Uri(
+        path: Routes.phone,
+        queryParameters: {'name': _nameCtrl.text.trim()},
+      ).toString(),
     );
   }
 
@@ -75,7 +105,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
+      appBar: AppBar(title: Text(context.l10n.authCreateAccount)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -92,7 +122,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   controller: _nameCtrl,
                   textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
-                    labelText: 'Full name',
+                    labelText: context.l10n.editProfileFullName,
                     border: const OutlineInputBorder(),
                     suffixIcon: _nameSuffix,
                   ),
@@ -104,6 +134,16 @@ class _SignupScreenState extends State<SignupScreen> {
                 PrimaryButton(label: 'Continue with phone', onPressed: _phone),
                 const SizedBox(height: 14),
                 GoogleButton(onPressed: _google, loading: _googleLoading),
+                ...ref.watch(appleSignInAvailableProvider).maybeWhen(
+                      data: (available) => available
+                          ? [
+                              const SizedBox(height: 14),
+                              AppleButton(
+                                  onPressed: _apple, loading: _appleLoading),
+                            ]
+                          : const <Widget>[],
+                      orElse: () => const <Widget>[],
+                    ),
               ],
             ),
           ),

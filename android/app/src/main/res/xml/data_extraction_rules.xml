@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ backup/transfer rules. allowBackup is already false in the
+  manifest, so cloud backup is off entirely; these rules additionally govern
+  device-to-device transfer, which allowBackup does NOT cover.
+
+  Nothing this app stores may leave the device: tokens live in EncryptedSharedPreferences
+  and clinical data lives on the server. Exclude everything.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

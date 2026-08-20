@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/connectivity_service.dart';
+import '../core/service_providers.dart';
 
-class OfflineBanner extends StatelessWidget {
+class OfflineBanner extends ConsumerWidget {
   const OfflineBanner({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final online = context.watch<ConnectivityService>().isOnline;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Assume online until proven otherwise, so the banner never flashes during
+    // the first frame while connectivity is still being determined.
+    final online = ref.watch(isOnlineProvider).value ?? true;
+
     return AnimatedSlide(
       duration: const Duration(milliseconds: 300),
       offset: online ? const Offset(0, -1) : Offset.zero,

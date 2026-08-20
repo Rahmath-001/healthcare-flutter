@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// Deny everything, for the same reason firestore.rules does.
+//
+// The app never holds a Cloud Storage credential. Every upload and every
+// download goes through a short-lived v4 signed URL that the MiDoctor API mints
+// only after it has re-checked the caller's entitlement — ownership for a
+// patient, a live consent grant for a provider — and written the access log.
+//
+// Rules here could not express that check. Consent expiry, grant scope and the
+// quarantine gate all live in Firestore documents that a storage rule cannot
+// read, so anything written here would be a weaker second implementation of
+// authorization that has to agree with the real one forever.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

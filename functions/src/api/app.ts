@@ -1,0 +1,108 @@
+import cors from "cors";
+import express from "express";
+
+import { adminRoutes } from "./admin/routes";
+import { reviewRoutes } from "./admin/review_routes";
+import { appointmentRoutes } from "./appointments/routes";
+import { availabilityRoutes } from "./availability/routes";
+import { authRoutes, meRoutes } from "./auth/routes";
+import { appointmentCreateRoutes, bookingRoutes } from "./booking/routes";
+import { consentRoutes } from "./consent/routes";
+import { consultationRoutes } from "./consultations/routes";
+import { credentialRoutes } from "./credentials/routes";
+import { doctorRoutes } from "./doctors/routes";
+import { problemHandler, Problem, requestId } from "./errors";
+import {
+  prescriptionRoutes,
+  prescriptionVerifyRoutes,
+} from "./prescriptions/routes";
+import { providerRoutes } from "./provider/routes";
+import { ratingRoutes } from "./ratings/routes";
+import { recordRoutes } from "./records/routes";
+import { supportRoutes } from "./support/routes";
+
+/**
+ * The MiDoctor API.
+ *
+ * Express rather than callable functions, deliberately: the Flutter client is
+ * already built against a REST contract — `/v1/...` paths, `Bearer` tokens,
+ * RFC 9457 error bodies, a `TOKEN_STALE` refresh-and-replay interceptor. Using
+ * `onCall` would have meant rewriting `ApiClient`, `AuthInterceptor` and every
+ * repository to speak Firebase's envelope instead. This way the client is
+ * unchanged and the vendor stays swappable.
+ */
+export interface AppDependencies {
+  /** MiDoctor access-token signing key. */
+  secret: () => string;
+  /** 100ms credentials. Absent means video consultations are unconfigured. */
+  hmsAccessKey?: () => string | undefined;
+  hmsSecret?: () => string | undefined;
+}
+
+export function buildApp(deps: AppDependencies | (() => string)) {
+  // Accepts the original bare-secret form so existing callers and tests keep
+  // working while the dependency set grows.
+  const resolved: AppDependencies =
+    typeof deps === "function" ? { secret: deps } : deps;
+  const secret = resolved.secret;
+  const app = express();
+
+  app.disable("x-powered-by");
+  app.use(express.json({ limit: "1mb" }));
+  app.use(requestId);
+
+  // The mobile app is not a browser origin, so CORS exists only for the Flutter
+  // web build. Kept permissive on methods but explicit about headers.
+  app.use(
+    cors({
+      origin: true,
+      credentials: false,
+      allowedHeaders: ["Authorization", "Content-Type", "x-request-id"],
+      exposedHeaders: ["x-request-id", "retry-after"],
+    })
+  );
+
+  app.get("/v1/health", (_req, res) => res.json({ ok: true }));
+
+  app.use("/v1/auth", authRoutes(secret));
+  app.use("/v1/me", meRoutes(secret));
+  app.use("/v1/doctors", doctorRoutes(secret));
+  app.use("/v1/consent", consentRoutes(secret));
+  app.use("/v1/provider", providerRoutes(secret));
+  app.use("/v1/admin", adminRoutes(secret));
+  app.use("/v1/review", reviewRoutes(secret));
+  app.use("/v1/records", recordRoutes(secret));
+  app.use("/v1/availability", availabilityRoutes(secret));
+  app.use("/v1/credentials", credentialRoutes(secret));
+  app.use("/v1/ratings", ratingRoutes(secret));
+  app.use("/v1/support/tickets", supportRoutes(secret));
+  app.use("/v1/prescriptions", prescriptionRoutes(secret));
+  // Unauthenticated: a pharmacist verifying a QR code holds no token.
+  app.use("/v1/rx", prescriptionVerifyRoutes());
+  app.use(
+    "/v1/consultations",
+    consultationRoutes(
+      secret,
+      resolved.hmsAccessKey ?? (() => undefined),
+      resolved.hmsSecret ?? (() => undefined)
+    )
+  );
+
+  // Slot listing and holds span /v1/doctors/:id/slots and /v1/slots/:id/hold,
+  // so they mount at /v1. `doctorRoutes` above cannot swallow the slots path:
+  // its own `/:id` matches a single segment only.
+  app.use("/v1", bookingRoutes(secret));
+
+  // Two routers share this prefix, split by method rather than by path —
+  // creation lives with booking's transaction logic, everything else with the
+  // appointment lifecycle.
+  app.use("/v1/appointments", appointmentCreateRoutes(secret));
+  app.use("/v1/appointments", appointmentRoutes(secret));
+
+  app.use((_req, _res, next) => {
+    next(Problem.notFound("NO_ROUTE", "Not found."));
+  });
+  app.use(problemHandler);
+
+  return app;
+}

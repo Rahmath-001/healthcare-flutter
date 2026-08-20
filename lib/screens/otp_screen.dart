@@ -2,22 +2,23 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/auth_service.dart';
+import '../core/providers.dart';
+import '../core/service_providers.dart';
 import '../widgets/primary_button.dart';
 
-class OtpScreen extends StatefulWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   final String e164;
   final String? displayName;
 
   const OtpScreen({super.key, required this.e164, this.displayName});
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   final _ctrl = TextEditingController();
   bool _loading = false;
 
@@ -56,7 +57,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _resend() async {
     if (!_canResend) return;
     setState(() => _loading = true);
-    final auth = context.read<AuthService>();
+    final auth = ref.read(authServiceProvider);
     await auth.startPhoneAuth(
       e164: widget.e164,
       onCodeSent: () {
@@ -84,9 +85,12 @@ class _OtpScreenState extends State<OtpScreen> {
     }
     setState(() => _loading = true);
     try {
-      await context
-          .read<AuthService>()
+      await ref
+          .read(authServiceProvider)
           .verifyOtp(code, displayName: widget.displayName);
+      await ref
+          .read(sessionControllerProvider.notifier)
+          .completeFirebaseSignIn();
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
@@ -100,16 +104,9 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Auto-verification (e.g. test phone numbers, Android SMS retriever) can
-    // complete sign-in in the background while this screen is still pushed.
-    // AuthGate swaps underneath, but this route stays on the stack unless we
-    // pop it ourselves.
-    final signedIn = context.watch<AuthService>().isSignedIn;
-    if (signedIn) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-      });
-    }
+    // Auto-verification (test numbers, Android SMS retriever) can complete
+    // sign-in while this screen is still on top. The router's redirect reacts
+    // to the session change and moves the user on, so nothing to do here.
 
     return Scaffold(
       appBar: AppBar(title: const Text('Verify')),
@@ -132,7 +129,8 @@ class _OtpScreenState extends State<OtpScreen> {
                 curve: Curves.easeOutBack,
                 builder: (_, value, child) => Opacity(
                   opacity: value,
-                  child: Transform.scale(scale: 0.9 + 0.1 * value, child: child),
+                  child:
+                      Transform.scale(scale: 0.9 + 0.1 * value, child: child),
                 ),
                 child: TextField(
                   controller: _ctrl,

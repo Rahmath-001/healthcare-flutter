@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../services/auth_service.dart';
+import '../../core/providers.dart';
+import '../../core/router/routes.dart';
+import '../../l10n/l10n.dart';
 import '../../widgets/shimmer_placeholder.dart';
-import '../doctors_screen.dart';
-import '../medications_screen.dart';
 
-class HomeTab extends StatefulWidget {
-  /// Lets quick actions switch the parent Dashboard's bottom-nav tab.
-  final void Function(int tabIndex)? onNavigateTab;
-
-  const HomeTab({super.key, this.onNavigateTab});
+class HomeTab extends ConsumerStatefulWidget {
+  const HomeTab({super.key});
 
   @override
-  State<HomeTab> createState() => _HomeTabState();
+  ConsumerState<HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends State<HomeTab> {
+class _HomeTabState extends ConsumerState<HomeTab> {
   bool _loaded = false;
 
   @override
@@ -29,16 +27,15 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthService>();
-    final user = auth.currentUser;
+    final session = ref.watch(currentSessionProvider);
     final theme = Theme.of(context);
 
     return SafeArea(
       child: CustomScrollView(
         slivers: [
-          const SliverAppBar(
+          SliverAppBar(
             floating: true,
-            title: Text('Home'),
+            title: Text(context.l10n.navHome),
             centerTitle: false,
           ),
           SliverPadding(
@@ -58,10 +55,10 @@ class _HomeTabState extends State<HomeTab> {
                               children: [
                                 CircleAvatar(
                                   radius: 28,
-                                  backgroundImage: (user?.photoUrl != null)
-                                      ? NetworkImage(user!.photoUrl!)
+                                  backgroundImage: (session?.photoUrl != null)
+                                      ? NetworkImage(session!.photoUrl!)
                                       : null,
-                                  child: (user?.photoUrl == null)
+                                  child: (session?.photoUrl == null)
                                       ? const Icon(Icons.person)
                                       : null,
                                 ),
@@ -72,7 +69,7 @@ class _HomeTabState extends State<HomeTab> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Hello, ${user?.greetingName ?? 'there'}',
+                                        'Hello, ${session?.greetingName ?? 'there'}',
                                         style: theme.textTheme.titleMedium,
                                       ),
                                       const SizedBox(height: 4),
@@ -89,7 +86,8 @@ class _HomeTabState extends State<HomeTab> {
                         ),
                 ),
                 const SizedBox(height: 24),
-                Text('Quick actions', style: theme.textTheme.titleSmall),
+                Text(context.l10n.homeQuickActions,
+                    style: theme.textTheme.titleSmall),
                 const SizedBox(height: 12),
                 GridView.count(
                   shrinkWrap: true,
@@ -102,30 +100,25 @@ class _HomeTabState extends State<HomeTab> {
                     _QuickAction(
                       icon: Icons.calendar_month,
                       label: 'Book Appointment',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const DoctorsScreen()),
-                      ),
+                      onTap: () => context.go(Routes.doctorSearch),
                     ),
                     _QuickAction(
                       icon: Icons.description_outlined,
                       label: 'View Records',
-                      onTap: () => widget.onNavigateTab?.call(2),
+                      onTap: () => context.go(Routes.patientRecords),
+                    ),
+                    // The Medications tile is deliberately gone: the module maps
+                    // to no functional requirement and implies adherence
+                    // tracking and drug-interaction liability nobody scoped.
+                    _QuickAction(
+                      icon: Icons.event_note_outlined,
+                      label: 'My Appointments',
+                      onTap: () => context.go(Routes.patientAppointments),
                     ),
                     _QuickAction(
-                      icon: Icons.medication_outlined,
-                      label: 'Medications',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const MedicationsScreen()),
-                      ),
-                    ),
-                    _QuickAction(
-                      icon: Icons.support_agent,
-                      label: 'Contact Support',
-                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Support: support@healthcare.app')),
-                      ),
+                      icon: Icons.receipt_long_outlined,
+                      label: 'Prescriptions',
+                      onTap: () => context.go(Routes.prescriptions),
                     ),
                   ],
                 ),

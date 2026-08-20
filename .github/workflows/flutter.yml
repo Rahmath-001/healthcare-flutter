@@ -1,0 +1,159 @@
+name: Flutter
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.4"
+
+jobs:
+  analyze:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # firebase_options.dart and google-services.json are gitignored secrets.
+      # A stub keeps `flutter analyze` and unit tests compiling; it is never used
+      # to build a distributable artifact.
+      - name: Write stub Firebase config
+        run: |
+          cp tool/ci/firebase_options.stub.dart lib/firebase_options.dart
+
+      - run: flutter pub get
+
+      # Regenerate localisations and fail if they drift from the ARB files.
+      - name: Check localisations are up to date
+        run: |
+          flutter gen-l10n
+          git diff --exit-code lib/l10n/app_localizations*.dart
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Test
+        # Goldens are excluded: they are rendered with the host's fonts, so a
+        # Linux runner fails them on antialiasing rather than on anything real.
+        # Run them locally with `flutter test --tags golden`.
+        run: flutter test --coverage --exclude-tags golden
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/lcov.info
+
+  build-android:
+    name: Build Android (debug)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Must match compileOptions/jvmTarget in android/app/build.gradle.kts.
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Write stub Firebase config
+        run: |
+          cp tool/ci/firebase_options.stub.dart lib/firebase_options.dart
+          cp tool/ci/google-services.stub.json android/app/google-services.json
+
+      - run: flutter pub get
+
+      # Debug build only. A release build needs the real upload keystore, which
+      # lives in secrets and is exercised by release-android.yml on tags.
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+  build-ios:
+    name: Build iOS (no codesign)
+    runs-on: macos-latest
+    # iOS is not yet configured (no GoogleService-Info.plist, no URL types).
+    # This job exists from Phase 0 so iOS cannot silently rot while Android
+    # moves ahead; it is allowed to fail until Phase 1 completes iOS setup.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Write stub Firebase config
+        run: cp tool/ci/firebase_options.stub.dart lib/firebase_options.dart
+
+      - run: flutter pub get
+
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
+
+  build-admin-console:
+    name: Build operator console
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Stub Firebase config
+        run: cp tool/ci/firebase_options.stub.dart lib/firebase_options.dart
+
+      - run: flutter pub get
+
+      # A separate entry point, so this also proves nothing under lib/admin/
+      # has crept into a mobile import path.
+      - name: Build console
+        run: flutter build web -t lib/main_admin.dart --release --output build/admin
+
+  build-web:
+    name: Build Web (release)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Write stub Firebase config
+        run: cp tool/ci/firebase_options.stub.dart lib/firebase_options.dart
+
+      - run: flutter pub get
+
+      # Web compiles against hmssdk_flutter even though 100ms has no web
+      # implementation, so this job's real value is catching the *other* way a
+      # web build breaks: a dart:io or dart:ffi import creeping into lib/.
+      - name: Build web
+        run: flutter build web --release

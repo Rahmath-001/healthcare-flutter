@@ -1,0 +1,679 @@
+{
+  "@@locale": "en",
+  "appTitle": "MiDoctor",
+  "navHome": "Home",
+  "navAppointments": "Appointments",
+  "navRecords": "Records",
+  "navProfile": "Profile",
+  "navToday": "Today",
+  "navSchedule": "Schedule",
+  "navPatients": "Patients",
+  "actionContinue": "Continue",
+  "actionCancel": "Cancel",
+  "actionSave": "Save",
+  "actionRetry": "Try again",
+  "actionSignOut": "Sign out",
+  "actionBook": "Book appointment",
+  "actionJoin": "Join consultation",
+  "actionBack": "Back",
+  "actionDelete": "Delete",
+  "actionRemove": "Remove",
+  "actionSend": "Send",
+  "actionDone": "Done",
+  "actionNext": "Next",
+  "actionClose": "Close",
+  "actionUpload": "Upload",
+  "actionSubmit": "Submit",
+  "actionEdit": "Edit",
+  "actionCopy": "Copy",
+  "actionSkip": "Skip",
+  "actionNotNow": "Not now",
+  "offline": "You are offline",
+  "errorGeneric": "Something went wrong. Please try again.",
+  "errorNetwork": "No internet connection.",
+  "optional": "Optional",
+  "authWelcomeBack": "Welcome back",
+  "authSignInToContinue": "Sign in to continue",
+  "authContinueWithPhone": "Continue with phone",
+  "authContinueWithGoogle": "Continue with Google",
+  "authContinueWithApple": "Sign in with Apple",
+  "authNewHere": "New here? ",
+  "authCreateAccount": "Create account",
+  "authAlreadyHaveAccount": "Already have an account? ",
+  "authSignIn": "Sign in",
+  "authSampleData": "Explore with sample data",
+  "authSampleDataHint": "Signs in as Priya Sharma, a patient with appointments, records and prescriptions already in place.",
+  "@authSampleDataHint": {
+    "description": "Shown only when the app is running on fixtures."
+  },
+  "authGoogleFailed": "Google sign-in failed. Please try again.",
+  "authAppleFailed": "Sign in with Apple failed. Please try again.",
+  "authRoleTitle": "How will you use MiDoctor?",
+  "authRoleSubtitle": "You can only change this by contacting support, so choose carefully.",
+  "authRolePatient": "I am a patient",
+  "authRolePatientBody": "Book appointments, keep your records, and consult a doctor.",
+  "authRoleProvider": "I am a doctor",
+  "authRoleProviderBody": "See patients, write prescriptions, and manage your hours. Your credentials are verified before you can practise.",
+  "phoneTitle": "Your phone number",
+  "phoneSubtitle": "We will send a one-time code to confirm it is you.",
+  "phoneLabel": "Mobile number",
+  "phoneInvalid": "Enter a valid 10-digit Indian mobile number.",
+  "phoneCheckingCarrier": "Checking your number…",
+  "phoneVoipRejected": "That looks like an internet calling number. Please use a mobile number.",
+  "otpTitle": "Enter the code",
+  "otpSentTo": "We sent a 6-digit code to {phone}.",
+  "@otpSentTo": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "otpResend": "Resend code",
+  "otpResendIn": "Resend in {seconds}s",
+  "@otpResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "otpVerify": "Verify",
+  "otpInvalid": "That code is not right. Check it and try again.",
+  "onboardingWelcomeTitle": "Welcome to MiDoctor",
+  "onboardingWelcomeBody": "Consult a doctor, keep your records, and stay in control of who sees them.",
+  "onboardingHealthTitle": "A little about your health",
+  "onboardingHealthBody": "Help us personalise your experience.",
+  "onboardingDateOfBirth": "Date of birth",
+  "onboardingDateOfBirthHelp": "Used to check medicine doses are safe",
+  "onboardingBloodGroup": "Blood group",
+  "onboardingNotSet": "Not set",
+  "onboardingNotificationsTitle": "Stay in the loop",
+  "onboardingNotificationsBody": "Reminders for your appointments, so you never miss a consultation.",
+  "onboardingEnableNotifications": "Enable notifications",
+  "onboardingGetStarted": "Get started",
+  "homeGreeting": "Hello, {name}",
+  "@homeGreeting": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeFindDoctor": "Find a doctor",
+  "homeNextAppointment": "Your next appointment",
+  "homeNoUpcoming": "Nothing booked yet",
+  "homeNoUpcomingBody": "Search for a doctor to book your first consultation.",
+  "homeQuickRecords": "My records",
+  "homeQuickPrescriptions": "Prescriptions",
+  "homeQuickSharing": "Who can see my records",
+  "homeQuickSupport": "Get help",
+  "searchTitle": "Find a doctor",
+  "searchHint": "Name, speciality or hospital",
+  "searchFilters": "Filters",
+  "searchClearFilters": "Clear all",
+  "searchSpeciality": "Speciality",
+  "searchCity": "City",
+  "searchMaxFee": "Maximum fee",
+  "searchMinRating": "Minimum rating",
+  "searchMode": "Consultation type",
+  "searchApply": "Show results",
+  "searchNoResults": "No doctors match",
+  "searchNoResultsBody": "Try removing a filter or searching for something broader.",
+  "searchResultCount": "{count, plural, =0{No doctors} =1{1 doctor} other{{count} doctors}}",
+  "@searchResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "doctorExperience": "{years, plural, =1{1 year experience} other{{years} years experience}}",
+  "@doctorExperience": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
+  "doctorRegistration": "Registration {number}",
+  "@doctorRegistration": {
+    "description": "LEGAL COPY adjacent. The MoHFW Telemedicine Practice Guidelines require a doctor's council registration number to be visible to the patient before and during a consultation.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "doctorAbout": "About",
+  "doctorLanguages": "Speaks",
+  "doctorFees": "Fees",
+  "doctorFeeVideo": "Video consultation",
+  "doctorFeeInPerson": "In person",
+  "doctorRatingCount": "{count, plural, =0{No ratings yet} =1{1 rating} other{{count} ratings}}",
+  "@doctorRatingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookingTitle": "Book an appointment",
+  "bookingChooseDate": "Choose a date",
+  "bookingChooseTime": "Choose a time",
+  "bookingNoSlots": "No times available",
+  "bookingNoSlotsBody": "This doctor has no free slots that day. Try another date.",
+  "bookingReason": "Reason for visit",
+  "bookingReasonHint": "e.g. Fever for three days",
+  "bookingHoldExpiresIn": "Slot held for {countdown}",
+  "@bookingHoldExpiresIn": {
+    "placeholders": {
+      "countdown": {
+        "type": "String"
+      }
+    }
+  },
+  "bookingHoldExpired": "That slot was released. Please pick another time.",
+  "bookingNoPaymentNow": "No payment is taken now. Pay at the clinic or when you see the doctor.",
+  "bookingConfirm": "Confirm booking",
+  "bookingConfirmedTitle": "You are booked",
+  "bookingConfirmedBody": "We have sent the details to your phone.",
+  "bookingReference": "Reference {code}",
+  "@bookingReference": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "bookingShareRecords": "Share your records with this doctor",
+  "bookingShareRecordsBody": "They can only see what you choose, and only until the date you set.",
+  "bookingViewAppointment": "View appointment",
+  "appointmentsUpcoming": "Upcoming",
+  "appointmentsPast": "Past",
+  "appointmentsNone": "No appointments",
+  "appointmentsNoneBody": "When you book a consultation it will appear here.",
+  "appointmentDetailTitle": "Appointment",
+  "appointmentReasonForVisit": "Reason for visit",
+  "appointmentFee": "Fee",
+  "appointmentCancelTitle": "Cancel this appointment?",
+  "appointmentCancelBody": "Let the doctor know why, so the slot can be offered to someone else.",
+  "appointmentCancelReason": "Reason",
+  "appointmentCancelConfirm": "Cancel appointment",
+  "appointmentKeepIt": "Keep it",
+  "appointmentCancelled": "Appointment cancelled.",
+  "appointmentFreeCancellation": "Free to cancel until {when}",
+  "@appointmentFreeCancellation": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "appointmentRate": "Rate this consultation",
+  "appointmentViewPrescription": "View prescription",
+  "recordsTitle": "Health records",
+  "recordsFilterAll": "All",
+  "recordsFilterFromDoctors": "From doctors",
+  "recordsFilterMine": "Uploaded by me",
+  "recordsEmpty": "No records here yet",
+  "recordsEmptyBody": "Upload a report or scan to keep it with you.",
+  "recordsUploadOne": "Upload a record",
+  "recordsWhoCanSee": "Who can see my records",
+  "recordsChecking": "Checking file, available shortly",
+  "recordDetailTitle": "Record",
+  "recordType": "Type",
+  "recordAddedBy": "Added by",
+  "recordAddedByYou": "You",
+  "recordAddedByDoctor": "A doctor",
+  "recordTakenOn": "Taken on",
+  "recordUploaded": "Uploaded",
+  "recordSize": "Size",
+  "recordPages": "Pages",
+  "recordYourNotes": "Your notes",
+  "recordOpenFile": "Open file",
+  "recordDeleteTitle": "Delete this record?",
+  "recordDeleteBody": "\"{title}\" will be removed from your records, and any doctor you have shared it with will lose access to it.\n\nThis cannot be undone.",
+  "@recordDeleteBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recordKeepIt": "Keep it",
+  "recordScanPending": "This file is still being checked for viruses. It will open once the check finishes.",
+  "recordScanInfected": "This file failed a virus check and cannot be opened or shared.",
+  "recordScanFailed": "We could not check this file. Try uploading it again.",
+  "recordCannotDisplay": "Cannot display this file",
+  "recordCannotDisplayBody": "The file downloaded, but this device cannot render that format.",
+  "uploadTitle": "Upload a record",
+  "uploadTakePhoto": "Take a photo",
+  "uploadFromGallery": "Choose from gallery",
+  "uploadPickDocument": "Pick a document",
+  "uploadRecordTitle": "Title",
+  "uploadRecordTitleHint": "e.g. Complete Blood Count",
+  "uploadRecordType": "Type",
+  "uploadDateOnReport": "Date on the report",
+  "uploadNotes": "Notes (optional)",
+  "uploadPrivacyNote": "Your records are private to you. A doctor can only see one if you share it, and you can revoke that at any time. Files are checked for viruses before they become available.",
+  "uploadDone": "Uploaded. It will be available once checked.",
+  "sharingTitle": "Who can see my records",
+  "sharingTabAccess": "Access",
+  "sharingTabRequests": "Requests",
+  "sharingTabLog": "Activity",
+  "sharingNobodyHasAccess": "Nobody can see your records",
+  "@sharingNobodyHasAccess": {
+    "description": "LEGAL COPY adjacent. Reassurance about the default state of consent."
+  },
+  "sharingNobodyHasAccessBody": "A doctor can only see a record if you share it with them.",
+  "sharingStopSharing": "Stop sharing",
+  "sharingEndsIn": "Ends in {duration}",
+  "@sharingEndsIn": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "sharingRevokeConfirm": "Stop sharing with {name}? They will lose access immediately.",
+  "@sharingRevokeConfirm": {
+    "description": "LEGAL COPY. Confirms revocation of consent, which the DPDP Act requires to be as easy to withdraw as it was to give.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sharingRevoked": "Access revoked.",
+  "sharingNoRequests": "No requests",
+  "sharingNoRequestsBody": "When a doctor asks to see your records, it will appear here.",
+  "sharingApprove": "Allow",
+  "sharingDeny": "Decline",
+  "sharingNoActivity": "No activity yet",
+  "sharingNoActivityBody": "Every time someone opens one of your records, it is recorded here.",
+  "sharingExpiresLabel": "Access ends",
+  "sharingPurpose": "Purpose",
+  "sharingGranted": "Access granted.",
+  "prescriptionsTitle": "Prescriptions",
+  "prescriptionsEmpty": "No prescriptions",
+  "prescriptionsEmptyBody": "A prescription written during a consultation will appear here.",
+  "prescriptionTitle": "Prescription",
+  "prescriptionShare": "Share or save as PDF",
+  "prescriptionPrint": "Print",
+  "prescriptionDiagnosis": "Diagnosis",
+  "prescriptionAdvice": "Advice",
+  "prescriptionMedicines": "Medicines",
+  "prescriptionFollowUp": "Follow up on {date}",
+  "@prescriptionFollowUp": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prescriptionVerificationCode": "Verification code",
+  "prescriptionVerificationBody": "A pharmacy can use this to confirm the prescription is genuine.",
+  "prescriptionRetainedUntil": "Kept until {date}",
+  "@prescriptionRetainedUntil": {
+    "description": "LEGAL COPY. Retention notice for a clinical record.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "consultationTitle": "Consultation",
+  "consentTelemedicineTitle": "Before you begin",
+  "@consentTelemedicineTitle": {
+    "description": "LEGAL COPY. Heading of the telemedicine consent gate, shown before a consultation connects. Required by the MoHFW Telemedicine Practice Guidelines. Any translation must be reviewed by a qualified legal translator before release."
+  },
+  "consentNotRecorded": "This consultation is not recorded. No video or audio is saved.",
+  "@consentNotRecorded": {
+    "description": "LEGAL COPY. Part of the consent record; its exact text is hashed as proof of what was agreed."
+  },
+  "consentRecordKept": "Chat messages, the doctor's notes and any prescription are kept as part of your medical record.",
+  "@consentRecordKept": {
+    "description": "LEGAL COPY. Retention notice. Requires legal review before translation ships."
+  },
+  "consentRestrictedMedicines": "Some medicines cannot be prescribed remotely. Your doctor may ask you to visit in person.",
+  "@consentRestrictedMedicines": {
+    "description": "LEGAL COPY. Reflects the MoHFW telemedicine drug lists."
+  },
+  "consentNotEmergency": "Telemedicine is not for emergencies. If this is urgent, go to the nearest hospital.",
+  "@consentNotEmergency": {
+    "description": "LEGAL COPY. Safety notice. A mistranslation here is a safety issue, not a cosmetic one."
+  },
+  "consentAgree": "I consent to this teleconsultation and confirm the information I give will be accurate.",
+  "@consentAgree": {
+    "description": "LEGAL COPY. The agreement itself. Hashed into the consent record."
+  },
+  "consultationWaiting": "Waiting for the doctor to join…",
+  "consultationConnecting": "Connecting…",
+  "consultationEnd": "End",
+  "consultationSwitchToAudio": "Switch to audio",
+  "consultationPoorConnection": "Your connection is poor. Switching to audio may help.",
+  "consultationChat": "Chat",
+  "consultationChatHint": "Type a message",
+  "consultationEnded": "Consultation ended",
+  "consultationNotRecordedBadge": "Not recorded",
+  "consultationCameraOff": "Camera is off",
+  "consultationJoinFromPhone": "Video consultations are only available in the MiDoctor app. Please join from your phone.",
+  "rateTitle": "Rate your consultation",
+  "rateWith": "How was your consultation with {name}?",
+  "@rateWith": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rateComment": "Tell others what it was like (optional)",
+  "rateModerationNote": "Reviews are checked before they are published.",
+  "rateSubmit": "Submit rating",
+  "rateThanks": "Thank you. Your rating will appear once it is reviewed.",
+  "rateEditWindow": "You can change this for {duration}",
+  "@rateEditWindow": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "supportTitle": "Get help",
+  "supportNewTicket": "New request",
+  "supportNoTickets": "No requests yet",
+  "supportNoTicketsBody": "If something is not working, tell us and we will look into it.",
+  "supportSubject": "Subject",
+  "supportCategory": "What is this about?",
+  "supportDescribe": "Tell us what happened",
+  "supportDescribeHint": "Please do not include medical details here.",
+  "@supportDescribeHint": {
+    "description": "Support staff hold no consent grant, so the copy steers users away from clinical detail."
+  },
+  "supportReplyHint": "Write a reply",
+  "supportCreated": "Sent. We will get back to you.",
+  "profileTitle": "Profile",
+  "profileBloodGroup": "Blood group",
+  "profileAge": "Age",
+  "profileEditProfile": "Edit profile",
+  "profileSettings": "Settings",
+  "profileHelp": "Help and support",
+  "profileNotSet": "—",
+  "editProfileTitle": "Edit profile",
+  "editProfileFullName": "Full name",
+  "editProfileNameRequired": "Please enter your name",
+  "editProfileDateOfBirth": "Date of birth",
+  "editProfileGender": "Gender",
+  "editProfileBloodGroup": "Blood group",
+  "editProfileAllergies": "Allergies",
+  "editProfileAllergiesHint": "e.g. Penicillin, peanuts",
+  "editProfileAllergiesHelp": "Shown to any doctor you consult",
+  "editProfileConditions": "Ongoing conditions",
+  "editProfileConditionsHint": "e.g. Type 2 diabetes, hypertension",
+  "editProfileEmergencyContact": "Emergency contact",
+  "editProfileContactName": "Name",
+  "editProfilePhone": "Phone number",
+  "editProfileSaveChanges": "Save changes",
+  "editProfileUpdated": "Profile updated",
+  "settingsTitle": "Settings",
+  "settingsAccount": "Account",
+  "settingsPrivacy": "Privacy and your rights",
+  "settingsNotifications": "Notifications",
+  "settingsLanguage": "Language",
+  "settingsAbout": "About",
+  "settingsVersion": "Version {version}",
+  "@settingsVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSignOutConfirm": "Sign out of MiDoctor?",
+  "privacyTitle": "Privacy and your rights",
+  "privacyYourRights": "Your rights",
+  "privacyRightsBody": "Under India's Digital Personal Data Protection Act, you can see what we hold about you, correct it, take a copy elsewhere, and ask us to delete it.",
+  "@privacyRightsBody": {
+    "description": "LEGAL COPY. DPDP data-principal rights summary. Requires legal review before translation ships."
+  },
+  "privacyDownloadData": "Download my data",
+  "privacyDownloadDataBody": "Profile, appointments, records and sharing history",
+  "privacyCorrect": "Correct my information",
+  "privacyCorrectBody": "Update your profile details",
+  "privacyRetentionTitle": "How long we keep things",
+  "privacyRetentionClinical": "Consultation notes and prescriptions: 3 years, as medical record rules require",
+  "@privacyRetentionClinical": {
+    "description": "LEGAL COPY. Retention notice. Requires legal review before translation ships."
+  },
+  "privacyRetentionConsultations": "Video and audio consultations: never recorded",
+  "privacyRetentionChat": "Chat messages from a consultation: kept with your medical record",
+  "privacyRetentionAccessLog": "Record access log: kept so you can always audit who looked at what",
+  "privacyGrievanceTitle": "Questions or complaints",
+  "privacyGrievanceOfficer": "Grievance Officer",
+  "privacyDangerZone": "Danger zone",
+  "privacyDeleteAccount": "Delete my account",
+  "privacyDeleteAccountBody": "This cannot be undone",
+  "privacyDeleteTitle": "Delete your account?",
+  "privacyDeleteWarning": "Your profile, appointments and sharing permissions will be deleted, and every doctor will immediately lose access to your records.\n\nConsultation notes and prescriptions must be kept for 3 years under medical record rules, so those are retained and then deleted. They are not used for anything else.\n\nThis cannot be undone.",
+  "@privacyDeleteWarning": {
+    "description": "LEGAL COPY. Erasure notice, including the statutory retention exception. Requires legal review before translation ships."
+  },
+  "privacyKeepAccount": "Keep my account",
+  "privacyDeleted": "Your account is deleted. Consultation notes and prescriptions are kept until {date} because medical record rules require it, and are then destroyed.",
+  "@privacyDeleted": {
+    "description": "LEGAL COPY. Confirms erasure and the statutory retention that survives it.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "privacyExportReady": "Your data is ready to save.",
+  "privacySignedInAs": "Signed in as {name}",
+  "@privacySignedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "blockedTitle": "You cannot use MiDoctor right now",
+  "blockedSuspended": "Your account is suspended. Contact support if you think this is a mistake.",
+  "blockedDeactivated": "Your account has been deactivated.",
+  "blockedStaff": "This account is for MiDoctor staff. Please use the operations console.",
+  "blockedContactSupport": "Contact support",
+  "providerTodayTitle": "Today",
+  "providerTodayNone": "Nothing scheduled",
+  "providerTodayNoneBody": "Your consultations for today will appear here.",
+  "providerCheckIn": "Check in",
+  "providerStartConsultation": "Start consultation",
+  "providerWritePrescription": "Write prescription",
+  "providerRequestRecords": "Request records",
+  "providerPatientsTitle": "Patients",
+  "providerPatientsNone": "No patients yet",
+  "providerPatientsNoneBody": "Patients who share records with you will appear here.",
+  "availabilityTitle": "Your hours",
+  "availabilityAddHours": "Add hours",
+  "availabilityNone": "No hours set",
+  "availabilityNoneBody": "Add your working hours so patients can book with you.",
+  "availabilityDay": "Day",
+  "availabilityFrom": "From",
+  "availabilityTo": "To",
+  "availabilityAppointmentLength": "Appointment length",
+  "availabilityMinutes": "{minutes} minutes",
+  "@availabilityMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "availabilitySlotCount": "{count, plural, =1{1 slot} other{{count} slots}}",
+  "@availabilitySlotCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "availabilityBlockDay": "Block a day",
+  "availabilityBlockedDays": "Blocked days",
+  "availabilityNoBlockedDays": "No days blocked",
+  "availabilityBlockReason": "Reason (optional)",
+  "availabilityPaused": "Paused",
+  "verificationTitle": "Verification",
+  "verificationSubmitDocuments": "Submit documents",
+  "verificationResubmitDocuments": "Resubmit documents",
+  "verificationDraftTitle": "Complete your profile",
+  "verificationDraftBody": "Upload your degree certificate, medical registration, identity proof and hospital affiliation to start seeing patients.",
+  "verificationInProgressTitle": "Verification in progress",
+  "verificationInProgressBody": "Our team is reviewing your documents. This usually takes 2–3 working days, and we will notify you as soon as it is done.",
+  "verificationRejectedTitle": "Verification unsuccessful",
+  "verificationRejectedBody": "We could not verify your documents. Check the reason sent to you and submit again.",
+  "verificationResubmitTitle": "More information needed",
+  "verificationResubmitBody": "Some of your documents need to be resubmitted. Please review the notes we sent and upload them again.",
+  "verificationSuspendedTitle": "Account under review",
+  "verificationSuspendedBody": "Your provider account is temporarily suspended pending a review. Please contact MiDoctor support.",
+  "verificationDeactivatedTitle": "Account deactivated",
+  "verificationDeactivatedBody": "Your provider account has been deactivated. Contact support if you would like to reactivate it.",
+  "verificationVerifiedTitle": "Verified",
+  "verificationVerifiedBody": "Your account is verified.",
+  "credentialsTitle": "Your credentials",
+  "credentialsProgress": "{done} of {total} steps done",
+  "@credentialsProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "credentialsDocuments": "Documents",
+  "credentialsRegistrationNumber": "Council registration number",
+  "credentialsRegistrationHint": "e.g. KMC-41902",
+  "credentialsMfa": "Two-factor authentication",
+  "credentialsMfaBody": "Required before you can see patients. Your account can read medical records, so it has to be hard to take over.",
+  "credentialsSetUpMfa": "Set up",
+  "credentialsVerifyIdentity": "Verify with DigiLocker",
+  "credentialsSubmitForReview": "Submit for review",
+  "credentialsSubmitted": "Submitted. We will be in touch within 2–3 working days.",
+  "mfaTitle": "Two-factor authentication",
+  "mfaStep1": "Scan this with your authenticator app",
+  "mfaCantScan": "Cannot scan? Enter this key instead",
+  "mfaStep2": "Enter the 6-digit code",
+  "mfaCodeLabel": "Code",
+  "mfaConfirm": "Confirm",
+  "mfaRecoveryTitle": "Save your recovery codes",
+  "mfaRecoveryBody": "Each code works once. Keep them somewhere safe — they are the only way back in if you lose your phone, and we cannot show them again.",
+  "mfaRecoveryCopied": "Recovery codes copied.",
+  "mfaSavedThem": "I have saved them",
+  "prescribeTitle": "Write a prescription",
+  "prescribeSearchDrug": "Search for a medicine",
+  "prescribeStrength": "Strength",
+  "prescribeFrequency": "Frequency",
+  "prescribeFrequencyHint": "e.g. 1-0-1",
+  "prescribeDuration": "Duration (days)",
+  "prescribeInstructions": "Instructions",
+  "prescribeAdd": "Add medicine",
+  "prescribeNoItems": "No medicines added yet",
+  "prescribeDiagnosis": "Diagnosis",
+  "prescribeAdvice": "Advice",
+  "prescribeIssue": "Issue prescription",
+  "prescribeIssued": "Prescription issued.",
+  "prescribeFollowUpOnly": "Follow-up only",
+  "prescribeNotAllowed": "Not allowed remotely",
+  "prescribeOtc": "Over the counter",
+  "sharingHeading": "Record sharing",
+  "sharingCurrentlyShared": "Currently shared",
+  "sharingRequestsWaiting": "Requests waiting for you",
+  "sharingNothingToShow": "Nothing to show yet",
+  "sharingAccessEnded": "Access ended",
+  "sharingEnded": "Ended",
+  "sharingKeepSharing": "Keep sharing",
+  "sharingStopSharingQuestion": "Stop sharing?",
+  "sharingHowLong": "How long should access last?",
+  "sharingShare": "Share",
+  "appointmentReference": "Reference",
+  "appointmentWhen": "When",
+  "appointmentType": "Type",
+  "appointmentTellUsWhy": "Tell us why",
+  "appointmentCancellationReason": "Cancellation reason",
+  "appointmentCancelIt": "Cancel it",
+  "searchAvailableToday": "Available today",
+  "searchAvailableTodayBody": "Only doctors with a free slot today",
+  "searchDoctorHint": "Doctor, specialty or hospital",
+  "searchClearFiltersShort": "Clear filters",
+  "searchNoMatch": "No doctors match your search",
+  "doctorTitle": "Doctor",
+  "doctorConsultationFees": "Consultation fees",
+  "doctorPractisesAt": "Practises at",
+  "doctorMedicalRegistration": "Medical registration",
+  "bookingAvailableTimes": "Available times",
+  "bookingSelectDate": "Select a date",
+  "bookingNoSlotsOnDay": "No slots on this day",
+  "bookingReasonOptional": "Reason for visit (optional)",
+  "bookingSymptomsHint": "Briefly describe your symptoms or concern",
+  "consultAgreeContinue": "Agree and continue",
+  "consultEndQuestion": "End consultation?",
+  "consultEitherCanEnd": "Either of you can end the consultation.",
+  "consultStay": "Stay",
+  "consultSwitch": "Switch",
+  "consultNoMessages": "No messages yet",
+  "consultKeptWithRecord": "Kept as part of your medical record",
+  "privacyThisCannotBeUndone": "This cannot be undone",
+  "privacyUpdateDetails": "Update your profile details",
+  "credentialsStepDocuments": "1. Documents",
+  "credentialsStepRegistration": "2. Registration number",
+  "credentialsStepMfa": "3. Two-factor authentication",
+  "credentialsAuthenticatorApp": "Authenticator app",
+  "credentialsPaperCertificate": "Best for a paper certificate",
+  "credentialsChooseFile": "Choose a file",
+  "credentialsCouncilRegistration": "Council registration",
+  "credentialsRegistrationNumberLabel": "Medical registration number",
+  "credentialsFileTypes": "PDF, JPG, PNG or HEIC",
+  "credentialsGetVerified": "Get verified",
+  "credentialsSubmittedForReview": "Submitted for review",
+  "credentialsTakePhoto": "Take a photo",
+  "availabilityMySchedule": "My schedule",
+  "availabilityAddAvailability": "Add availability",
+  "availabilityDaysOff": "Days off",
+  "availabilityMarkDayOff": "Mark a day off",
+  "availabilityConsultationType": "Consultation type",
+  "mfaInstallApp": "1. Install an authenticator app",
+  "mfaAddKey": "2. Add this key",
+  "mfaEnterCode": "3. Enter the 6-digit code",
+  "mfaCopyKey": "Copy key",
+  "mfaKeyCopied": "Key copied",
+  "mfaCopyAllCodes": "Copy all codes",
+  "mfaVerifyEnable": "Verify and enable",
+  "mfaIsOn": "Two-factor is on",
+  "prescribeWriteTitle": "Write prescription",
+  "prescribeSearchMedicines": "Search medicines",
+  "prescribeAddToPrescription": "Add to prescription",
+  "prescribeChange": "Change",
+  "prescribeAdviceToPatient": "Advice to the patient",
+  "prescribeDurationDays": "Duration (days)",
+  "prescribeFollowUpConsultation": "Follow-up consultation",
+  "prescribeInstructionsOptional": "Instructions (optional)",
+  "prescribeMedicines": "Medicines",
+  "prescribeNoMedicines": "No medicines added yet",
+  "prescribeIssued2": "Prescription issued",
+  "prescriptionsNoneYet": "No prescriptions yet",
+  "prescriptionIssued": "Issued",
+  "prescriptionPatient": "Patient",
+  "prescriptionPharmacyVerification": "Pharmacy verification",
+  "supportHelpAndSupport": "Help and support",
+  "supportHowCanWeHelp": "How can we help?",
+  "supportNoRequests": "No support requests",
+  "supportRequestSent": "Request sent. We will be in touch.",
+  "supportSendRequest": "Send request",
+  "supportTitleLabel": "Title",
+  "supportWhatHappened": "What happened?",
+  "providerNothingToday": "Nothing scheduled today",
+  "providerPrescribe": "Prescribe",
+  "providerStart": "Start",
+  "homeQuickActions": "Quick actions"
+}

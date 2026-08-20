@@ -5,13 +5,23 @@
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
-pubspec.lock
+# NOTE: pubspec.lock is deliberately NOT ignored. This is an application, not a
+# library, so the dependency graph must be pinned for reproducible builds.
 
 # Firebase / secrets
 google-services.json
 GoogleService-Info.plist
 lib/firebase_options.dart
 .firebase/
+
+# Signing / credentials — never commit these
+*.jks
+*.keystore
+android/key.properties
+*.p8
+*.p12
+*.mobileprovision
+*.cer
 
 # Node (functions)
 functions/node_modules/
@@ -22,3 +32,14 @@ functions/lib/
 .vscode/
 *.iml
 .DS_Store
+
+# Local overrides for Cloud Functions secrets (never commit)
+functions/.secret.local
+
+# Firebase emulator logs. Local noise; `firestore-debug.log` was previously
+# untracked *and* unignored, so a `git add .` committed it.
+*-debug.log
+.firebase/
+
+# Produced by `flutter test --coverage`.
+coverage/

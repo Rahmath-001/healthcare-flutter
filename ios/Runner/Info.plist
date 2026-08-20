@@ -66,5 +66,48 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Usage strings. iOS terminates the app immediately if a capability is
+	     used without one, so these are required, not advisory. Each explains
+	     the specific benefit to the user, which App Review checks for. -->
+	<key>NSCameraUsageDescription</key>
+	<string>MiDoctor uses the camera so you can photograph medical reports and, if you are a doctor, your registration documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MiDoctor needs access to your photos so you can attach existing scans and reports to your health records.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MiDoctor saves prescriptions you download to your photo library.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>MiDoctor can use Face ID to protect access to your health records.</string>
+	<!-- Added ahead of the telemedicine build so the capability set is stable. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MiDoctor uses the microphone for audio and video consultations with your doctor.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>MiDoctor uses your local network to connect video consultations directly, which improves call quality.</string>
+	<!--
+		Google Sign-In on iOS needs the reversed OAuth client id registered as a
+		URL scheme, or the consent sheet opens and never returns. Sign in with
+		Apple does NOT need one: it uses the applesignin entitlement instead.
+
+		The value is REVERSED_CLIENT_ID from GoogleService-Info.plist, which is
+		gitignored, so it cannot be committed here. Uncomment and paste it in
+		after running `flutterfire configure`:
+
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.XXXXXXXX-XXXXXXXX</string>
+				</array>
+			</dict>
+		</array>
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

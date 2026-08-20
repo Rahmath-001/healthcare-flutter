@@ -1,0 +1,10 @@
+# Localisation config.
+#
+# Hindi is not a convenience feature here: the DPDP Act requires a consent
+# notice to be available in the language the user chose, so the consent and
+# privacy strings are a compliance surface, not decoration.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

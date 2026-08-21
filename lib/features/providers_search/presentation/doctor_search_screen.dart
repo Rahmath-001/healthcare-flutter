@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/routes.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../l10n/l10n.dart';
 import '../../../shared/formatters.dart';
+import '../../../shared/widgets/app_motion.dart';
 import '../../../shared/widgets/async_view.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../utils/debouncer.dart';
 import '../data/doctor_fixtures.dart';
 import '../domain/doctor.dart';
@@ -107,15 +110,19 @@ class _DoctorSearchScreenState extends ConsumerState<DoctorSearchScreen> {
               child: AsyncView<List<Doctor>>(
                 value: results,
                 onRetry: () => ref.invalidate(doctorSearchResultsProvider),
+                skeleton: const SkeletonList(
+                  count: 4,
+                  rows: 4,
+                  padding: EdgeInsets.all(Insets.lg),
+                ),
                 data: (doctors) {
                   if (doctors.isEmpty) {
                     return EmptyState(
                       icon: Icons.search_off_outlined,
                       title: context.l10n.searchNoMatch,
-                      message: 'Try removing a filter or searching for a '
-                          'different specialty.',
+                      message: context.l10n.searchNoResultsBody,
                       action: filters.activeCount > 0
-                          ? TextButton(
+                          ? FilledButton.tonal(
                               onPressed: () => ref
                                   .read(doctorSearchFiltersProvider.notifier)
                                   .clearFilters(),
@@ -125,10 +132,33 @@ class _DoctorSearchScreenState extends ConsumerState<DoctorSearchScreen> {
                     );
                   }
                   return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: doctors.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => DoctorCard(doctor: doctors[i]),
+                    // The count is a list item rather than a fixed header, so
+                    // it scrolls away with the results instead of eating a row
+                    // of a short phone permanently.
+                    padding: const EdgeInsets.fromLTRB(
+                      Insets.lg,
+                      Insets.md,
+                      Insets.lg,
+                      Insets.xl,
+                    ),
+                    itemCount: doctors.length + 1,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: Insets.md),
+                    itemBuilder: (_, i) {
+                      if (i == 0) {
+                        return Text(
+                          context.l10n.searchResultCount(doctors.length),
+                          style: Theme.of(context).textTheme.labelMedium,
+                        );
+                      }
+                      return FadeSlideIn(
+                        // Search results are replaced wholesale on every
+                        // keystroke past the debounce.
+                        key: ValueKey(doctors[i - 1].id),
+                        index: i - 1,
+                        child: DoctorCard(doctor: doctors[i - 1]),
+                      );
+                    },
                   );
                 },
               ),
@@ -179,96 +209,96 @@ class DoctorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('${Routes.doctorSearch}/${doctor.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundImage: doctor.photoUrl != null
-                        ? NetworkImage(doctor.photoUrl!)
-                        : null,
-                    child: doctor.photoUrl == null
-                        ? Text(
-                            doctor.name.split(' ').last[0],
-                            style: theme.textTheme.titleLarge,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(doctor.name, style: theme.textTheme.titleMedium),
-                        const SizedBox(height: 2),
-                        Text(
-                          doctor.specialtyLabel,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: theme.colorScheme.primary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${doctor.qualification} · ${doctor.yearsExperience} yrs',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 6),
-                        StarRating(
-                          rating: doctor.rating,
-                          count: doctor.ratingCount,
-                        ),
-                      ],
+    return PressableScale(
+      child: Card(
+        child: InkWell(
+          onTap: () => context.push('${Routes.doctorSearch}/${doctor.id}'),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundImage: doctor.photoUrl != null
+                          ? NetworkImage(doctor.photoUrl!)
+                          : null,
+                      child: doctor.photoUrl == null
+                          ? Text(
+                              doctor.name.split(' ').last[0],
+                              style: theme.textTheme.titleLarge,
+                            )
+                          : null,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.local_hospital_outlined,
-                      size: 16, color: theme.colorScheme.outline),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '${doctor.hospital.name}, ${doctor.hospital.city}',
-                      style: theme.textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(doctor.name, style: theme.textTheme.titleMedium),
+                          const SizedBox(height: 2),
+                          Text(
+                            doctor.specialtyLabel,
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(color: theme.colorScheme.primary),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${doctor.qualification} · ${doctor.yearsExperience} yrs',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: 6),
+                          StarRating(
+                            rating: doctor.rating,
+                            count: doctor.ratingCount,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  ...doctor.modes.map((m) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: StatusChip(
-                          label: m.label,
-                          color: theme.colorScheme.primary,
-                          icon: switch (m) {
-                            ConsultationMode.inPerson => Icons.person_outline,
-                            ConsultationMode.video => Icons.videocam_outlined,
-                            ConsultationMode.audio => Icons.call_outlined,
-                          },
-                        ),
-                      )),
-                  const Spacer(),
-                  Text(
-                    Fmt.rupees(doctor.consultationFeeInr),
-                    style: theme.textTheme.titleSmall,
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.local_hospital_outlined,
+                        size: 16, color: theme.colorScheme.outline),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${doctor.hospital.name}, ${doctor.hospital.city}',
+                        style: theme.textTheme.bodySmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    ...doctor.modes.map((m) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: StatusChip(
+                            label: m.label,
+                            tone: Tone.brand,
+                            icon: switch (m) {
+                              ConsultationMode.inPerson => Icons.person_outline,
+                              ConsultationMode.video => Icons.videocam_outlined,
+                              ConsultationMode.audio => Icons.call_outlined,
+                            },
+                          ),
+                        )),
+                    const Spacer(),
+                    Text(
+                      Fmt.rupees(doctor.consultationFeeInr),
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -337,7 +367,8 @@ class _FilterSheet extends ConsumerWidget {
               spacing: 8,
               children: const [500, 750, 1000, 1500]
                   .map((fee) => ChoiceChip(
-                        label: Text('Up to ${Fmt.rupees(fee)}'),
+                        label:
+                            Text(context.l10n.searchUpToFee(Fmt.rupees(fee))),
                         selected: filters.maxFeeInr == fee,
                         onSelected: (_) => notifier
                             .setMaxFee(filters.maxFeeInr == fee ? null : fee),
@@ -373,7 +404,6 @@ class _FilterSheet extends ConsumerWidget {
 
             SizedBox(
               width: double.infinity,
-              height: 48,
               child: FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: Text(context.l10n.searchApply),

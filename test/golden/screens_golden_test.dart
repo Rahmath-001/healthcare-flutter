@@ -60,4 +60,26 @@ void main() {
       matchesGoldenFile('goldens/prescriptions_list.png'),
     );
   });
+
+  testWidgets('records list in dark mode', (tester) async {
+    // Dark is a separate palette, not the light one inverted, so it needs its
+    // own picture — this is where a container colour that was only ever
+    // checked in light mode shows up as unreadable.
+    //
+    // Records rather than Home, and that is a constraint rather than a
+    // preference: Home's hero card renders `Fmt.relative(appointment.start)`,
+    // a live countdown against `DateTime.now()`. A golden of it passes when
+    // written and fails an hour later with a 450px diff in one text run —
+    // which teaches whoever hits it to regenerate goldens without reading
+    // them, and that is how a golden suite stops catching anything. Home is
+    // covered by behavioural and text-scale tests in `widget/screens_test.dart`
+    // instead. Goldening it needs an injectable clock first.
+    await pumpScreen(tester, const RecordsScreen(), dark: true);
+    await settleFixtures(tester);
+
+    await expectLater(
+      find.byType(RecordsScreen),
+      matchesGoldenFile('goldens/records_list_dark.png'),
+    );
+  });
 }

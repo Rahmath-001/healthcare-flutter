@@ -202,9 +202,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         .toList(),
                   ),
                   const SizedBox(height: 20),
+                  // `autocorrect` and `enableSuggestions` are off on both
+                  // clinical fields, and this is not a nicety. Android and iOS
+                  // learn words typed into an ordinary field and keep them in
+                  // the user's personal dictionary, where they resurface as
+                  // keyboard suggestions in *other* apps. Typing "Sertraline"
+                  // or an HIV medication here would otherwise leak a diagnosis
+                  // into every messaging app on the phone — a disclosure with
+                  // no consent record and no way to revoke it.
                   TextFormField(
                     controller: _allergiesCtrl,
                     maxLines: 2,
+                    autocorrect: false,
+                    enableSuggestions: false,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: context.l10n.editProfileAllergies,
@@ -217,6 +227,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   TextFormField(
                     controller: _conditionsCtrl,
                     maxLines: 2,
+                    autocorrect: false,
+                    enableSuggestions: false,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: context.l10n.editProfileConditions,

@@ -8,9 +8,16 @@ import '../error/failure.dart';
 
 /// Crash and error reporting.
 ///
-/// Until this existed a production crash was invisible: every diagnostic
-/// `debugPrint` is compiled out of release, and R8 was preserving line numbers
-/// for a reporter that did not exist. The only surviving signal was errors the
+/// Until this existed a production crash was invisible: the only diagnostics
+/// were `debugPrint` calls behind `kDebugMode`, and R8 was preserving line
+/// numbers for a reporter that did not exist.
+///
+/// Note for anyone adding a log here: **`debugPrint` is not stripped from
+/// release builds.** It forwards to `print`, which reaches logcat and the iOS
+/// device log, where any other app with log access can read it. `avoid_print`
+/// is an error in this project but it does not catch `debugPrint`, so the
+/// `kDebugMode` guard on every call site is the only thing standing between a
+/// diagnostic and a PHI disclosure. The only surviving signal was errors the
 /// *server* saw — which is precisely the wrong half for a 100ms-based app that
 /// has never been tested on a real Indian mobile network.
 ///
@@ -27,6 +34,13 @@ abstract final class CrashReporting {
   /// `PlatformDispatcher.instance.onError` covers everything else that reaches
   /// the root zone — a rejected Future in a controller, most commonly.
   static Future<void> initialise(AppConfig config) async {
+    // firebase_crashlytics ships Android/iOS/macOS only. On web every call
+    // below reaches a method channel with no implementation and throws, and
+    // because `main()` awaits this the app never gets to `runApp` — a blank
+    // page instead of the operator console. Errors still reach the browser
+    // console; there is simply no reporter behind them.
+    if (kIsWeb) return;
+
     final crashlytics = FirebaseCrashlytics.instance;
 
     // Collecting from debug builds fills the dashboard with a developer's own
@@ -53,8 +67,9 @@ abstract final class CrashReporting {
   /// The MiDoctor user id is an opaque identifier that means nothing outside
   /// this system — unlike a name, phone number or email, which would turn every
   /// crash report into a disclosure.
-  static Future<void> setUser(String? userId) =>
-      FirebaseCrashlytics.instance.setUserIdentifier(userId ?? '');
+  static Future<void> setUser(String? userId) => kIsWeb
+      ? Future<void>.value()
+      : FirebaseCrashlytics.instance.setUserIdentifier(userId ?? '');
 
   /// Records a handled failure that the user was shown.
   ///
@@ -63,7 +78,7 @@ abstract final class CrashReporting {
   /// that expired. Only the machine code is sent; [Failure.message] is written
   /// for a human and can quote server `detail`.
   static Future<void> recordHandled(Failure failure, {String? context}) {
-    if (kDebugMode) return Future<void>.value();
+    if (kDebugMode || kIsWeb) return Future<void>.value();
     return FirebaseCrashlytics.instance.recordError(
       'Failure(${failure.kind.name}/${failure.code ?? 'NO_CODE'})',
       StackTrace.current,
@@ -77,7 +92,7 @@ abstract final class CrashReporting {
   /// Route names only. A breadcrumb like "opened record: Chest X-Ray" would put
   /// a diagnosis in a crash report.
   static void breadcrumb(String route) {
-    if (kDebugMode) return;
+    if (kDebugMode || kIsWeb) return;
     FirebaseCrashlytics.instance.log('nav:$route');
   }
 

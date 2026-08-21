@@ -74,9 +74,11 @@ class _Body extends ConsumerWidget {
             ),
             StatusChip(
               label: a.status.label,
-              color: a.status.isCancelled
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.primary,
+              tone: a.status.isCancelled
+                  ? Tone.danger
+                  : a.status.isPast
+                      ? Tone.neutral
+                      : Tone.success,
             ),
           ],
         ),

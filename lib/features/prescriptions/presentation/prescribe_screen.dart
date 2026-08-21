@@ -103,8 +103,14 @@ class _PrescribeScreenState extends ConsumerState<PrescribeScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // A doctor types diagnoses into this field all day. Without
+                  // these two flags the phone's personal dictionary slowly
+                  // accumulates every patient's condition and offers them as
+                  // suggestions in other apps. See `edit_profile_screen.dart`.
                   TextField(
                     controller: _diagnosisCtrl,
+                    autocorrect: false,
+                    enableSuggestions: false,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: context.l10n.prescribeDiagnosis,
@@ -160,6 +166,8 @@ class _PrescribeScreenState extends ConsumerState<PrescribeScreen> {
                   TextField(
                     controller: _adviceCtrl,
                     maxLines: 4,
+                    autocorrect: false,
+                    enableSuggestions: false,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: context.l10n.prescribeAdviceToPatient,
@@ -302,9 +310,7 @@ class _DrugPickerSheetState extends ConsumerState<_DrugPickerSheet> {
                           ),
                           trailing: StatusChip(
                             label: drug.telemedicineList.label,
-                            color: allowed
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.error,
+                            tone: allowed ? Tone.success : Tone.danger,
                           ),
                           onTap: allowed
                               ? () => setState(() {
@@ -369,6 +375,8 @@ class _DrugPickerSheetState extends ConsumerState<_DrugPickerSheet> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: _instructionsCtrl,
+                    autocorrect: false,
+                    enableSuggestions: false,
                     decoration: InputDecoration(
                       labelText: context.l10n.prescribeInstructionsOptional,
                       border: const OutlineInputBorder(),

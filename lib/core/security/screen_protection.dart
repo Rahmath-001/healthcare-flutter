@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -18,7 +19,43 @@ import 'package:flutter/widgets.dart';
 abstract final class ScreenProtection {
   static const _channel = MethodChannel('in.midoctor.app/screen_protection');
 
+  /// Debug-only escape hatch, so a manual test pass can screenshot the PHI
+  /// screens it is checking. `kDebugMode` gates it, so a release build ignores
+  /// the define entirely and FLAG_SECURE is never optional in shipped code.
+  static const _disabled =
+      bool.fromEnvironment('DISABLE_SCREEN_PROTECTION') && kDebugMode;
+
+  /// How many visible [ProtectedScreen]s currently want protection.
+  ///
+  /// Reference-counted rather than a boolean, because protected screens nest:
+  /// opening a record detail over the Records tab means two of them are visible
+  /// at once, and popping the detail must not switch `FLAG_SECURE` off while
+  /// the list underneath is still on screen.
+  static int _holders = 0;
+
+  @visibleForTesting
+  static int get holders => _holders;
+
+  @visibleForTesting
+  static void resetForTest() => _holders = 0;
+
+  /// Claims protection. Only the first claim reaches the platform.
+  static Future<void> acquire() async {
+    _holders++;
+    if (_holders != 1) return;
+    await enable();
+  }
+
+  /// Releases one claim. Only the last release reaches the platform.
+  static Future<void> release() async {
+    if (_holders == 0) return;
+    _holders--;
+    if (_holders != 0) return;
+    await disable();
+  }
+
   static Future<void> enable() async {
+    if (_disabled) return;
     try {
       await _channel.invokeMethod<void>('enable');
     } on PlatformException {
@@ -42,10 +79,21 @@ abstract final class ScreenProtection {
 
 /// Wraps a route whose content is protected health information.
 ///
-/// Enables protection on mount and releases it on dispose, so the flag follows
-/// navigation rather than being set once and forgotten — leaving FLAG_SECURE on
-/// permanently would blank the whole app in the recents switcher, which users
-/// read as a bug.
+/// Protection follows **visibility**, not mount. That distinction is the whole
+/// point of this class, and getting it wrong was a real defect: the Records and
+/// Prescriptions tabs are branches of a `StatefulShellRoute.indexedStack`,
+/// which keeps every visited branch alive forever. Enabling on `initState` and
+/// disabling on `dispose` therefore meant that once a patient opened Records,
+/// `FLAG_SECURE` stayed on for the rest of the process — the app blanked in the
+/// recents switcher from then on, which reads as a bug, and the release call
+/// never ran at all.
+///
+/// The signal is `TickerMode`: go_router wraps inactive branches in
+/// `Offstage(offstage: true, child: TickerMode(enabled: false, ...))`, so an
+/// inactive tab is exactly a disabled ticker. That also makes this correct for
+/// ordinary pushed routes, which stay ticking underneath a pushed page — a
+/// record list under an open record detail is still protected, and still
+/// protected after the detail pops.
 class ProtectedScreen extends StatefulWidget {
   const ProtectedScreen({super.key, required this.child});
 
@@ -56,16 +104,30 @@ class ProtectedScreen extends StatefulWidget {
 }
 
 class _ProtectedScreenState extends State<ProtectedScreen> {
+  bool _holding = false;
+
   @override
-  void initState() {
-    super.initState();
-    ScreenProtection.enable();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reading TickerMode here registers the dependency, so this method runs
+    // again the moment the branch is switched away from or back to.
+    _sync(TickerMode.valuesOf(context).enabled);
   }
 
   @override
   void dispose() {
-    ScreenProtection.disable();
+    _sync(false);
     super.dispose();
+  }
+
+  void _sync(bool wanted) {
+    if (wanted == _holding) return;
+    _holding = wanted;
+    if (wanted) {
+      ScreenProtection.acquire();
+    } else {
+      ScreenProtection.release();
+    }
   }
 
   @override

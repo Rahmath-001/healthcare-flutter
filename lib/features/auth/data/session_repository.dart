@@ -125,11 +125,20 @@ class FixtureSessionRepository implements SessionRepository {
     };
 
     // A new provider starts at DRAFT, so the app routes them to verification
-    // rather than into the provider shell.
+    // rather than into the provider shell. An instance built with an explicit
+    // [providerStatus] keeps it instead: on sample data there is no operator
+    // console sharing this process to approve anybody, so without that the
+    // provider shell would be unreachable and only the verification screens
+    // could ever be seen.
     final resolved = isStaff
         ? (role: role, status: ProviderStatus.notApplicable)
         : requestedRole == UserRole.provider
-            ? (role: UserRole.provider, status: ProviderStatus.draft)
+            ? (
+                role: UserRole.provider,
+                status: providerStatus == ProviderStatus.notApplicable
+                    ? ProviderStatus.draft
+                    : providerStatus
+              )
             : (role: UserRole.patient, status: ProviderStatus.notApplicable);
     return (
       session: _session(role: resolved.role, providerStatus: resolved.status),

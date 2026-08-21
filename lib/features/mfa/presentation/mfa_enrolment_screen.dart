@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/feature_providers.dart';
 import '../../../l10n/l10n.dart';
+import '../../../shared/sensitive_clipboard.dart';
 
 /// TOTP enrolment for providers.
 ///
@@ -143,12 +144,14 @@ class _MfaEnrolmentScreenState extends ConsumerState<MfaEnrolmentScreen> {
                   OutlinedButton.icon(
                     onPressed: () async {
                       final messenger = ScaffoldMessenger.of(context);
-                      await Clipboard.setData(
-                          ClipboardData(text: _secret ?? ''));
+                      final note = context.l10n.mfaClipboardCleared;
+                      // The TOTP seed is an authentication factor. It goes to
+                      // the clipboard because transcribing base32 by hand is
+                      // how people give up on MFA — and it is taken back a
+                      // minute later. See `SensitiveClipboard`.
+                      await SensitiveClipboard.copy(_secret ?? '');
                       if (!mounted) return;
-                      messenger.showSnackBar(
-                        SnackBar(content: Text(context.l10n.mfaKeyCopied)),
-                      );
+                      messenger.showSnackBar(SnackBar(content: Text(note)));
                     },
                     icon: const Icon(Icons.copy, size: 18),
                     label: Text(context.l10n.mfaCopyKey),

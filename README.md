@@ -78,6 +78,10 @@ lib/features/<feature>/
   knows about Dio or HTTP status codes; the server speaks RFC 9457 `application/problem+json`.
 - **Identity is not authorization.** Firebase Auth proves *who*; a separate MiDoctor session
   (own JWT, own scopes) decides *what they may do*. The app never authorizes off Firebase.
+- **One design system**, in [lib/core/theme/](lib/core/theme/): spacing, radii, motion and
+  elevation tokens; explicit light and dark `ColorScheme`s; and `AppTones`, a semantic
+  palette so a *completed* appointment is not rendered in the same colour as an error.
+  Nothing outside that folder picks a colour, a radius or a duration.
 
 `lib/screens/`, `lib/services/`, `lib/widgets/` and `lib/models/` are pre-refactor code that
 has not been migrated into `lib/features/`. Some of it is still live and wired into the
@@ -119,7 +123,7 @@ token revocation on account deletion is mandatory. See the Sign-in section of
 ```bash
 flutter analyze --fatal-infos                 # must be clean
 dart format --set-exit-if-changed lib test
-flutter test                                  # 208 tests
+flutter test                                  # 240 tests
 
 cd functions
 pnpm exec tsc --noEmit
@@ -132,6 +136,58 @@ regenerate. End-to-end journeys live in `integration_test/`.
 
 Known gaps: the operator console's screens have no widget tests, and the Firestore
 transactions (double-booking, refresh rotation) need the emulator to cover.
+
+---
+
+## Design & accessibility
+
+The visual language lives in [lib/core/theme/](lib/core/theme/) and is applied through
+`MaterialApp`'s `theme`/`darkTheme` — screens read it, they do not restate it.
+
+- **Colour** is two hand-written `ColorScheme`s rather than `colorSchemeSeed`. A seed
+  derives every neutral from the brand hue, which on a teal seed tints the greys green and
+  pulls clinical content toward the product colour.
+- **Semantic tones** (`context.tones`, or `Tone` on a `StatusChip`) carry meaning —
+  success, warning, danger, info, neutral — each with a foreground and container that are
+  contrast-checked together in both brightnesses.
+- **Motion** is one language: 120ms for press states, 180ms for state swaps, 240ms for
+  pages, 360ms for first-run reveals. Only `opacity` and `transform` animate, and every
+  animation collapses to an instant cut when the OS asks for reduced motion.
+- **Loading is a skeleton**, held back 160ms so a fast response never flashes a placeholder.
+- **Text scaling is tested, not hoped for.** The main screens are rendered at 1.3× and 2×
+  and fail on any overflow. Fixed heights are derived from `MediaQuery.textScalerOf`, never
+  hard-coded — this audience turns the system font up.
+
+---
+
+## Security & compliance
+
+Control-by-control audit: **[docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md)**. Every
+HIPAA §164.312 technical safeguard a mobile client can implement is implemented; what
+remains is server-side or organizational and is listed there.
+
+HIPAA is US law. This product is India-facing, where the **DPDP Act 2023**, the
+**Telemedicine Practice Guidelines 2020** and the **SPDI Rules** bind — §164.312 is the
+stricter checklist, so building to it satisfies DPDP as a side effect.
+
+What that means day to day:
+
+- The whole app sits inside `InactivityTimeout` — 15 minutes, then signed out.
+- PHI screens are wrapped in `ProtectedScreen` (`FLAG_SECURE` / iOS blur-on-resign).
+  Protection follows **visibility**, not mount, because shell tabs are never disposed.
+  **Adding a screen that renders PHI means adding it to that list.**
+- Clinical free-text fields set `autocorrect: false` and `enableSuggestions: false`, or the
+  OS learns a diagnosis into the personal dictionary and suggests it in other apps.
+- Credentials are never persisted on web (`localStorage` is readable by any XSS), and the
+  MFA seed and recovery codes expire off the clipboard after 60 seconds.
+- `debugPrint` is **not** stripped from release builds. Every call site is behind
+  `kDebugMode`; that guard is the only thing between a diagnostic and a PHI disclosure.
+
+> **Before any external release:** populate `AppConfig._pinsFor` with the deployed
+> certificate's pins. Certificate pinning is wired and tested but the pin set is empty,
+> which disables it. Ship two pins — the live certificate and its successor — and read the
+> rotation runbook in `lib/core/network/certificate_pinning_io.dart` first. A pin is the
+> one control that can permanently brick an installed fleet.
 
 ---
 

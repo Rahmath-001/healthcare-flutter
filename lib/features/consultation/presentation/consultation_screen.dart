@@ -627,6 +627,10 @@ class _ChatPanel extends StatelessWidget {
                 Expanded(
                   child: TextField(
                     controller: controller,
+                    // Consultation chat is clinical by definition. See
+                    // `edit_profile_screen.dart`.
+                    autocorrect: false,
+                    enableSuggestions: false,
                     decoration: InputDecoration(
                       hintText: context.l10n.consultationChatHint,
                       border: const OutlineInputBorder(),
@@ -813,7 +817,7 @@ class _RemoteVideo extends ConsumerWidget {
       return Positioned.fill(child: view);
     }
 
-    return Container(
+    return ColoredBox(
       color: Colors.black87,
       child: Center(
         child: Column(
@@ -862,7 +866,7 @@ class _LocalPreview extends ConsumerWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Container(
+      child: ColoredBox(
         color: Colors.black54,
         child: view ??
             const Center(

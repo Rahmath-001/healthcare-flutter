@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/feature_providers.dart';
 import '../../../core/router/routes.dart';
 import '../../../shared/formatters.dart';
+import '../../../shared/haptics.dart';
 import '../../appointments/domain/appointment.dart';
 import '../../consent/domain/consent.dart';
 import '../../providers_search/domain/doctor.dart';
@@ -29,6 +30,15 @@ class _BookingConfirmedScreenState
     extends ConsumerState<BookingConfirmedScreen> {
   bool _shareRecords = false;
   bool _sharing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fired on arrival rather than on the confirm tap: reaching this screen
+    // means the server took the booking. A buzz on the request would be a
+    // promise made before anything was promised back.
+    Haptics.success();
+  }
 
   Future<void> _finish() async {
     if (_shareRecords) {

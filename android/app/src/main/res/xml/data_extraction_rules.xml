@@ -4,7 +4,8 @@
   manifest, so cloud backup is off entirely; these rules additionally govern
   device-to-device transfer, which allowBackup does NOT cover.
 
-  Nothing this app stores may leave the device: tokens live in EncryptedSharedPreferences
+  Nothing this app stores may leave the device: the refresh token is AES-GCM
+  encrypted under an RSA-OAEP-wrapped Android KeyStore key
   and clinical data lives on the server. Exclude everything.
 -->
 <data-extraction-rules>

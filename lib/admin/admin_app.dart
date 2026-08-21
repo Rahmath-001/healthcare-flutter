@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers.dart';
 import '../core/session/session.dart';
 import '../core/session/user_role.dart';
+import '../l10n/l10n.dart';
 import 'router/admin_router.dart';
 import 'theme/admin_theme.dart';
 
@@ -36,6 +37,16 @@ class MiDoctorAdminApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AdminTheme.light,
       darkTheme: AdminTheme.dark,
+
+      // English only, and pinned to it. The console is internal staff tooling;
+      // translating a review queue nobody outside the company sees buys
+      // nothing. The delegates are still installed because the console reuses
+      // `lib/shared/widgets` — `AsyncView` and `FailureView` read their copy
+      // from the ARB, and without a delegate here that lookup is a crash on
+      // the console's first failed request.
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: const [Locale('en')],
+
       routerConfig: ref.watch(adminRouterProvider),
     );
   }

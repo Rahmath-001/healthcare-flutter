@@ -36,6 +36,7 @@ import '../../screens/phone_input_screen.dart';
 import '../../screens/signup_screen.dart';
 import '../../screens/tabs/home_tab.dart';
 import '../../screens/tabs/profile_tab.dart';
+import '../../l10n/l10n.dart';
 import '../security/screen_protection.dart';
 import 'routes.dart';
 
@@ -126,7 +127,10 @@ List<RouteBase> buildRoutes() => [
       GoRoute(path: Routes.privacy, builder: (_, __) => const PrivacyScreen()),
       GoRoute(
         path: Routes.editProfile,
-        builder: (_, __) => const EditProfileScreen(),
+        // Carries allergies and chronic conditions in free text — the same
+        // class of data as a record, and previously the only PHI screen with
+        // no screenshot protection at all.
+        builder: (_, __) => const ProtectedScreen(child: EditProfileScreen()),
       ),
       GoRoute(
         path: Routes.supportTickets,
@@ -158,12 +162,20 @@ List<RouteBase> buildRoutes() => [
       ),
       GoRoute(
         path: Routes.providerMfa,
-        builder: (_, __) => const MfaEnrolmentScreen(),
+        // Renders the TOTP seed, its QR code and the recovery codes. A
+        // screenshot of this screen is a permanent second-factor bypass
+        // sitting in the gallery.
+        builder: (_, __) => const ProtectedScreen(child: MfaEnrolmentScreen()),
       ),
       GoRoute(
         path: '/provider/prescribe/:id',
-        builder: (_, state) => PrescribeScreen(
-          appointmentId: state.pathParameters['id']!,
+        // A prescription being composed names the patient, the diagnosis and
+        // the drug. Protected on the way in, not only once it is issued and
+        // showing on the patient's device.
+        builder: (_, state) => ProtectedScreen(
+          child: PrescribeScreen(
+            appointmentId: state.pathParameters['id']!,
+          ),
         ),
       ),
       GoRoute(
@@ -177,28 +189,28 @@ List<RouteBase> buildRoutes() => [
 
       // --- Patient shell ---------------------------------------------------
       StatefulShellRoute.indexedStack(
-        builder: (_, __, shell) => ShellScaffold(
+        builder: (context, __, shell) => ShellScaffold(
           navigationShell: shell,
-          destinations: const [
+          destinations: [
             NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Home',
+              icon: const Icon(Icons.home_outlined),
+              selectedIcon: const Icon(Icons.home),
+              label: context.l10n.navHome,
             ),
             NavigationDestination(
-              icon: Icon(Icons.calendar_month_outlined),
-              selectedIcon: Icon(Icons.calendar_month),
-              label: 'Appointments',
+              icon: const Icon(Icons.calendar_month_outlined),
+              selectedIcon: const Icon(Icons.calendar_month),
+              label: context.l10n.navAppointments,
             ),
             NavigationDestination(
-              icon: Icon(Icons.description_outlined),
-              selectedIcon: Icon(Icons.description),
-              label: 'Records',
+              icon: const Icon(Icons.folder_shared_outlined),
+              selectedIcon: const Icon(Icons.folder_shared),
+              label: context.l10n.navRecords,
             ),
             NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile',
+              icon: const Icon(Icons.person_outline),
+              selectedIcon: const Icon(Icons.person),
+              label: context.l10n.navProfile,
             ),
           ],
         ),
@@ -236,8 +248,11 @@ List<RouteBase> buildRoutes() => [
               routes: [
                 GoRoute(
                   path: ':id',
-                  builder: (_, state) => AppointmentDetailScreen(
-                    appointmentId: state.pathParameters['id']!,
+                  // Shows the reason for visit and any linked prescription.
+                  builder: (_, state) => ProtectedScreen(
+                    child: AppointmentDetailScreen(
+                      appointmentId: state.pathParameters['id']!,
+                    ),
                   ),
                 ),
               ],
@@ -291,28 +306,28 @@ List<RouteBase> buildRoutes() => [
 
       // --- Provider shell (approved only) ----------------------------------
       StatefulShellRoute.indexedStack(
-        builder: (_, __, shell) => ShellScaffold(
+        builder: (context, __, shell) => ShellScaffold(
           navigationShell: shell,
-          destinations: const [
+          destinations: [
             NavigationDestination(
-              icon: Icon(Icons.today_outlined),
-              selectedIcon: Icon(Icons.today),
-              label: 'Today',
+              icon: const Icon(Icons.today_outlined),
+              selectedIcon: const Icon(Icons.today),
+              label: context.l10n.navToday,
             ),
             NavigationDestination(
-              icon: Icon(Icons.event_available_outlined),
-              selectedIcon: Icon(Icons.event_available),
-              label: 'Schedule',
+              icon: const Icon(Icons.event_available_outlined),
+              selectedIcon: const Icon(Icons.event_available),
+              label: context.l10n.navSchedule,
             ),
             NavigationDestination(
-              icon: Icon(Icons.folder_shared_outlined),
-              selectedIcon: Icon(Icons.folder_shared),
-              label: 'Patients',
+              icon: const Icon(Icons.folder_shared_outlined),
+              selectedIcon: const Icon(Icons.folder_shared),
+              label: context.l10n.navPatients,
             ),
             NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile',
+              icon: const Icon(Icons.person_outline),
+              selectedIcon: const Icon(Icons.person),
+              label: context.l10n.navProfile,
             ),
           ],
         ),

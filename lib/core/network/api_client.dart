@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../config/app_config.dart';
 import '../error/failure.dart';
+import 'certificate_pinning.dart';
 import 'problem_json.dart';
 
 /// Thin wrapper over Dio that guarantees callers only ever see [Failure],
@@ -84,6 +85,12 @@ Dio buildDio(AppConfig config, {List<Interceptor> interceptors = const []}) {
           status != null && status >= 200 && status < 300,
     ),
   );
+  // Layered on top of the platform's own chain validation, never instead of
+  // it, and a no-op unless the environment declares pins. Applied to every Dio
+  // this function builds — including the bare replay client, which would
+  // otherwise be an unpinned path to the same API.
+  applyPinning(dio, config);
+
   dio.interceptors.addAll(interceptors);
   return dio;
 }

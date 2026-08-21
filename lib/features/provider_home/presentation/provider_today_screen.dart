@@ -102,7 +102,11 @@ class _ProviderAppointmentCard extends StatelessWidget {
                 ),
                 StatusChip(
                   label: a.status.label,
-                  color: theme.colorScheme.primary,
+                  tone: a.status.isCancelled
+                      ? Tone.danger
+                      : a.status.isPast
+                          ? Tone.neutral
+                          : Tone.success,
                 ),
               ],
             ),

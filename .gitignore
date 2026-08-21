@@ -43,3 +43,6 @@ functions/.secret.local
 
 # Produced by `flutter test --coverage`.
 coverage/
+
+# Golden diff output, written on a failed comparison.
+test/golden/failures/

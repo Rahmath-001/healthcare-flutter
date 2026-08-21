@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
+import 'core/security/inactivity_timeout.dart';
+import 'core/theme/app_theme.dart';
 import 'l10n/app_localizations.dart';
 import 'widgets/offline_banner.dart';
 
@@ -23,21 +25,19 @@ class MiDoctorApp extends ConsumerWidget {
       // advertised as supported.
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF0E8388),
-        useMaterial3: true,
-        brightness: Brightness.light,
-      ),
-      darkTheme: ThemeData(
-        colorSchemeSeed: const Color(0xFF0E8388),
-        useMaterial3: true,
-        brightness: Brightness.dark,
-      ),
-      builder: (context, child) => Column(
-        children: [
-          const OfflineBanner(),
-          Expanded(child: child ?? const SizedBox.shrink()),
-        ],
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      // Wrapped above the router so the inactivity clock spans every route
+      // rather than being re-armed by navigation. Inside the `builder`, so it
+      // still sits below `ScaffoldMessenger` and can explain itself on the way
+      // out.
+      builder: (context, child) => InactivityTimeout(
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(child: child ?? const SizedBox.shrink()),
+          ],
+        ),
       ),
     );
   }

@@ -272,6 +272,12 @@ abstract class AppLocalizations {
   /// **'You are offline'**
   String get offline;
 
+  /// No description provided for @sessionTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed out after 15 minutes of inactivity, to keep your health information private.'**
+  String get sessionTimedOut;
+
   /// No description provided for @errorGeneric.
   ///
   /// In en, this message translates to:
@@ -356,6 +362,24 @@ abstract class AppLocalizations {
   /// **'Signs in as Priya Sharma, a patient with appointments, records and prescriptions already in place.'**
   String get authSampleDataHint;
 
+  /// No description provided for @authExploreAsDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore as an approved doctor'**
+  String get authExploreAsDoctor;
+
+  /// No description provided for @authExploreAsPendingDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore as a doctor awaiting verification'**
+  String get authExploreAsPendingDoctor;
+
+  /// No description provided for @authOr.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get authOr;
+
   /// No description provided for @authGoogleFailed.
   ///
   /// In en, this message translates to:
@@ -409,6 +433,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your phone number'**
   String get phoneTitle;
+
+  /// No description provided for @phoneIndiaOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'India only · Airtel, Jio or Vi · internet calling numbers are not accepted'**
+  String get phoneIndiaOnly;
+
+  /// No description provided for @phoneSendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get phoneSendCode;
 
   /// No description provided for @phoneSubtitle.
   ///
@@ -554,6 +590,24 @@ abstract class AppLocalizations {
   /// **'Hello, {name}'**
   String homeGreeting(String name);
 
+  /// No description provided for @homeGoodMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good morning'**
+  String get homeGoodMorning;
+
+  /// No description provided for @homeGoodAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon'**
+  String get homeGoodAfternoon;
+
+  /// No description provided for @homeGoodEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening'**
+  String get homeGoodEvening;
+
   /// No description provided for @homeFindDoctor.
   ///
   /// In en, this message translates to:
@@ -643,6 +697,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Maximum fee'**
   String get searchMaxFee;
+
+  /// No description provided for @searchUpToFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {fee}'**
+  String searchUpToFee(String fee);
 
   /// No description provided for @searchMinRating.
   ///
@@ -836,6 +896,42 @@ abstract class AppLocalizations {
   /// **'Upcoming'**
   String get appointmentsUpcoming;
 
+  /// No description provided for @appointmentsCancelledTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get appointmentsCancelledTab;
+
+  /// No description provided for @appointmentsNoUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'No upcoming appointments'**
+  String get appointmentsNoUpcoming;
+
+  /// No description provided for @appointmentsNoUpcomingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Book a consultation and it will show up here.'**
+  String get appointmentsNoUpcomingBody;
+
+  /// No description provided for @appointmentsNoPast.
+  ///
+  /// In en, this message translates to:
+  /// **'No past appointments'**
+  String get appointmentsNoPast;
+
+  /// No description provided for @appointmentsNoCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'No cancelled appointments'**
+  String get appointmentsNoCancelled;
+
+  /// No description provided for @actionBookShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Book'**
+  String get actionBookShort;
+
   /// No description provided for @appointmentsPast.
   ///
   /// In en, this message translates to:
@@ -865,6 +961,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reason for visit'**
   String get appointmentReasonForVisit;
+
+  /// No description provided for @appointmentNoReasonGiven.
+  ///
+  /// In en, this message translates to:
+  /// **'No reason given'**
+  String get appointmentNoReasonGiven;
 
   /// No description provided for @appointmentFee.
   ///
@@ -979,6 +1081,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checking file, available shortly'**
   String get recordsChecking;
+
+  /// No description provided for @recordsCheckingShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking'**
+  String get recordsCheckingShort;
+
+  /// No description provided for @recordScanFailedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Check failed'**
+  String get recordScanFailedShort;
 
   /// No description provided for @recordDetailTitle.
   ///
@@ -2755,6 +2869,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Key copied'**
   String get mfaKeyCopied;
+
+  /// No description provided for @mfaClipboardCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied. The clipboard clears itself in a minute.'**
+  String get mfaClipboardCleared;
 
   /// No description provided for @mfaCopyAllCodes.
   ///

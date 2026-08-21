@@ -83,6 +83,21 @@ None of this is optional for an Indian telemedicine product.
 - [ ] **Somebody to staff it.** The console is a tool; NMC register lookups,
       escalation and record custody are an operating procedure that has to exist
       before a doctor is approved through it.
+- [x] **HIPAA §164.312 technical safeguards implemented** — see
+      [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md). Automatic logoff, certificate
+      pinning, memory-only web credentials, screenshot coverage, keyboard-dictionary
+      leakage and clipboard expiry are all done and tested.
+- [ ] **Populate the certificate pins** in `AppConfig._pinsFor` before any external
+      release. Empty = pinning disabled. Always ship two — the live certificate and its
+      successor — and follow the rotation runbook in `certificate_pinning_io.dart`.
+- [ ] **Server-side: WORM prescription PDF and an `HttpOnly` refresh cookie for web.**
+      The only two §164.312 items the client cannot close.
+- [ ] **§164.308 / §164.310** — risk analysis, security official, training, sanctions,
+      contingency plan, facility and device controls. Entirely organizational; no
+      repository can satisfy them.
+- [ ] **BAAs, not just DPAs**, with Google/Firebase, Twilio and 100ms — *if* HIPAA is
+      actually in scope. Decide whether US patients are, because it also decides the
+      Firebase Auth residency question below.
 - [ ] **DPDP Act 2023** — published privacy notice, appointed grievance officer
       (`grievance@midoctor.in` is currently a placeholder), breach-notification
       runbook, processing register.

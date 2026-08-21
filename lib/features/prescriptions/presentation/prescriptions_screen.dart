@@ -84,9 +84,7 @@ class _PrescriptionCard extends StatelessWidget {
                   ),
                   StatusChip(
                     label: p.isValid ? 'Valid' : p.status.name,
-                    color: p.isValid
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline,
+                    tone: p.isValid ? Tone.success : Tone.neutral,
                   ),
                 ],
               ),

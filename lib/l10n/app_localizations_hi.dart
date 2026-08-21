@@ -96,6 +96,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get offline => 'आप ऑफ़लाइन हैं';
 
   @override
+  String get sessionTimedOut =>
+      'आपकी स्वास्थ्य जानकारी निजी रखने के लिए, 15 मिनट की निष्क्रियता के बाद साइन आउट कर दिया गया।';
+
+  @override
   String get errorGeneric => 'कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।';
 
   @override
@@ -139,6 +143,16 @@ class AppLocalizationsHi extends AppLocalizations {
       'Signs in as Priya Sharma, a patient with appointments, records and prescriptions already in place.';
 
   @override
+  String get authExploreAsDoctor => 'स्वीकृत डॉक्टर के रूप में देखें';
+
+  @override
+  String get authExploreAsPendingDoctor =>
+      'सत्यापन की प्रतीक्षा कर रहे डॉक्टर के रूप में देखें';
+
+  @override
+  String get authOr => 'या';
+
+  @override
   String get authGoogleFailed =>
       'Google से साइन इन नहीं हो सका। कृपया फिर कोशिश करें।';
 
@@ -169,6 +183,13 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get phoneTitle => 'आपका फ़ोन नंबर';
+
+  @override
+  String get phoneIndiaOnly =>
+      'केवल भारत · एयरटेल, जियो या Vi · इंटरनेट कॉलिंग नंबर स्वीकार नहीं';
+
+  @override
+  String get phoneSendCode => 'कोड भेजें';
 
   @override
   String get phoneSubtitle => 'पुष्टि के लिए हम आपको एक बार का कोड भेजेंगे।';
@@ -253,6 +274,15 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get homeGoodMorning => 'सुप्रभात';
+
+  @override
+  String get homeGoodAfternoon => 'नमस्कार';
+
+  @override
+  String get homeGoodEvening => 'शुभ संध्या';
+
+  @override
   String get homeFindDoctor => 'डॉक्टर खोजें';
 
   @override
@@ -297,6 +327,11 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get searchMaxFee => 'अधिकतम शुल्क';
+
+  @override
+  String searchUpToFee(String fee) {
+    return '$fee तक';
+  }
 
   @override
   String get searchMinRating => 'न्यूनतम रेटिंग';
@@ -432,6 +467,25 @@ class AppLocalizationsHi extends AppLocalizations {
   String get appointmentsUpcoming => 'आगामी';
 
   @override
+  String get appointmentsCancelledTab => 'रद्द';
+
+  @override
+  String get appointmentsNoUpcoming => 'कोई आगामी अपॉइंटमेंट नहीं';
+
+  @override
+  String get appointmentsNoUpcomingBody =>
+      'परामर्श बुक करें और वह यहाँ दिखाई देगा।';
+
+  @override
+  String get appointmentsNoPast => 'कोई पिछला अपॉइंटमेंट नहीं';
+
+  @override
+  String get appointmentsNoCancelled => 'कोई रद्द अपॉइंटमेंट नहीं';
+
+  @override
+  String get actionBookShort => 'बुक करें';
+
+  @override
   String get appointmentsPast => 'पिछले';
 
   @override
@@ -445,6 +499,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get appointmentReasonForVisit => 'आने का कारण';
+
+  @override
+  String get appointmentNoReasonGiven => 'कोई कारण नहीं बताया गया';
 
   @override
   String get appointmentFee => 'शुल्क';
@@ -505,6 +562,12 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get recordsChecking => 'फ़ाइल जाँची जा रही है, जल्द उपलब्ध होगी';
+
+  @override
+  String get recordsCheckingShort => 'जाँच हो रही है';
+
+  @override
+  String get recordScanFailedShort => 'जाँच विफल';
 
   @override
   String get recordDetailTitle => 'रिकॉर्ड';
@@ -1467,6 +1530,10 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get mfaKeyCopied => 'कुंजी कॉपी हो गई';
+
+  @override
+  String get mfaClipboardCleared =>
+      'कॉपी हो गया। क्लिपबोर्ड एक मिनट में अपने आप साफ़ हो जाएगा।';
 
   @override
   String get mfaCopyAllCodes => 'सभी कोड कॉपी करें';

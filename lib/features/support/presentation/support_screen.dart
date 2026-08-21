@@ -77,8 +77,7 @@ class _TicketCard extends StatelessWidget {
         ),
         trailing: StatusChip(
           label: t.status.label,
-          color:
-              t.isOpen ? theme.colorScheme.primary : theme.colorScheme.outline,
+          tone: t.isOpen ? Tone.info : Tone.neutral,
         ),
         children: [
           // Only the requester's own messages and public support replies are

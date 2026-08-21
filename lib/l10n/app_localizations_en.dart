@@ -96,6 +96,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offline => 'You are offline';
 
   @override
+  String get sessionTimedOut =>
+      'Signed out after 15 minutes of inactivity, to keep your health information private.';
+
+  @override
   String get errorGeneric => 'Something went wrong. Please try again.';
 
   @override
@@ -139,6 +143,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Signs in as Priya Sharma, a patient with appointments, records and prescriptions already in place.';
 
   @override
+  String get authExploreAsDoctor => 'Explore as an approved doctor';
+
+  @override
+  String get authExploreAsPendingDoctor =>
+      'Explore as a doctor awaiting verification';
+
+  @override
+  String get authOr => 'or';
+
+  @override
   String get authGoogleFailed => 'Google sign-in failed. Please try again.';
 
   @override
@@ -167,6 +181,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get phoneTitle => 'Your phone number';
+
+  @override
+  String get phoneIndiaOnly =>
+      'India only · Airtel, Jio or Vi · internet calling numbers are not accepted';
+
+  @override
+  String get phoneSendCode => 'Send code';
 
   @override
   String get phoneSubtitle =>
@@ -252,6 +273,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get homeGoodMorning => 'Good morning';
+
+  @override
+  String get homeGoodAfternoon => 'Good afternoon';
+
+  @override
+  String get homeGoodEvening => 'Good evening';
+
+  @override
   String get homeFindDoctor => 'Find a doctor';
 
   @override
@@ -296,6 +326,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchMaxFee => 'Maximum fee';
+
+  @override
+  String searchUpToFee(String fee) {
+    return 'Up to $fee';
+  }
 
   @override
   String get searchMinRating => 'Minimum rating';
@@ -431,6 +466,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appointmentsUpcoming => 'Upcoming';
 
   @override
+  String get appointmentsCancelledTab => 'Cancelled';
+
+  @override
+  String get appointmentsNoUpcoming => 'No upcoming appointments';
+
+  @override
+  String get appointmentsNoUpcomingBody =>
+      'Book a consultation and it will show up here.';
+
+  @override
+  String get appointmentsNoPast => 'No past appointments';
+
+  @override
+  String get appointmentsNoCancelled => 'No cancelled appointments';
+
+  @override
+  String get actionBookShort => 'Book';
+
+  @override
   String get appointmentsPast => 'Past';
 
   @override
@@ -445,6 +499,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appointmentReasonForVisit => 'Reason for visit';
+
+  @override
+  String get appointmentNoReasonGiven => 'No reason given';
 
   @override
   String get appointmentFee => 'Fee';
@@ -505,6 +562,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recordsChecking => 'Checking file, available shortly';
+
+  @override
+  String get recordsCheckingShort => 'Checking';
+
+  @override
+  String get recordScanFailedShort => 'Check failed';
 
   @override
   String get recordDetailTitle => 'Record';
@@ -1468,6 +1531,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mfaKeyCopied => 'Key copied';
+
+  @override
+  String get mfaClipboardCleared =>
+      'Copied. The clipboard clears itself in a minute.';
 
   @override
   String get mfaCopyAllCodes => 'Copy all codes';

@@ -320,11 +320,10 @@ class _CredentialTile extends StatelessWidget {
                 ),
                 StatusChip(
                   label: c.status.label,
-                  color: switch (c.status) {
-                    CredentialReviewStatus.accepted =>
-                      theme.colorScheme.primary,
-                    CredentialReviewStatus.rejected => theme.colorScheme.error,
-                    _ => theme.colorScheme.outline,
+                  tone: switch (c.status) {
+                    CredentialReviewStatus.accepted => Tone.success,
+                    CredentialReviewStatus.rejected => Tone.danger,
+                    _ => Tone.neutral,
                   },
                 ),
               ],

@@ -32,10 +32,10 @@ The first admin is created with `pnpm grant-role`; nothing in the API can mint o
 | HTTP | `dio` ^5.11 behind an `ApiClient` wrapper |
 | Identity | Firebase Auth (Google OAuth + India phone OTP). **No email/password.** |
 | Authorization | MiDoctor server session (own JWT), *not* Firebase |
-| Secure storage | `flutter_secure_storage` ^11 (Keychain / EncryptedSharedPreferences) |
+| Secure storage | `flutter_secure_storage` ^11 (iOS Keychain / Android KeyStore: AES-GCM under an RSA-OAEP-wrapped key) |
 | Telehealth | `hmssdk_flutter` (100ms) behind a `TelehealthProvider` seam |
 | L10n | `flutter_localizations` + ARB — **wired into `MaterialApp` and read by screens**, ~2/3 covered |
-| Lints | `flutter_lints` + `strict-casts`/`strict-raw-types`/`strict-inference`, `avoid_print: true` |
+| Lints | `flutter_lints` + `strict-casts`/`strict-raw-types`/`strict-inference`, `avoid_print: true`, `prefer_const_*`, `use_colored_box` |
 
 Dart SDK `>=3.3.0 <4.0.0`.
 
@@ -47,7 +47,7 @@ Dart SDK `>=3.3.0 <4.0.0`.
 flutter pub get
 flutter analyze --fatal-infos        # must be clean; CI enforces
 dart format --set-exit-if-changed lib test
-flutter test                         # 208 tests
+flutter test                         # 240 tests
 flutter test --tags golden           # goldens; excluded from CI (host fonts)
 flutter gen-l10n                     # auto-runs on build (generate: true)
 flutter run --dart-define=USE_FIXTURES=true
@@ -96,7 +96,7 @@ Delete them if desktop is never going to ship.
 | sign_in_with_apple | yes | yes | yes |
 | connectivity_plus, shared_preferences, printing, pdf | yes | yes | yes |
 | file_picker, image_picker | yes | yes | yes |
-| flutter_secure_storage | yes | yes | **localStorage only** |
+| flutter_secure_storage | yes | yes | **localStorage — so credentials are memory-only there, see below** |
 | **hmssdk_flutter (100ms)** | yes | yes | **NONE** |
 
 `flutter build web --release` succeeds today (verified). Three things do **not** carry over:
@@ -113,12 +113,21 @@ picker carries bytes rather than paths. Three things still do **not** carry over
    remove that guard without a web media vendor behind `TelehealthProvider`.
 2. **`ScreenProtection` is a no-op on web.** Browsers have no `FLAG_SECURE` equivalent — the
    method-channel call is swallowed as `MissingPluginException`, by design. PHI screens
-   (records, prescriptions, sharing, consultation) are screenshot-able on web. Unavoidable.
-3. **`flutter_secure_storage` on web is `localStorage`, not a keychain.** The refresh token
-   would sit where any XSS can read it, contradicting the mobile design (memory-only access
-   token, Keychain/Keystore refresh token). **Unresolved decision** — the correct fix is a
-   same-site `HttpOnly` refresh cookie for the web client, which is a server-side choice,
-   not a client one. Do not ship web auth to real users before deciding this.
+   (records, prescriptions, sharing, consultation, appointment detail, prescribe, edit
+   profile, MFA enrolment) are screenshot-able on web. Unavoidable. Certificate pinning is
+   likewise not expressible on web — the browser owns TLS and never hands script the peer
+   certificate.
+3. **`flutter_secure_storage` on web is `localStorage`, not a keychain**, so
+   `SecureTokenStore` keeps the refresh token and session id **in memory only** on web and
+   never writes them. The consequence is deliberate and visible: **reloading the tab signs
+   you out.** That is the right trade for a credential that unlocks health records, and the
+   more appropriate behaviour for the operator console in particular, where the same
+   credential can suspend an account.
+
+   It is a mitigation, not the fix. The fix is a same-site `HttpOnly` refresh cookie, which
+   script cannot read at all — a server-side choice, not a client one. `Do not ship web auth
+   to real users` no longer applies to the exfiltration risk, but the session-persistence
+   cost is real and should be decided rather than discovered.
 
 ### Web setup gotchas
 
@@ -155,9 +164,57 @@ lib/features/<feature>/
   providers afterwards.
 - Every async list renders through [`AsyncView`](lib/shared/widgets/async_view.dart), so
   loading/error/empty look identical app-wide. Companions: `FailureView`, `EmptyState`,
-  `StatusChip`, `StarRating`.
+  `StatusChip`, `StarRating`, `SectionHeader`. Pass `skeleton:` on anything list-shaped —
+  see the Design system section.
 - Dates/money/countdowns go through `Fmt.*` in [lib/shared/formatters.dart](lib/shared/formatters.dart)
   (`Fmt.date`, `Fmt.time`, `Fmt.relative`, `Fmt.countdown`, `Fmt.rupees`).
+
+### Design system (`lib/core/theme/`)
+
+Three files, and **nothing outside them picks a colour, a radius or a duration**:
+
+| File | Holds |
+| --- | --- |
+| [app_tokens.dart](lib/core/theme/app_tokens.dart) | `Insets`, `Radii`, `Motion`, `Elevations`, `Breakpoints` |
+| [app_palette.dart](lib/core/theme/app_palette.dart) | the brand ramp, both `ColorScheme`s, and `AppTones` |
+| [app_theme.dart](lib/core/theme/app_theme.dart) | `AppTheme.light` / `AppTheme.dark` — ~20 component themes |
+
+Both schemes are **written out, not seeded**. `colorSchemeSeed` derives the neutrals from the
+brand hue, which on a teal seed tints every grey green and drags clinical content toward the
+product colour. Surfaces here are a near-neutral slate; teal appears only where the app is
+asking for a decision.
+
+**`AppTones` is the part to actually use.** A status is not "primary" or "error" — a
+*completed* appointment is not an error and a scanning record is not a success. Read it with
+`context.tones`, or pass a `Tone` to `StatusChip` rather than a raw `Color`: a tone ships a
+contrast-checked foreground **and** container for both brightnesses, where a raw colour at 12%
+alpha is only ever checked in whichever mode the author had open. The tone → meaning table is
+in `app_palette.dart`; do not add a seventh.
+
+**Motion is one language.** 120ms for press states, 180ms for state swaps, 240ms for pages,
+360ms for first-run reveals; `Curves.easeOutCubic` in, `easeInCubic` out. Only `opacity` and
+`transform` are animated. Two primitives in
+[app_motion.dart](lib/shared/widgets/app_motion.dart) — `FadeSlideIn` (entrance, stagger
+capped at 6 siblings) and `PressableScale` (0.98 while held). **Every animation checks
+`Motion.reduced(context)`** and cuts instantly when the OS asks for less motion; the login
+screen's old two-second infinite pulse is the anti-pattern this replaced.
+
+**Loading is a skeleton, not a spinner** — [skeleton.dart](lib/shared/widgets/skeleton.dart).
+A spinner says only "wait" and then reflows the whole page the instant data lands, under a
+thumb already in motion. The sweep is the one repeating animation the app keeps, because it
+reports status rather than decorating. `AsyncView` wraps it in `DelayedLoading`, which holds
+the placeholder back 160ms: a cached list resolves faster than a skeleton is worth showing,
+and grey bars that flash for 60ms read as a rendering fault, not as loading.
+
+**A stateful list item in a builder needs a key.** `FadeSlideIn` is stateful, so an unkeyed
+one is matched positionally — switch the Appointments tab or the Records filter and row 3's
+finished animation controller is handed to a different record, which then arrives already
+faded in. Key by domain id.
+
+**Grid cells and fixed heights must be derived from `MediaQuery.textScalerOf`**, never
+hard-coded. `test/widget/screens_test.dart` renders the main screens at 1.3× and 2× and fails
+on any overflow — a hard-coded tile height is a guaranteed overflow the moment someone turns
+the system font up, and this audience turns it up.
 
 ### Composition root
 
@@ -250,7 +307,15 @@ Pushed over the shell: booking-confirmed, sharing, settings/privacy/edit-profile
 consultation, rate, provider verification/credentials/mfa, prescribe.
 
 Screens holding PHI are wrapped in `ProtectedScreen` (records, prescriptions, sharing,
-consultation) — Android `FLAG_SECURE`, iOS blur-on-resign, no-op on web.
+consultation, appointment detail, prescribe, edit profile) — Android `FLAG_SECURE`, iOS
+blur-on-resign, no-op on web. **Adding a screen that renders PHI means adding it here.**
+
+The whole app sits inside [`InactivityTimeout`](lib/core/security/inactivity_timeout.dart),
+which signs the user out after 15 minutes with no pointer input. It arms off
+`currentSessionProvider` rather than starting unconditionally — an earlier version read the
+session only when the timer fired, caught it mid-restore in its loading state, treated that
+as "nobody signed in", and silently never re-armed. A security control that fails open and
+says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 
 ---
 
@@ -491,7 +556,10 @@ wired into the router:
 
 **Already deleted**, so do not go looking for them: `tabs/appointments_tab.dart`,
 `tabs/records_tab.dart`, `doctors_screen.dart`, `services/connectivity_service.dart`,
-`utils/page_transitions.dart`, and the unused `ProviderTodayTab` / `ProviderScheduleTab` /
+`utils/page_transitions.dart`, `widgets/shimmer_placeholder.dart` (superseded by
+`shared/widgets/skeleton.dart`; the `shimmer` package went with it, because it hard-coded
+`Colors.grey[300]` and flashed near-white blocks on a near-black page in dark mode), and the
+unused `ProviderTodayTab` / `ProviderScheduleTab` /
 `ProviderPatientsTab` from `provider_tabs.dart` — the router uses `ProviderTodayScreen` /
 `AvailabilityScreen` / `ProviderPatientsScreen`, and `ProviderProfileTab` from that file **is**
 live.
@@ -503,11 +571,13 @@ references anywhere.
 
 `lib/screens/onboarding_screen.dart` and `lib/screens/tabs/profile_tab.dart` now read and
 write the real patient profile through `accountRepositoryProvider`; they are legacy in style,
-not in behaviour.
+not in behaviour. `home_tab.dart`, `profile_tab.dart`, `login_screen.dart` and
+`phone_input_screen.dart` have since been rebuilt against the design system and the ARB —
+legacy by directory only.
 
 ---
 
-## Tests (`test/`, 139)
+## Tests (`test/`, 240)
 
 | File | Covers |
 | --- | --- |
@@ -516,8 +586,8 @@ not in behaviour.
 | `api_repository_test.dart` | the `USE_FIXTURES=false` wire contract for every API repository |
 | `admin_router_test.dart` | `resolveAdminRedirect`, and that the console's roles are the exact complement of the app's |
 | `fixture_backend_test.dart` | the cross-feature consequences: book → appointments, upload → readable, grant → visible, prescribe → patient, submit → review queue |
-| `widget/screens_test.dart` | screens mounted for real against the fixtures, in both locales |
-| `golden/screens_golden_test.dart` | layout regressions, tagged `golden` and excluded from CI |
+| `widget/screens_test.dart` | screens mounted for real against the fixtures, in both locales, **and at 1.3×/2× text scale** |
+| `golden/screens_golden_test.dart` | layout regressions in light, dark and Hindi, tagged `golden` and excluded from CI. **Home is deliberately not goldened** — its hero card renders a live countdown, so the picture changes with the wall clock and the test would train people to regenerate without reading |
 | `integration_test/` | end-to-end journeys on a device: `flutter test integration_test` |
 | `domain_rules_test.dart` | drug lists, consent expiry, cancellation, join window, holds, verification gate, ratings |
 | `fr_coverage_test.dart` | traceability against the FR spec (`docs/*.docx`) |
@@ -525,6 +595,10 @@ not in behaviour.
 | `problem_json_test.dart` | transport + RFC 9457 → `Failure` mapping |
 | `refresh_coordinator_test.dart` | single-flight refresh |
 | `session_test.dart` | session parsing, expiry skew, scopes |
+| `inactivity_timeout_test.dart` | automatic logoff: the window, re-arming on interaction, the backgrounded-and-returned path, and that it does nothing when signed out |
+| `screen_protection_test.dart` | `FLAG_SECURE` reference counting and release on tab switch — the shell-branch defect |
+| `certificate_pinning_test.dart` | that pinning is applied when pins exist, **not** applied when they do not (the kill switch), and that a null certificate is refused |
+| `sensitive_clipboard_test.dart` | the MFA seed and recovery codes expire off the clipboard, and a later copy by the user is left alone |
 | `debouncer_test.dart`, `phone_validator_test.dart`, `widget_test.dart` | utils |
 
 `fake_async` is pinned explicitly for deterministic timer tests.
@@ -536,6 +610,11 @@ refusal arrives as a `Failure` rather than a `DioException`.
 **Still untested:** the operator console's screens have no widget tests, and the Firestore
 transactions need the emulator.
 
+The four security tests exist because every control they cover **fails open and silently**:
+a broken inactivity timer, a `FLAG_SECURE` that never re-enables, a pin that is not applied,
+a clipboard that never clears. None of them throw, none of them look wrong on screen, and
+two of the four were already broken when they were written.
+
 The API has its own suite: `cd functions && pnpm test` (vitest, 47 tests, no emulator
 needed), covering the RBAC scope matrix, the IST/slot-id arithmetic, content inspection
 (magic bytes, EXIF stripping) and TOTP against the RFC 6238 vectors. The Firestore transactions — double-booking and refresh
@@ -545,13 +624,14 @@ rotation — remain uncovered; they need the emulator.
 
 ## Localisation
 
-**The app reads its strings from the ARB.** ~470 keys in `app_en.arb`, ~455 translated in
+**The app reads its strings from the ARB.** ~490 keys in `app_en.arb`, ~474 translated in
 `app_hi.arb`. Screens use `context.l10n.someKey` via the extension in
 [lib/l10n/l10n.dart](lib/l10n/l10n.dart) — short on purpose, because localisation that costs
 more than typing the string does not happen.
 
-**Coverage is about two thirds, not all of it.** Roughly 100 literals remain in the
-patient/provider app: mostly interpolated strings, a few one-off screens, and
+**Coverage is about three quarters, not all of it.** 271 keys are read by a widget today; the
+bottom nav, Home, Profile, Appointments, Records, sign-in and the phone screen are fully
+wired. What remains is mostly interpolated strings, a few one-off screens, and
 `prescription_pdf.dart` (a rendered document, not UI). `tool/l10n_migrate.py` is the migration
 helper — it refuses a mapping that does not match, so a typo is a loud failure rather than a
 string that quietly stayed English.
@@ -602,6 +682,52 @@ retention notices must not be machine-translated. See [lib/l10n/README.md](lib/l
     `TelemedicineConsent.version`.
 
 ---
+
+## Security & compliance
+
+Control-by-control audit: **[docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md)**.
+
+**Every HIPAA §164.312 technical safeguard a mobile client can implement is
+implemented.** What is left is server-side (WORM prescription PDF, `HttpOnly`
+refresh cookie for web) or organizational (risk analysis, BAAs, training, breach
+runbook) — the audit lists both explicitly.
+
+Jurisdiction, for the record: HIPAA is US law. This product is India-facing,
+where the **DPDP Act 2023**, the **Telemedicine Practice Guidelines 2020** and
+the **SPDI Rules** bind. §164.312 is the stricter checklist, so building to it
+satisfies DPDP too. If US patients come into scope, the DPA list becomes a BAA
+list and Firebase Auth's data residency needs an answer.
+
+Rules that are not obvious from reading a screen:
+
+- **`ProtectedScreen` follows visibility, not mount.** Records and Prescriptions
+  are `indexedStack` branches that are never disposed, so the old enable-on-mount
+  / disable-on-dispose version latched `FLAG_SECURE` on forever and never
+  released. It is now reference-counted off `TickerMode`. Adding a PHI screen
+  means adding it to the router's `ProtectedScreen` list.
+- **Clinical free-text fields set `autocorrect: false` and
+  `enableSuggestions: false`.** The OS otherwise learns typed words into the
+  personal dictionary and suggests them **in other apps** — a diagnosis leaking
+  with no consent record and no way to revoke it. Applies to allergies,
+  conditions, diagnosis, advice, instructions, record title/notes, consultation
+  chat and reason for visit.
+- **`debugPrint` is NOT stripped from release builds.** It forwards to `print`
+  and reaches logcat. `avoid_print` does not catch it, so the `kDebugMode` guard
+  on every call site is the only control.
+- **Web holds the refresh token in memory only.** `flutter_secure_storage` on
+  web is `localStorage`, readable by any XSS. A tab reload therefore signs you
+  out; that is the accepted trade, and the real fix is a server-issued
+  `HttpOnly` cookie.
+- **Certificate pinning is wired but its pins are empty.** `AppConfig._pinsFor`
+  must be populated before external release, always with two pins — the live
+  certificate and its successor. Empty = disabled = the kill switch, because a
+  pin is the one control that can permanently brick an installed fleet.
+- **The audit log is server-side only, deliberately.** A client-side log is
+  evidence the audited party can edit. `logAccess` records denials too.
+- **The whole app sits inside `InactivityTimeout`** (15 min). It arms off
+  `currentSessionProvider` rather than starting unconditionally — an earlier
+  version read the session only when the timer fired, caught it mid-restore,
+  treated that as signed-out and never re-armed.
 
 ## Launch status
 

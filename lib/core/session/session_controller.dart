@@ -93,10 +93,22 @@ class SessionController extends AsyncNotifier<Session?> {
   /// rightly be refused by the server.
   Future<void> signInWithSampleData({
     UserRole requestedRole = UserRole.patient,
+    ProviderStatus? providerStatus,
   }) async {
+    // Sample data has no operator console in this process, so an approved
+    // doctor cannot be produced by working the verification flow. Asking for
+    // the status directly is the only way the provider shell is reachable at
+    // all; `USE_FIXTURES=false` never reaches this method.
+    final repository = providerStatus == null
+        ? _repository
+        : FixtureSessionRepository(
+            role: requestedRole,
+            providerStatus: providerStatus,
+          );
+
     state = const AsyncValue<Session?>.loading();
     state = await AsyncValue.guard(() async {
-      final result = await _repository.exchange(
+      final result = await repository.exchange(
         firebaseIdToken: 'fixture',
         deviceId: 'fixture-device',
         platform: 'fixture',

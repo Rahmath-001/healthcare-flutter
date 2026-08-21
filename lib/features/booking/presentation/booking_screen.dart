@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/providers.dart';
 import '../../../shared/formatters.dart';
+import '../../../shared/haptics.dart';
 import '../../../shared/widgets/async_view.dart';
 import '../../appointments/domain/appointment.dart';
 import '../../providers_search/domain/doctor.dart';
@@ -138,10 +139,14 @@ class _BookingBodyState extends ConsumerState<_BookingBody> {
                 selected: state.selectedSlot,
               ),
               const SizedBox(height: 20),
+              // The reason for visit is a symptom list. See
+              // `edit_profile_screen.dart`.
               TextField(
                 controller: _reasonCtrl,
                 maxLines: 3,
                 maxLength: 200,
+                autocorrect: false,
+                enableSuggestions: false,
                 decoration: InputDecoration(
                   labelText: context.l10n.bookingReasonOptional,
                   hintText: context.l10n.bookingSymptomsHint,
@@ -227,7 +232,10 @@ class _DateStrip extends StatelessWidget {
 
           return InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () => onSelect(date),
+            onTap: () {
+              Haptics.selection();
+              onSelect(date);
+            },
             child: Container(
               width: 60,
               decoration: BoxDecoration(
@@ -305,9 +313,12 @@ class _SlotGrid extends ConsumerWidget {
               // A taken slot stays visible but unselectable, so the day still
               // reads as "busy" rather than "empty".
               onSelected: slot.isAvailable
-                  ? (_) => ref
-                      .read(bookingControllerProvider.notifier)
-                      .selectSlot(slot)
+                  ? (_) {
+                      Haptics.selection();
+                      ref
+                          .read(bookingControllerProvider.notifier)
+                          .selectSlot(slot);
+                    }
                   : null,
             );
           }).toList(),
@@ -336,12 +347,26 @@ class _ConfirmBar extends StatefulWidget {
 class _ConfirmBarState extends State<_ConfirmBar> {
   Timer? _ticker;
 
+  /// Latched so the expiry buzz fires once, not once per tick.
+  bool _announcedExpiry = false;
+
   @override
   void initState() {
     super.initState();
     // Drives the visible hold countdown.
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {});
+
+      // The hold expiring is the one thing on this screen that happens
+      // *to* the user rather than because of them, and it silently disables
+      // the confirm button they were reaching for. Worth a buzz: their eyes
+      // may well be somewhere else in the room.
+      final hold = widget.state.hold;
+      if (hold != null && hold.isExpired && !_announcedExpiry) {
+        _announcedExpiry = true;
+        Haptics.warning();
+      }
     });
   }
 
@@ -385,8 +410,12 @@ class _ConfirmBarState extends State<_ConfirmBar> {
                   ),
                   if (hold != null && !expired)
                     StatusChip(
+                      // Warning, not brand: this chip is a countdown to losing
+                      // the slot. Rendering it in the product colour made the
+                      // one element on the screen with a deadline look like
+                      // decoration.
                       label: 'Held ${Fmt.countdown(hold.remaining)}',
-                      color: theme.colorScheme.primary,
+                      tone: Tone.warning,
                       icon: Icons.timer_outlined,
                     ),
                 ],
@@ -423,7 +452,6 @@ class _ConfirmBarState extends State<_ConfirmBar> {
                 ),
               SizedBox(
                 width: double.infinity,
-                height: 50,
                 child: FilledButton(
                   onPressed: widget.state.isBooking || expired
                       ? null

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+
 /// Full-width "Continue with Apple" button with a loading state.
 ///
 /// Apple's Human Interface Guidelines constrain this button far more than a
@@ -22,7 +24,6 @@ class AppleButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 52,
       child: FilledButton.icon(
         onPressed: loading ? null : onPressed,
         style: FilledButton.styleFrom(
@@ -41,9 +42,11 @@ class AppleButton extends StatelessWidget {
                 ),
               )
             : const Icon(Icons.apple, size: 26),
-        label: const Text(
-          'Continue with Apple',
-          style: TextStyle(fontSize: 16),
+        // Apple's own wording, from their approved list, and localised by
+        // them: substituting our own phrasing here is a review rejection.
+        label: Text(
+          context.l10n.authContinueWithApple,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

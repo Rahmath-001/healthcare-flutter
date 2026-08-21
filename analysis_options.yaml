@@ -49,6 +49,17 @@ linter:
     # Repository/DTO layers are public API to the rest of the app.
     use_super_parameters: true
     sort_child_properties_last: true
+    # A const widget is skipped entirely on rebuild rather than reconstructed.
+    # These are off in `flutter_lints`, which is why the widget tree had ~120
+    # const opportunities nobody had a reason to notice.
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_literals_to_create_immutables: true
+    prefer_const_declarations: true
+    # `Container` with only a colour allocates a decoration to paint a rect.
+    use_colored_box: true
+    use_decorated_box: true
+    sized_box_for_whitespace: true
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

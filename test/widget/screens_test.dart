@@ -4,6 +4,7 @@ import 'package:healthcare_mobile/features/appointments/presentation/appointment
 import 'package:healthcare_mobile/features/prescriptions/presentation/prescriptions_screen.dart';
 import 'package:healthcare_mobile/features/records/presentation/records_screen.dart';
 import 'package:healthcare_mobile/features/support/presentation/support_screen.dart';
+import 'package:healthcare_mobile/screens/tabs/home_tab.dart';
 
 import '../support/pump.dart';
 
@@ -15,6 +16,48 @@ import '../support/pump.dart';
 /// actually encounters: content, empty, and not-yet-readable.
 void main() {
   useFreshBackend();
+
+  group('HomeTab', () {
+    testWidgets('leads with the next appointment rather than a greeting card',
+        (tester) async {
+      await pumpScreen(tester, const HomeTab());
+      await settleFixtures(tester);
+
+      // The section, and a real appointment inside it — the seed always has
+      // one upcoming, so an empty hero here means the derivation is wrong,
+      // not that the patient has nothing booked.
+      expect(find.text('Your next appointment'), findsOneWidget);
+      expect(find.textContaining('Dr'), findsWidgets);
+    });
+
+    testWidgets('offers search and the four quick actions', (tester) async {
+      await pumpScreen(tester, const HomeTab());
+      await settleFixtures(tester);
+
+      expect(find.text('Find a doctor'), findsOneWidget);
+      expect(find.text('My records'), findsOneWidget);
+      expect(find.text('Prescriptions'), findsOneWidget);
+      expect(find.text('Who can see my records'), findsOneWidget);
+      expect(find.text('Get help'), findsOneWidget);
+    });
+
+    testWidgets('renders without overflowing at a 200% text scale',
+        (tester) async {
+      // The audience for this app skews older, and the OS font-size slider is
+      // the first accessibility setting anyone actually changes. A home screen
+      // that overflows at 2x is unusable for the people most likely to set it.
+      await pumpScreen(
+        tester,
+        const MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: HomeTab(),
+        ),
+      );
+      await settleFixtures(tester);
+
+      expect(tester.takeException(), isNull);
+    });
+  });
 
   group('RecordsScreen', () {
     testWidgets('lists the seeded records', (tester) async {
@@ -33,7 +76,9 @@ void main() {
       // The seed leaves one upload mid-scan on purpose, so this state is
       // reachable without having to upload something first.
       expect(find.text('Vitamin D Panel'), findsOneWidget);
-      expect(find.textContaining('Checking file'), findsWidgets);
+      // The tile carries the short form of the status; the full sentence is on
+      // the record detail screen, which has room for what to do about it.
+      expect(find.textContaining('Checking'), findsWidgets);
     });
 
     testWidgets('filters to records the patient uploaded', (tester) async {
@@ -107,5 +152,41 @@ void main() {
       // gap: machine-translated consent is not consent.
       expect(find.text('सहायता'), findsWidgets);
     });
+  });
+
+  group('text scaling', () {
+    // Cards in this app are dense — a title, a status chip and two metadata
+    // rows inside 16pt of padding — which is exactly the shape that overflows
+    // first when someone turns the system font up. The audience skews older,
+    // so that setting is not hypothetical, and a striped overflow bar is the
+    // most visible defect a Flutter app can ship.
+    final screens = <String, Widget>{
+      'HomeTab': const HomeTab(),
+      'RecordsScreen': const RecordsScreen(),
+      'AppointmentsScreen': const AppointmentsScreen(),
+      'PrescriptionsScreen': const PrescriptionsScreen(),
+    };
+
+    for (final entry in screens.entries) {
+      for (final scale in [1.3, 2.0]) {
+        testWidgets('${entry.key} survives a ${scale}x text scale',
+            (tester) async {
+          await pumpScreen(
+            tester,
+            MediaQuery(
+              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+              child: entry.value,
+            ),
+            // A tall surface: at 2x a short one scrolls the content out of
+            // frame before it can overflow, which would pass for the wrong
+            // reason.
+            surface: const Size(430, 1400),
+          );
+          await settleFixtures(tester);
+
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
   });
 }

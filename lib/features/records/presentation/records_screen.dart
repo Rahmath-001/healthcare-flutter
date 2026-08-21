@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/routes.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../l10n/l10n.dart';
 import '../../../shared/formatters.dart';
+import '../../../shared/widgets/app_motion.dart';
 import '../../../shared/widgets/async_view.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../domain/medical_record.dart';
 import 'records_controller.dart';
 
@@ -36,22 +39,48 @@ class RecordsScreen extends ConsumerWidget {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: SegmentedButton<RecordFilter>(
-              segments: RecordFilter.values
-                  .map((f) => ButtonSegment(value: f, label: Text(f.label)))
-                  .toList(),
-              selected: {filter},
-              onSelectionChanged: (s) =>
-                  ref.read(recordFilterProvider.notifier).set(s.first),
+            padding: const EdgeInsets.fromLTRB(
+              Insets.lg,
+              Insets.sm,
+              Insets.lg,
+              Insets.md,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<RecordFilter>(
+                segments: RecordFilter.values
+                    .map((f) => ButtonSegment(value: f, label: Text(f.label)))
+                    .toList(),
+                selected: {filter},
+                // The checkmark shifts every label sideways when a segment is
+                // picked, which on three short segments reads as the whole
+                // control jumping.
+                showSelectedIcon: false,
+                onSelectionChanged: (s) =>
+                    ref.read(recordFilterProvider.notifier).set(s.first),
+              ),
             ),
           ),
           Expanded(
             child: AsyncView<List<MedicalRecord>>(
               value: records,
               onRetry: () => ref.invalidate(ownRecordsProvider),
+              skeleton: const SkeletonList(
+                count: 5,
+                rows: 2,
+                padding: EdgeInsets.fromLTRB(
+                  Insets.lg,
+                  0,
+                  Insets.lg,
+                  Insets.fabSafeBottom,
+                ),
+              ),
               data: (all) {
-                final filtered = all.where(filter.matches).toList();
+                final filtered = all.where(filter.matches).toList()
+                  // Newest first. A medical record list is read from the top
+                  // for "what happened most recently", never from the bottom.
+                  ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+
                 if (filtered.isEmpty) {
                   return EmptyState(
                     icon: Icons.folder_open_outlined,
@@ -59,18 +88,32 @@ class RecordsScreen extends ConsumerWidget {
                     message: context.l10n.recordsEmptyBody,
                     action: FilledButton.icon(
                       onPressed: () => context.push(Routes.recordUpload),
-                      icon: const Icon(Icons.upload_file),
+                      icon: const Icon(Icons.upload_file, size: 20),
                       label: Text(context.l10n.recordsUploadOne),
                     ),
                   );
                 }
+
                 return RefreshIndicator(
                   onRefresh: () => ref.refresh(ownRecordsProvider.future),
                   child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                    padding: const EdgeInsets.fromLTRB(
+                      Insets.lg,
+                      0,
+                      Insets.lg,
+                      Insets.fabSafeBottom,
+                    ),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => RecordTile(record: filtered[i]),
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: Insets.md - 2),
+                    // Keyed by record: the segmented filter rewrites this
+                    // list in place, and an unkeyed stateful child would
+                    // inherit the previous occupant's animation state.
+                    itemBuilder: (_, i) => FadeSlideIn(
+                      key: ValueKey(filtered[i].id),
+                      index: i,
+                      child: RecordTile(record: filtered[i]),
+                    ),
                   ),
                 );
               },
@@ -92,63 +135,101 @@ class RecordTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final r = record;
+    final readable = r.isReadable;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        onTap: r.isReadable
-            ? (onTap ?? () => context.push(Routes.recordDetail(r.id)))
-            : null,
-        leading: CircleAvatar(
-          backgroundColor:
-              theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-          child: Icon(_iconFor(r.type), color: theme.colorScheme.primary),
-        ),
-        title: Text(r.title),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 2),
-            Text(
-              '${r.type.label} · ${Fmt.date(r.recordedAt)}',
-              style: theme.textTheme.bodySmall,
+    return PressableScale(
+      enabled: readable,
+      child: Card(
+        child: InkWell(
+          onTap: readable
+              ? (onTap ?? () => context.push(Routes.recordDetail(r.id)))
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.all(Insets.md + 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: Radii.smAll,
+                  ),
+                  child: Icon(
+                    _iconFor(r.type),
+                    size: 22,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: Insets.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        r.title,
+                        style: theme.textTheme.titleSmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          r.type.label,
+                          Fmt.date(r.recordedAt),
+                          if (r.issuedByName != null) r.issuedByName!,
+                        ].join(' · '),
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // A record is not readable until scanning completes.
+                      // Saying so is better than a tile that simply refuses to
+                      // open — a dead tap has no explanation attached to it.
+                      if (!readable) ...[
+                        const SizedBox(height: Insets.sm),
+                        StatusChip(
+                          // Short forms: the full sentence belongs on the
+                          // record detail screen, where there is room to say
+                          // what to do about it. A chip is a label, not a
+                          // paragraph.
+                          label: r.scanStatus == ScanStatus.pending
+                              ? context.l10n.recordsCheckingShort
+                              : context.l10n.recordScanFailedShort,
+                          tone: r.scanStatus == ScanStatus.pending
+                              ? Tone.warning
+                              : Tone.danger,
+                          icon: r.scanStatus == ScanStatus.pending
+                              ? Icons.hourglass_top
+                              : Icons.error_outline,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Insets.sm),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      r.sizeLabel,
+                      style: theme.textTheme.labelSmall,
+                    ),
+                    const SizedBox(height: Insets.sm),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: readable
+                          ? theme.colorScheme.outline
+                          : Colors.transparent,
+                    ),
+                  ],
+                ),
+              ],
             ),
-            if (r.issuedByName != null)
-              Text(r.issuedByName!, style: theme.textTheme.bodySmall),
-            // A record is not readable until scanning completes. Saying so is
-            // better than a tile that simply refuses to open.
-            if (!r.isReadable) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Expanded, because this sits inside a ListTile subtitle and
-                  // the message is longer than the tile is wide — it overflowed
-                  // by ~190px before a widget test caught it.
-                  Expanded(
-                    child: Text(
-                      r.scanStatus == ScanStatus.pending
-                          ? context.l10n.recordsChecking
-                          : context.l10n.recordScanFailed,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
+          ),
         ),
-        trailing: Text(r.sizeLabel, style: theme.textTheme.bodySmall),
-        isThreeLine: r.issuedByName != null || !r.isReadable,
       ),
     );
   }

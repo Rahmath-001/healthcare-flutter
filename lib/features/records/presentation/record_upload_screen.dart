@@ -175,9 +175,14 @@ class _RecordUploadScreenState extends ConsumerState<RecordUploadScreen> {
               ),
             const SizedBox(height: 20),
 
+            // "HIV panel", "Oncology discharge summary" — a record title is
+            // as revealing as the file. No keyboard learning; see
+            // `edit_profile_screen.dart`.
             TextField(
               controller: _titleCtrl,
               onChanged: (_) => setState(() {}),
+              autocorrect: false,
+              enableSuggestions: false,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 labelText: context.l10n.uploadRecordTitle,
@@ -219,6 +224,8 @@ class _RecordUploadScreenState extends ConsumerState<RecordUploadScreen> {
               controller: _notesCtrl,
               maxLines: 3,
               maxLength: 300,
+              autocorrect: false,
+              enableSuggestions: false,
               decoration: InputDecoration(
                 labelText: context.l10n.uploadNotes,
                 border: const OutlineInputBorder(),

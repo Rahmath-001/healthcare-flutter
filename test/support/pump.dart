@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthcare_mobile/core/fixtures/fixture_backend.dart';
+import 'package:healthcare_mobile/core/theme/app_theme.dart';
 import 'package:healthcare_mobile/l10n/l10n.dart';
 
 /// Mounts one screen with everything it needs and nothing it does not.
@@ -14,6 +15,7 @@ Future<void> pumpScreen(
   Widget screen, {
   Locale locale = const Locale('en'),
   Size surface = const Size(430, 932),
+  bool dark = false,
 }) async {
   await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -24,7 +26,10 @@ Future<void> pumpScreen(
         locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        theme: ThemeData(useMaterial3: true),
+        // The real theme, not a bare M3 default. Screens read tones, radii and
+        // component defaults off it, so a test running against `ThemeData()`
+        // is exercising a widget tree the app never renders.
+        theme: dark ? AppTheme.dark : AppTheme.light,
         home: screen,
       ),
     ),
@@ -33,10 +38,11 @@ Future<void> pumpScreen(
 
 /// Advances past the fixture latency so a screen's data has arrived.
 ///
-/// Deliberately **not** `pumpAndSettle`. The records list always shows at least
-/// one record mid-scan, and its `CircularProgressIndicator` animates forever —
-/// so settling never returns. Pumping a fixed number of frames is the only
-/// thing that terminates, and it is enough: the futures resolve on the first.
+/// Deliberately **not** `pumpAndSettle`. Loading states animate on a loop —
+/// the skeleton's sweep, a progress indicator — so settling never returns.
+/// Pumping a fixed number of frames is the only thing that terminates, and it
+/// is enough: the futures resolve on the first, and the entrance animations
+/// (180-360ms) are done well inside the 1.2s this covers.
 Future<void> settleFixtures(WidgetTester tester) async {
   for (var i = 0; i < 4; i++) {
     await tester.pump(const Duration(milliseconds: 300));

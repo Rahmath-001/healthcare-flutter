@@ -15,6 +15,8 @@ import {
 import { handler, Problem } from "../errors";
 import { rateLimit } from "../rate_limit";
 import { assertPrescribable, type DrugDoc, type DrugList } from "./drug_rules";
+import { signedDownloadUrl } from "../storage";
+import { storePrescriptionPdf } from "./pdf_store";
 
 /**
  * Prescriptions.
@@ -179,6 +181,45 @@ export function prescriptionRoutes(secret: () => string): Router {
   );
 
   /**
+   * A short-lived link to the server-generated, write-once PDF.
+   *
+   * Deliberately not a redirect to a permanent URL: the object is private and
+   * every read is entitled here first, exactly like a medical record download.
+   *
+   * `pdfSha256` comes back with the link so the caller can verify the bytes it
+   * receives are the bytes that were frozen. Without that, "immutable storage"
+   * is a claim the client has no way to check.
+   */
+  r.get(
+    "/:id/pdf",
+    handler(async (req, res) => {
+      const snap = await db().collection(C.prescriptions).doc(req.params.id).get();
+      if (!snap.exists) throw Problem.notFound("PRESCRIPTION_NOT_FOUND", "Not found.");
+
+      const p = snap.data() as PrescriptionDoc;
+      const mine = p.patientId === req.auth!.sub || p.doctorId === req.user!.doctorId;
+      if (!mine) {
+        throw Problem.forbidden("NOT_YOURS", "You do not have access to this prescription.");
+      }
+
+      if (!p.pdfPath) {
+        // Distinguished from "not found" on purpose: the prescription exists
+        // and is valid, its document just has not been stored yet. The client
+        // falls back to rendering locally rather than showing an error.
+        throw Problem.notFound(
+          "PRESCRIPTION_PDF_PENDING",
+          "This prescription's document is still being prepared."
+        );
+      }
+
+      res.json({
+        url: await signedDownloadUrl(p.pdfPath),
+        sha256: p.pdfSha256 ?? null,
+      });
+    })
+  );
+
+  /**
    * Issues a prescription against a completed or in-progress appointment.
    *
    * Every drug is re-resolved from the catalogue by id: the request carries the
@@ -293,12 +334,24 @@ export function prescriptionRoutes(secret: () => string): Router {
         followUpDate: typeof followUpDate === "string" ? followUpDate : null,
         appointmentReference: appt.referenceCode,
         isFollowUp,
+        // Written as explicit nulls rather than left absent: Firestore does not
+        // match a missing field against `== null`, so the sweep that repairs
+        // undocumented prescriptions would never see them.
+        pdfPath: null,
+        pdfSha256: null,
+        pdfStoredAt: null,
       };
 
       await db().collection(C.prescriptions).doc(id).set(doc);
       await apptSnap.ref.update({ hasPrescription: true });
 
-      res.status(201).json(prescriptionJson(id, doc));
+      // The document is generated and frozen after the clinical act is
+      // recorded, never before it. A storage outage must not be able to stop a
+      // doctor prescribing; `storePrescriptionPdf` records its own failure and
+      // the scheduled sweep retries.
+      const stored = await storePrescriptionPdf(id, doc);
+
+      res.status(201).json(prescriptionJson(id, { ...doc, ...stored }));
     })
   );
 

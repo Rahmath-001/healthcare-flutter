@@ -115,6 +115,60 @@ export async function downloadObject(objectPath: string): Promise<Buffer> {
   return buffer;
 }
 
+/**
+ * Where the immutable, server-generated prescription PDFs live.
+ *
+ * Outside both `quarantine/` and `clean/`: those prefixes are for bytes a
+ * *user* supplied and an inspector had to clear. These are produced by this
+ * API from data it already validated, so there is nothing to scan — and giving
+ * them their own prefix is what lets a bucket-level retention policy be
+ * applied to prescriptions without also freezing every uploaded lab report.
+ */
+export const PRESCRIPTION_PREFIX = "prescriptions";
+
+export function prescriptionPdfPath(prescriptionId: string): string {
+  return `${PRESCRIPTION_PREFIX}/${prescriptionId}.pdf`;
+}
+
+/**
+ * Writes an object and then makes it undeletable and unoverwritable.
+ *
+ * A prescription is a legal document. The client used to render its own PDF,
+ * which meant the only artifact was one the client could alter — this is the
+ * fix. The temporary hold is what makes it write-once: while it is set, Cloud
+ * Storage refuses both delete and overwrite, including from the service account
+ * that wrote it.
+ *
+ * **A hold is not the whole control.** It can be released by anyone holding
+ * `storage.objects.update`. The stronger form is a bucket-level retention
+ * policy with a *locked* duration, which nobody — including the project owner —
+ * can shorten or remove. That is a one-way bucket configuration rather than
+ * something an API should do to itself on first write, so it is an operations
+ * task; see docs/SECURITY_AUDIT.md. This gets the per-object guarantee that
+ * code can honestly provide, and does not pretend to more.
+ */
+export async function uploadImmutableObject(
+  objectPath: string,
+  data: Buffer,
+  contentType: string
+): Promise<void> {
+  const file = bucket().file(objectPath);
+
+  // A hold on an existing object makes `save` fail, which is the point: a
+  // second issue of the same prescription id must not silently replace the
+  // first. Surfacing it as a conflict is more useful than a 500.
+  const [exists] = await file.exists();
+  if (exists) {
+    throw Problem.conflict(
+      "PRESCRIPTION_PDF_EXISTS",
+      "This prescription document has already been stored."
+    );
+  }
+
+  await file.save(data, { contentType, resumable: false });
+  await file.setMetadata({ temporaryHold: true });
+}
+
 export async function uploadObject(
   objectPath: string,
   data: Buffer,

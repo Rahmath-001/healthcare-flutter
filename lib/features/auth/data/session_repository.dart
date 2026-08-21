@@ -13,7 +13,7 @@ abstract class SessionRepository {
   /// [requestedRole] is what the user asked to register as (FR-AUTH-002:
   /// Patient or Provider only). The server decides the actual role — this is a
   /// request, never an assertion, or anyone could claim staff privileges.
-  Future<({Session session, String refreshToken})> exchange({
+  Future<({Session session, String? refreshToken})> exchange({
     required String firebaseIdToken,
     required String deviceId,
     required String platform,
@@ -24,8 +24,8 @@ abstract class SessionRepository {
   /// `POST /v1/auth/refresh` — rotates the refresh token and issues a new
   /// access token. The old refresh token is invalid afterwards; presenting it
   /// again is treated by the server as theft.
-  Future<({Session session, String refreshToken})> refresh({
-    required String refreshToken,
+  Future<({Session session, String? refreshToken})> refresh({
+    required String? refreshToken,
     required String deviceId,
   });
 
@@ -40,7 +40,7 @@ class ApiSessionRepository implements SessionRepository {
   final ApiClient _api;
 
   @override
-  Future<({Session session, String refreshToken})> exchange({
+  Future<({Session session, String? refreshToken})> exchange({
     required String firebaseIdToken,
     required String deviceId,
     required String platform,
@@ -64,13 +64,20 @@ class ApiSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<({Session session, String refreshToken})> refresh({
-    required String refreshToken,
+  Future<({Session session, String? refreshToken})> refresh({
+    required String? refreshToken,
     required String deviceId,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       '/v1/auth/refresh',
-      body: {'refreshToken': refreshToken, 'deviceId': deviceId},
+      // Omitted entirely when null: on web the token lives in an HttpOnly
+      // cookie the browser attaches itself, and sending `null` would look to
+      // the server like a client that lost its token rather than one that
+      // never held it.
+      body: {
+        if (refreshToken != null) 'refreshToken': refreshToken,
+        'deviceId': deviceId,
+      },
       skipAuth: true,
     );
     return _parse(json);
@@ -79,10 +86,13 @@ class ApiSessionRepository implements SessionRepository {
   @override
   Future<void> logout() => _api.post<Map<String, dynamic>>('/v1/auth/logout');
 
-  ({Session session, String refreshToken}) _parse(Map<String, dynamic> json) =>
+  /// Absent `refreshToken` is the browser case, not an error: the API omits it
+  /// from the body and sets an `HttpOnly` cookie instead, precisely so this
+  /// process never sees the value.
+  ({Session session, String? refreshToken}) _parse(Map<String, dynamic> json) =>
       (
         session: Session.fromJson(json),
-        refreshToken: json['refreshToken'] as String,
+        refreshToken: json['refreshToken'] as String?,
       );
 }
 
@@ -103,7 +113,7 @@ class FixtureSessionRepository implements SessionRepository {
   final Duration latency;
 
   @override
-  Future<({Session session, String refreshToken})> exchange({
+  Future<({Session session, String? refreshToken})> exchange({
     required String firebaseIdToken,
     required String deviceId,
     required String platform,
@@ -147,8 +157,8 @@ class FixtureSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<({Session session, String refreshToken})> refresh({
-    required String refreshToken,
+  Future<({Session session, String? refreshToken})> refresh({
+    required String? refreshToken,
     required String deviceId,
   }) async {
     await Future<void>.delayed(latency);

@@ -6,6 +6,7 @@ import { reviewRoutes } from "./admin/review_routes";
 import { appointmentRoutes } from "./appointments/routes";
 import { availabilityRoutes } from "./availability/routes";
 import { authRoutes, meRoutes } from "./auth/routes";
+import { cookieModeEnabled, webOrigins } from "./auth/refresh_cookie";
 import { appointmentCreateRoutes, bookingRoutes } from "./booking/routes";
 import { consentRoutes } from "./consent/routes";
 import { consultationRoutes } from "./consultations/routes";
@@ -53,13 +54,27 @@ export function buildApp(deps: AppDependencies | (() => string)) {
 
   // The mobile app is not a browser origin, so CORS exists only for the Flutter
   // web build. Kept permissive on methods but explicit about headers.
+  //
+  // Credentialed CORS is opt-in via `WEB_ORIGINS`, and when it is on the origin
+  // list is an explicit allow-list rather than a reflection of whatever the
+  // caller sent. `origin: true` reflects the request origin, which is harmless
+  // while `credentials` is false and is a standing invitation to every site on
+  // the internet the moment it is not — the browser would attach the refresh
+  // cookie to their cross-origin request and hand them the response.
   app.use(
-    cors({
-      origin: true,
-      credentials: false,
-      allowedHeaders: ["Authorization", "Content-Type", "x-request-id"],
-      exposedHeaders: ["x-request-id", "retry-after"],
-    })
+    cookieModeEnabled()
+      ? cors({
+          origin: webOrigins(),
+          credentials: true,
+          allowedHeaders: ["Authorization", "Content-Type", "x-request-id"],
+          exposedHeaders: ["x-request-id", "retry-after"],
+        })
+      : cors({
+          origin: true,
+          credentials: false,
+          allowedHeaders: ["Authorization", "Content-Type", "x-request-id"],
+          exposedHeaders: ["x-request-id", "retry-after"],
+        })
   );
 
   app.get("/v1/health", (_req, res) => res.json({ ok: true }));

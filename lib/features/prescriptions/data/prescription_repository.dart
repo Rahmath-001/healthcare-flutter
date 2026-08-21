@@ -24,9 +24,28 @@ abstract class PrescriptionRepository {
     String? advice,
     DateTime? followUpDate,
   });
+
+  /// A short-lived link to the **server-generated, write-once** PDF.
+  ///
+  /// Null while the document is still being prepared, which is a real state
+  /// rather than an error: the prescription is issued and verifiable the
+  /// instant it is written, but freezing its PDF is a separate step that can
+  /// lag or fail. Callers fall back to rendering locally.
+  ///
+  /// The digest is returned with the link so the bytes can be checked against
+  /// what the server recorded. Immutable storage nobody can verify is a claim,
+  /// not a control.
+  Future<({String url, String? sha256})?> officialPdf(String id);
 }
 
 class FixturePrescriptionRepository implements PrescriptionRepository {
+  /// Sample data has no object storage behind it, so there is no frozen
+  /// document to link to. Returning null rather than a fake URL is what keeps
+  /// the fallback path exercised in every fixture run — a mock that claims a
+  /// document exists would hide the only code path that ever runs offline.
+  @override
+  Future<({String url, String? sha256})?> officialPdf(String id) async => null;
+
   FixturePrescriptionRepository({
     this.latency = const Duration(milliseconds: 350),
     FixtureBackend? backend,

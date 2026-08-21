@@ -578,6 +578,17 @@ export interface PrescriptionDoc {
   appointmentReference?: string | null;
   /** Recorded because it is what made List B permissible, or not. */
   isFollowUp: boolean;
+  /**
+   * The write-once PDF this API generated, if it has been stored yet.
+   *
+   * Nullable because issuing the prescription and storing its document are
+   * separate failures: a storage outage must not stop a doctor prescribing.
+   * The scheduled sweep retries anything still null.
+   */
+  pdfPath?: string | null;
+  /** SHA-256 of the stored bytes, so a copy can be checked against the record. */
+  pdfSha256?: string | null;
+  pdfStoredAt?: Timestamp | null;
 }
 
 export type RatingStatus = "PENDING_MODERATION" | "PUBLISHED" | "HIDDEN" | "REMOVED";

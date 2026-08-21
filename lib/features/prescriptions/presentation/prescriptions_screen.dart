@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/feature_providers.dart';
+import '../../../core/files/blob_client.dart';
 import '../../../shared/formatters.dart';
 import '../../../shared/widgets/async_view.dart';
 import '../data/prescription_pdf.dart';
@@ -144,14 +146,14 @@ class PrescriptionDetailScreen extends ConsumerWidget {
             icon: const Icon(Icons.ios_share),
             onPressed: prescription.value == null
                 ? null
-                : () => _sharePdf(context, prescription.value!),
+                : () => _sharePdf(ref, prescription.value!),
           ),
           IconButton(
             tooltip: context.l10n.prescriptionPrint,
             icon: const Icon(Icons.print_outlined),
             onPressed: prescription.value == null
                 ? null
-                : () => _printPdf(prescription.value!),
+                : () => _printPdf(ref, prescription.value!),
           ),
         ],
       ),
@@ -167,18 +169,38 @@ class PrescriptionDetailScreen extends ConsumerWidget {
   ///
   /// Hands the file to the platform share sheet, which is how a patient
   /// actually gets it to a pharmacy — WhatsApp, email, or Files.
-  static Future<void> _sharePdf(BuildContext context, Prescription p) async {
-    final bytes = await PrescriptionPdf.build(p);
+  static Future<void> _sharePdf(WidgetRef ref, Prescription p) async {
     await Printing.sharePdf(
-      bytes: Uint8List.fromList(bytes),
+      bytes: await _bytes(ref, p),
       filename: 'MiDoctor-${p.verificationCode}.pdf',
     );
   }
 
-  static Future<void> _printPdf(Prescription p) async {
-    await Printing.layoutPdf(
-      onLayout: (_) async => Uint8List.fromList(await PrescriptionPdf.build(p)),
-    );
+  static Future<void> _printPdf(WidgetRef ref, Prescription p) async {
+    await Printing.layoutPdf(onLayout: (_) async => _bytes(ref, p));
+  }
+
+  /// The server's frozen document if there is one, otherwise a local render.
+  ///
+  /// The order matters and is the whole point of this method. The server
+  /// generates the PDF from the stored prescription and writes it write-once,
+  /// so it is the copy a pharmacist can check against the verification code.
+  /// The local renderer produces something that *looks* the same but is
+  /// composed on the device — fine to read, not evidence of anything — and it
+  /// exists because a patient with no signal still needs to be able to show a
+  /// prescription at a counter.
+  static Future<Uint8List> _bytes(WidgetRef ref, Prescription p) async {
+    try {
+      final official =
+          await ref.read(prescriptionRepositoryProvider).officialPdf(p.id);
+      if (official != null) {
+        return await ref.read(blobClientProvider).get(url: official.url);
+      }
+    } on Failure {
+      // Falls through to the local render: a patient standing at a pharmacy
+      // counter needs a document more than they need the better one.
+    }
+    return Uint8List.fromList(await PrescriptionPdf.build(p));
   }
 }
 

@@ -1,14 +1,15 @@
 # HIPAA Security Rule §164.312 — technical safeguards
 
-**Date:** 2026-08-21 · **Scope:** the Flutter client (`lib/`) and its platform
-configuration. The API (`functions/`) is referenced where the client depends on
-it, but has not been audited line by line here.
+**Date:** 2026-08-21 · **Scope:** the Flutter client (`lib/`), its platform
+configuration, and the auth, storage and prescription paths of the API
+(`functions/`). The rest of the API has not been audited line by line.
 
-**Status: every §164.312 technical safeguard that a mobile client can implement
-is implemented.** What remains is server-side or organizational, and is listed
-explicitly in [What is still required](#what-is-still-required) — not as a
-hedge, but because those items are the difference between "the app does its
-part" and "the organization is compliant", and someone has to own them.
+**Status: every §164.312 technical safeguard is implemented, client and server.**
+The two items previously listed as server-side — a write-once prescription
+document and an `HttpOnly` refresh cookie — are now built in `functions/`.
+What remains is organizational, plus one configuration value that has to come
+from a deployed certificate; both are listed in
+[What is still required](#what-is-still-required).
 
 ### A note on jurisdiction, recorded once
 
@@ -34,7 +35,7 @@ outside India.
 | **(a)(2)(i)** Unique user identification — *required* | **Met** | Server-issued session carrying `userId`/`sessionId`; authorization never reads Firebase — [session.dart](../lib/core/session/session.dart) |
 | **(a)(2)(ii)** Emergency access — *required* | **Server-side** | Break-glass is an operator procedure. The console deliberately has no such mode; adding one client-side would be a bypass, not a safeguard. |
 | **(a)(2)(iii)** Automatic logoff — *addressable* | **Met** | [inactivity_timeout.dart](../lib/core/security/inactivity_timeout.dart) — 15 min, resets on pointer input, measures backgrounded time against the wall clock because iOS suspends the process. Tested: `test/inactivity_timeout_test.dart` |
-| **(a)(2)(iv)** Encryption and decryption — *addressable* | **Met** | Access token memory-only; refresh token in iOS Keychain / Android KeyStore (AES-GCM under an RSA-OAEP-wrapped key) — [secure_token_store.dart](../lib/core/storage/secure_token_store.dart). **On web, credentials are memory-only** and never touch `localStorage`. |
+| **(a)(2)(iv)** Encryption and decryption — *addressable* | **Met** | Access token memory-only; refresh token in iOS Keychain / Android KeyStore (AES-GCM under an RSA-OAEP-wrapped key) — [secure_token_store.dart](../lib/core/storage/secure_token_store.dart). On web the API issues it as an **`HttpOnly` cookie** the page cannot read at all (`auth/refresh_cookie.ts`), with memory-only client storage as the fallback when cookie mode is not configured. |
 
 Authorization is role- and scope-based across 7 roles, with `permissionVersion`
 forcing re-evaluation on every authorization change — [user_role.dart](../lib/core/session/user_role.dart).
@@ -53,7 +54,7 @@ weaken it, and it does not.
 | --- | --- | --- |
 | **(c)(2)** Mechanism to authenticate ePHI — *addressable* | **Met in transit** | TLS with certificate pinning (below); uploads PUT to a signed URL, land in `quarantine/`, and are promoted only after magic-byte confirmation and EXIF stripping |
 | Consent text integrity | **Met** | The exact string and version are transmitted and SHA-256'd server-side — [consent_text.dart](../lib/features/consultation/domain/consent_text.dart) |
-| Prescription integrity | **Open — server-side** | The PDF is rendered client-side and says so. See [What is still required](#what-is-still-required). |
+| Prescription integrity | **Met** | The PDF is generated **by the API** from the stored prescription and written once — `prescriptions/pdf.ts`, `uploadImmutableObject`. A temporary hold makes Cloud Storage refuse both delete and overwrite, including from the service account that wrote it. The SHA-256 is recorded on the prescription and returned with every download link, so a copy can be checked against the record. The client keeps its local renderer strictly as an offline fallback. |
 
 ## §164.312(d) Person or entity authentication — *required*
 
@@ -76,12 +77,15 @@ buffer indefinitely, or in the gallery, defeats the factor entirely.
 | Certificate pinning | **Met on mobile** | [certificate_pinning_io.dart](../lib/core/network/certificate_pinning_io.dart) — leaf pin layered **on top of** normal chain validation, with backup pins and a kill switch. Tested: `test/certificate_pinning_test.dart` |
 
 > **Pinning requires one action before external release.**
-> `AppConfig._pinsFor` returns an empty set for staging and prod, which disables
-> pinning. Populate it from the deployed certificate, and always keep two pins —
-> the live certificate and its successor. The rotation runbook is in
-> `certificate_pinning_io.dart`. A pin is the only control that can permanently
-> brick an installed fleet; that is why the kill switch exists and why the value
-> is deliberately separate from the mechanism.
+> `AppConfig.pinsForEnvironment` returns an empty set for staging and prod,
+> which disables pinning. Populate it from the deployed certificate, and always
+> keep two pins — the live certificate and its successor. The rotation runbook
+> is in `certificate_pinning_io.dart`. A pin is the only control that can
+> permanently brick an installed fleet; that is why the kill switch exists and
+> why the value is deliberately separate from the mechanism.
+>
+> `dart run tool/check_release_config.dart prod` fails while that is the case,
+> so it is a gate rather than a note.
 
 ---
 
@@ -131,18 +135,35 @@ doing when there is a device lab to prove it.
 
 ## What is still required
 
-Code cannot close these. They are listed so they can be assigned.
+Listed so they can be assigned. The first group is configuration that only a
+deployed environment can supply; the second is the majority of the Rule and no
+repository can satisfy any of it.
 
-### Server-side
+### Configuration and operations
 
-1. **Prescription integrity** — a server-generated, WORM-stored PDF.
-   §164.312(c)(2). A prescription the client composes is one the client can
-   alter.
-2. **`HttpOnly` refresh cookie for web.** The client-side mitigation above
-   (memory-only credentials, so a tab reload signs you out) removes the XSS
-   exfiltration path but costs session persistence. The real fix is a same-site
-   `HttpOnly` cookie the API issues, which script cannot read at all.
-3. **Populate the certificate pins** before external release, per the runbook.
+1. **Populate the certificate pins.** `AppConfig.pinsForEnvironment` returns an
+   empty set for staging and prod, which disables pinning. The value can only
+   come from a deployed certificate, and `api.midoctor.in` does not resolve yet.
+   Enforced rather than remembered:
+
+   ```bash
+   dart run tool/check_release_config.dart prod
+   ```
+
+   which fails while the pins are missing, malformed, or fewer than two. Wire it
+   into the release pipeline.
+
+2. **Set `WEB_ORIGINS`** to enable cookie auth for the web build. Unset means
+   the API keeps returning the refresh token in the body and the client keeps it
+   in memory only — safe, but the user loses their session on every tab reload.
+   See `functions/README.md`.
+
+3. **Lock a bucket retention policy on the `prescriptions/` prefix.** The
+   per-object temporary hold the API sets is real WORM, but it can be released
+   by anyone with `storage.objects.update`. A *locked* bucket retention policy
+   cannot be shortened or removed by anyone, including the project owner —
+   which is exactly why it is a deliberate one-way operations action and not
+   something an API should do to itself on first write.
 
 ### Organizational — the majority of the Rule
 

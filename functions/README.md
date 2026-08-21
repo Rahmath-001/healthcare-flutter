@@ -97,6 +97,7 @@ part of the attack surface and easy to miss when reading the table below.
 | POST | `/v1/ratings/:id/moderate` | `provider:review` |
 | GET/POST | `/v1/support/tickets`, `/:id/replies` | `support:ticket_create` |
 | GET | `/v1/prescriptions`, `/:id`, `/drugs` | authenticated / `prescription:write` |
+| GET | `/v1/prescriptions/:id/pdf` | patient or issuing doctor — signed link to the write-once PDF, with its SHA-256 |
 | POST | `/v1/prescriptions` | `prescription:write` |
 | **GET** | **`/v1/rx/:code`** | **none — a pharmacist holds no token** |
 | GET | `/v1/consultations/:id` | participant |
@@ -260,6 +261,31 @@ pnpm install          # this package uses pnpm, not npm
 pnpm build
 
 # Secrets, for the emulator. NEVER commit this file — it is gitignored.
+### `WEB_ORIGINS` — opt-in cookie auth for the web build
+
+Unset by default, which keeps today's behaviour: CORS without credentials, and
+the refresh token returned in the JSON body.
+
+Set it to the origins the Flutter web app and the operator console are served
+from, comma-separated, and two things change for requests carrying a matching
+`Origin`:
+
+- the refresh token is issued as an `HttpOnly; Secure; SameSite=Strict` cookie
+  scoped to `/v1/auth` and **omitted from the response body**, so no script on
+  the page ever sees it; and
+- CORS becomes credentialed against that explicit allow-list rather than
+  reflecting whatever origin asked.
+
+Native clients send no `Origin` and are completely unaffected.
+
+`SameSite=Strict` means the web app must be on the same registrable domain as
+the API — `app.midoctor.in` calling `api.midoctor.in` works, a `*.web.app`
+default Hosting domain calling `api.midoctor.in` does not.
+
+```
+WEB_ORIGINS=https://app.midoctor.in,https://admin.midoctor.in
+```
+
 cat > .secret.local <<'ENV'
 JWT_SECRET=<at least 32 random bytes>
 TWILIO_SID=<optional locally>

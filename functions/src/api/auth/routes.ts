@@ -16,8 +16,15 @@ import {
 import { handler, Problem } from "../errors";
 import { rateLimit } from "../rate_limit";
 import { requireAuth } from "./middleware";
+import {
+  clearRefreshCookie,
+  isBrowserClient,
+  readRefreshCookie,
+  setRefreshCookie,
+} from "./refresh_cookie";
 import { resolveRequestedRole, scopesFor } from "./scopes";
 import {
+  REFRESH_TOKEN_TTL_SECONDS,
   createSession,
   mintAccessToken,
   revokeAllSessionsForUser,
@@ -62,14 +69,21 @@ function sessionPayload(
   user: UserDoc,
   accessToken: string,
   expiresIn: number,
-  refreshToken: string
+  refreshToken: string,
+  /**
+   * Browser clients get the refresh token as an `HttpOnly` cookie instead, and
+   * omitting it from the body is the entire point: a token in the JSON is a
+   * token the page's JavaScript has already seen, whatever it does with it
+   * afterwards.
+   */
+  omitRefreshToken = false
 ) {
   return {
     userId,
     sessionId,
     accessToken,
     expiresIn,
-    refreshToken,
+    ...(omitRefreshToken ? {} : { refreshToken }),
     role: user.role,
     status: user.status,
     providerStatus: user.providerStatus,
@@ -166,7 +180,12 @@ export function authRoutes(secret: () => string): Router {
       );
       const { token, expiresIn } = mintAccessToken(secret(), uid, sessionId, user);
 
-      res.json(sessionPayload(uid, sessionId, user, token, expiresIn, refreshToken));
+      const browser = isBrowserClient(req);
+      if (browser) setRefreshCookie(res, refreshToken, REFRESH_TOKEN_TTL_SECONDS);
+
+      res.json(
+        sessionPayload(uid, sessionId, user, token, expiresIn, refreshToken, browser)
+      );
     })
   );
 
@@ -178,12 +197,20 @@ export function authRoutes(secret: () => string): Router {
     // single-flight, so this ceiling is far above honest traffic.
     rateLimit({ name: "auth_refresh", max: 60, windowSeconds: 300 }),
     handler(async (req, res) => {
-      const { refreshToken } = req.body ?? {};
-      if (typeof refreshToken !== "string" || !refreshToken) {
+      const browser = isBrowserClient(req);
+
+      // The cookie wins for a browser client. Reading the body first would let
+      // a page that has somehow obtained a token present it in preference to
+      // the one the browser holds, which defeats the point of the cookie.
+      const presented = browser
+        ? readRefreshCookie(req)
+        : (req.body ?? {}).refreshToken;
+
+      if (typeof presented !== "string" || !presented) {
         throw Problem.validation("Missing refresh token.", { refreshToken: "required" });
       }
 
-      const rotated = await rotateRefreshToken(refreshToken);
+      const rotated = await rotateRefreshToken(presented);
 
       const snap = await db().collection(C.users).doc(rotated.userId).get();
       if (!snap.exists) throw Problem.unauthorized("USER_NOT_FOUND", "Please sign in again.");
@@ -195,8 +222,21 @@ export function authRoutes(secret: () => string): Router {
 
       const { token, expiresIn } = mintAccessToken(secret(), rotated.userId, rotated.sessionId, user);
 
+      // Rotation means the cookie has to be replaced on every refresh, not just
+      // issued once: the token it holds is now spent, and presenting a spent
+      // token is what reuse detection nukes a whole family for.
+      if (browser) setRefreshCookie(res, rotated.newToken, REFRESH_TOKEN_TTL_SECONDS);
+
       res.json(
-        sessionPayload(rotated.userId, rotated.sessionId, user, token, expiresIn, rotated.newToken)
+        sessionPayload(
+          rotated.userId,
+          rotated.sessionId,
+          user,
+          token,
+          expiresIn,
+          rotated.newToken,
+          browser
+        )
       );
     })
   );
@@ -207,6 +247,10 @@ export function authRoutes(secret: () => string): Router {
     requireAuth(secret),
     handler(async (req, res) => {
       await revokeSession(req.auth!.sid);
+      // Unconditional: clearing a cookie that was never set is a no-op, and the
+      // failure mode of forgetting is a browser that reports itself signed out
+      // while still holding a refresh token.
+      clearRefreshCookie(res);
       res.json({ ok: true });
     })
   );

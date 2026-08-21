@@ -13,6 +13,9 @@ export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 /** Long, because the refresh token is rotated on every single use. */
 const REFRESH_TOKEN_TTL_DAYS = 60;
 
+/** The same lifetime, for the browser cookie's `Max-Age`. */
+export const REFRESH_TOKEN_TTL_SECONDS = REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60;
+
 export interface AccessClaims {
   sub: string;
   sid: string;

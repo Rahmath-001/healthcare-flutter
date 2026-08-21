@@ -127,7 +127,7 @@ flutter test                                  # 240 tests
 
 cd functions
 pnpm exec tsc --noEmit
-pnpm test                                     # 47 tests, no emulator needed
+pnpm test                                     # 65 tests, no emulator needed
 ```
 
 Goldens are tagged and excluded from CI (they render with the host's fonts):
@@ -183,11 +183,19 @@ What that means day to day:
 - `debugPrint` is **not** stripped from release builds. Every call site is behind
   `kDebugMode`; that guard is the only thing between a diagnostic and a PHI disclosure.
 
-> **Before any external release:** populate `AppConfig._pinsFor` with the deployed
-> certificate's pins. Certificate pinning is wired and tested but the pin set is empty,
-> which disables it. Ship two pins — the live certificate and its successor — and read the
-> rotation runbook in `lib/core/network/certificate_pinning_io.dart` first. A pin is the
-> one control that can permanently brick an installed fleet.
+> **Before any external release:** populate `AppConfig.pinsForEnvironment` with the
+> deployed certificate's pins. Certificate pinning is wired and tested but the pin set is
+> empty, which disables it. Ship two pins — the live certificate and its successor — and
+> read the rotation runbook in `lib/core/network/certificate_pinning_io.dart` first. A pin
+> is the one control that can permanently brick an installed fleet.
+>
+> This is enforced rather than remembered:
+>
+> ```bash
+> dart run tool/check_release_config.dart prod
+> ```
+>
+> exits non-zero while the pins are missing, malformed, or fewer than two.
 
 ---
 

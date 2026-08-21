@@ -3,6 +3,7 @@ import { logger } from "firebase-functions";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
 import { C, db, type MedicalRecordDoc } from "./api/db";
+import { sweepMissingPrescriptionPdfs } from "./api/prescriptions/pdf_store";
 import { QUARANTINE_PREFIX, deleteObject } from "./api/storage";
 
 /**
@@ -76,8 +77,13 @@ export const sweepShortLived = onSchedule(
       (batch, ref) => batch.update(ref, { status: "EXPIRED", resolvedAt: now })
     );
 
-    if (holds || requests) {
-      logger.info("Short-lived sweep", { holds, requests });
+    // Prescriptions issued while object storage was unavailable. Retried here
+    // rather than on the next read, because the person who needs the document
+    // is usually a pharmacist holding a printout, not someone opening the app.
+    const documents = await sweepMissingPrescriptionPdfs();
+
+    if (holds || requests || documents) {
+      logger.info("Short-lived sweep", { holds, requests, documents });
     }
   }
 );

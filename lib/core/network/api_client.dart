@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../config/app_config.dart';
 import '../error/failure.dart';
+import 'browser_credentials.dart';
 import 'certificate_pinning.dart';
 import 'problem_json.dart';
 
@@ -90,6 +91,10 @@ Dio buildDio(AppConfig config, {List<Interceptor> interceptors = const []}) {
   // this function builds — including the bare replay client, which would
   // otherwise be an unpinned path to the same API.
   applyPinning(dio, config);
+
+  // Web only: lets the browser attach the HttpOnly refresh cookie. No-op
+  // everywhere else, where the token travels in the body instead.
+  enableBrowserCredentials(dio);
 
   dio.interceptors.addAll(interceptors);
   return dio;

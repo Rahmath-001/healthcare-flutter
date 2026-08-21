@@ -615,7 +615,7 @@ a broken inactivity timer, a `FLAG_SECURE` that never re-enables, a pin that is 
 a clipboard that never clears. None of them throw, none of them look wrong on screen, and
 two of the four were already broken when they were written.
 
-The API has its own suite: `cd functions && pnpm test` (vitest, 47 tests, no emulator
+The API has its own suite: `cd functions && pnpm test` (vitest, 65 tests, no emulator
 needed), covering the RBAC scope matrix, the IST/slot-id arithmetic, content inspection
 (magic bytes, EXIF stripping) and TOTP against the RFC 6238 vectors. The Firestore transactions — double-booking and refresh
 rotation — remain uncovered; they need the emulator.
@@ -714,14 +714,29 @@ Rules that are not obvious from reading a screen:
 - **`debugPrint` is NOT stripped from release builds.** It forwards to `print`
   and reaches logcat. `avoid_print` does not catch it, so the `kDebugMode` guard
   on every call site is the only control.
-- **Web holds the refresh token in memory only.** `flutter_secure_storage` on
-  web is `localStorage`, readable by any XSS. A tab reload therefore signs you
-  out; that is the accepted trade, and the real fix is a server-issued
-  `HttpOnly` cookie.
-- **Certificate pinning is wired but its pins are empty.** `AppConfig._pinsFor`
-  must be populated before external release, always with two pins — the live
-  certificate and its successor. Empty = disabled = the kill switch, because a
-  pin is the one control that can permanently brick an installed fleet.
+- **Web credentials never touch `localStorage`.** With `WEB_ORIGINS` set the API
+  issues the refresh token as an `HttpOnly` cookie and omits it from the body,
+  so no script sees it. Without it, `SecureTokenStore` keeps it in memory only —
+  safe, but a tab reload signs you out.
+- **Certificate pinning is wired but its pins are empty.**
+  `AppConfig.pinsForEnvironment` must be populated before external release,
+  always with two pins — the live certificate and its successor. Empty =
+  disabled = the kill switch, because a pin is the one control that can
+  permanently brick an installed fleet.
+  `dart run tool/check_release_config.dart prod` fails while it is unset, so
+  this is a gate rather than a note.
+- **The prescription PDF is generated server-side and written once.**
+  `functions/src/api/prescriptions/pdf.ts` renders it from the stored document;
+  `uploadImmutableObject` sets a storage hold so it cannot be deleted or
+  overwritten. The client's local renderer is now strictly an offline fallback —
+  `_bytes()` in `prescriptions_screen.dart` asks for the frozen copy first.
+  Storing the PDF **never throws**: the prescription is a clinical act that has
+  already been committed, and a storage outage must not tell a doctor it did not
+  happen. Failures leave `pdfPath` null and the short-lived sweep retries.
+- **`WEB_ORIGINS` turns on `HttpOnly` cookie auth for the web build.** Unset
+  keeps the body-based contract. Keyed on the `Origin` header, which a browser
+  sets and page script cannot forge — native clients send none and are
+  unaffected.
 - **The audit log is server-side only, deliberately.** A client-side log is
   evidence the audited party can edit. `logAccess` records denials too.
 - **The whole app sits inside `InactivityTimeout`** (15 min). It arms off

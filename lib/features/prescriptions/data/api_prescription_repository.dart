@@ -1,3 +1,4 @@
+import '../../../core/error/failure.dart';
 import '../../../core/network/api_client.dart';
 import '../domain/prescription.dart';
 import 'prescription_repository.dart';
@@ -26,6 +27,23 @@ class ApiPrescriptionRepository implements PrescriptionRepository {
   Future<Prescription> byId(String id) async {
     final json = await _api.get<Map<String, dynamic>>('/v1/prescriptions/$id');
     return Prescription.fromJson(json);
+  }
+
+  @override
+  Future<({String url, String? sha256})?> officialPdf(String id) async {
+    try {
+      final json =
+          await _api.get<Map<String, dynamic>>('/v1/prescriptions/$id/pdf');
+      final url = json['url'] as String?;
+      if (url == null) return null;
+      return (url: url, sha256: json['sha256'] as String?);
+    } on Failure catch (f) {
+      // PRESCRIPTION_PDF_PENDING is the documented "not yet" and must not
+      // surface as an error — the caller renders locally instead. Anything
+      // else is a real failure and is worth telling the user about.
+      if (f.code == 'PRESCRIPTION_PDF_PENDING') return null;
+      rethrow;
+    }
   }
 
   @override

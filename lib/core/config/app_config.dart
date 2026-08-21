@@ -1,4 +1,8 @@
-import 'package:flutter/foundation.dart';
+// `package:meta`, not `package:flutter/foundation`, for `@immutable`: this
+// class is pure configuration with no Flutter dependency, and importing
+// foundation drags in `dart:ui`, which makes the file unloadable from a plain
+// `dart run`. `tool/check_release_config.dart` is exactly that.
+import 'package:meta/meta.dart';
 
 /// Build-time environment. Selected with --dart-define=ENV=staging (etc.) so a
 /// single codebase produces dev/staging/prod artifacts without code changes.
@@ -65,7 +69,7 @@ class AppConfig {
       // dead links without aborting a working-but-slow response.
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 30),
-      certificatePins: _pinsFor(env),
+      certificatePins: pinsForEnvironment(env),
     );
   }
 
@@ -80,7 +84,7 @@ class AppConfig {
   /// point — the mechanism is not the thing anyone forgets, the value is. Fill
   /// these from the deployed certificate before the first external release, and
   /// always keep two: the live one and its successor.
-  static Set<String> _pinsFor(AppEnv env) => switch (env) {
+  static Set<String> pinsForEnvironment(AppEnv env) => switch (env) {
         AppEnv.dev => const {},
         AppEnv.staging => const {},
         AppEnv.prod => const {},

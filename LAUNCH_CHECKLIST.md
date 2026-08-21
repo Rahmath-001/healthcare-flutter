@@ -90,8 +90,17 @@ None of this is optional for an Indian telemedicine product.
 - [ ] **Populate the certificate pins** in `AppConfig._pinsFor` before any external
       release. Empty = pinning disabled. Always ship two — the live certificate and its
       successor — and follow the rotation runbook in `certificate_pinning_io.dart`.
-- [ ] **Server-side: WORM prescription PDF and an `HttpOnly` refresh cookie for web.**
-      The only two §164.312 items the client cannot close.
+- [x] **Server-side: WORM prescription PDF and an `HttpOnly` refresh cookie for web.**
+      Both built. The API generates the prescription PDF from the stored record and
+      writes it once with a storage hold; `WEB_ORIGINS` turns on cookie auth for the
+      web build.
+- [ ] **Set `WEB_ORIGINS`** on the deployed API to enable cookie auth for web. Unset
+      means the refresh token still comes back in the body and the web client keeps it
+      in memory only — safe, but the session is lost on every tab reload.
+- [ ] **Lock a bucket retention policy on the `prescriptions/` prefix.** The per-object
+      hold the API sets is real WORM but is releasable by anyone with
+      `storage.objects.update`; a locked retention policy is not releasable by anyone.
+      Deliberately an operations action, because it is irreversible.
 - [ ] **§164.308 / §164.310** — risk analysis, security official, training, sanctions,
       contingency plan, facility and device controls. Entirely organizational; no
       repository can satisfy them.

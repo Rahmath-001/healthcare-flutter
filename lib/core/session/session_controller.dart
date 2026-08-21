@@ -30,12 +30,30 @@ class SessionController extends AsyncNotifier<Session?> {
   @override
   Future<Session?> build() async => _restore();
 
+  /// Persists a rotated refresh token, when there is one to persist.
+  ///
+  /// Null means the API kept it: on web it answers with an `HttpOnly` cookie
+  /// and omits the token from the body, so that this process never holds a
+  /// credential `localStorage` — and therefore any injected script — could
+  /// read. There is nothing to write, and nothing missing.
+  Future<void> _persistRefreshToken(String? token) async {
+    if (token == null) return;
+    await _store.writeRefreshToken(token);
+  }
+
+  /// True when a refresh is worth attempting with no locally held token.
+  ///
+  /// Only on web, and only because the browser may still be holding an
+  /// `HttpOnly` cookie we cannot see. Everywhere else a missing token means a
+  /// missing session, and attempting the call would just be a guaranteed 401.
+  bool get _mayHaveServerHeldToken => kIsWeb;
+
   /// Attempts to resume a session from the stored refresh token. A failure here
   /// is normal (first launch, expired or revoked token) and yields a signed-out
   /// state rather than an error.
   Future<Session?> _restore() async {
     final refreshToken = await _store.readRefreshToken();
-    if (refreshToken == null) return null;
+    if (refreshToken == null && !_mayHaveServerHeldToken) return null;
 
     try {
       final deviceId = await ref.read(deviceIdProvider.future);
@@ -43,7 +61,7 @@ class SessionController extends AsyncNotifier<Session?> {
         refreshToken: refreshToken,
         deviceId: deviceId,
       );
-      await _store.writeRefreshToken(result.refreshToken);
+      await _persistRefreshToken(result.refreshToken);
       _accessToken = result.session.accessToken;
       unawaited(CrashReporting.setUser(result.session.userId));
       return result.session;
@@ -133,7 +151,7 @@ class SessionController extends AsyncNotifier<Session?> {
         appVersion: ref.read(appVersionProvider),
         requestedRole: ref.read(requestedRoleProvider),
       );
-      await _store.writeRefreshToken(result.refreshToken);
+      await _persistRefreshToken(result.refreshToken);
       _accessToken = result.session.accessToken;
       unawaited(CrashReporting.setUser(result.session.userId));
       return result.session;
@@ -144,7 +162,7 @@ class SessionController extends AsyncNotifier<Session?> {
   /// session cannot be renewed, which the interceptor turns into a sign-out.
   Future<void> refreshAccessToken() async {
     final refreshToken = await _store.readRefreshToken();
-    if (refreshToken == null) {
+    if (refreshToken == null && !_mayHaveServerHeldToken) {
       await signOutLocally();
       throw StateError('No refresh token available');
     }
@@ -155,7 +173,7 @@ class SessionController extends AsyncNotifier<Session?> {
         refreshToken: refreshToken,
         deviceId: deviceId,
       );
-      await _store.writeRefreshToken(result.refreshToken);
+      await _persistRefreshToken(result.refreshToken);
       _accessToken = result.session.accessToken;
       unawaited(CrashReporting.setUser(result.session.userId));
       state = AsyncValue<Session?>.data(result.session);

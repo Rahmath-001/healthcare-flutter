@@ -313,8 +313,26 @@ emergency lever. Refresh tokens live in Firestore and are revoked separately.
 
 ## Not built yet
 
-Records, prescriptions, credentials, availability editing, ratings, support and
-consultation still resolve to fixtures on the client. The 100ms join-token
-endpoint (`POST /v1/consultations/:id/join-token`) is referenced by
-`HmsTelehealthProvider` and does not exist here yet — it must be minted
-server-side because it is signed with the vendor app secret.
+Every client repository now has a route behind it, including the 100ms
+join-token endpoint. What is still missing:
+
+- **A server-generated prescription PDF**, stored WORM. The client renders one
+  locally and its own header says so. `GET /v1/rx/:code` and a content-derived,
+  keyed verification code both exist, so the remaining work is the document.
+- **A real antivirus.** `scanForMalware` returns clean and says so in its own
+  docstring. Format validation and EXIF stripping are implemented and tested;
+  malware detection needs a maintained signature database, which is a vendor
+  relationship rather than a function.
+- **DigiLocker identity verification.** Stubbed, and it returns an explicit
+  "not connected" error rather than passing everyone — an identity check that
+  silently succeeds is worse than none. A real integration is an OAuth flow
+  against MeitY's partner API, which needs a registered client and a signed
+  agreement.
+- **Push notifications.** The schedulers that would send appointment reminders
+  exist; the transport does not.
+- **Payments.** The state model is complete and inert: `feeInr` is computed and
+  stored, `PENDING_PAYMENT` and the refund states are declared, and every
+  booking is written `NOT_REQUIRED`.
+
+Also untested: the Firestore transactions — double-booking and refresh rotation
+— which need the emulator. `pnpm test` covers everything that does not.

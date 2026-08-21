@@ -1,5 +1,5 @@
 name: healthcare_mobile
-description: Healthcare app - user side. Google OAuth + India phone (Airtel/Jio/Vi, no VoIP).
+description: MiDoctor — Indian telemedicine for patients and doctors, plus a web operator console.
 publish_to: "none"
 version: 0.1.0+1
 

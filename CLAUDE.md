@@ -34,7 +34,7 @@ The first admin is created with `pnpm grant-role`; nothing in the API can mint o
 | Authorization | MiDoctor server session (own JWT), *not* Firebase |
 | Secure storage | `flutter_secure_storage` ^11 (Keychain / EncryptedSharedPreferences) |
 | Telehealth | `hmssdk_flutter` (100ms) behind a `TelehealthProvider` seam |
-| L10n | `flutter_localizations` + ARB — **wired into `MaterialApp` but no screen reads it** |
+| L10n | `flutter_localizations` + ARB — **wired into `MaterialApp` and read by screens**, ~2/3 covered |
 | Lints | `flutter_lints` + `strict-casts`/`strict-raw-types`/`strict-inference`, `avoid_print: true` |
 
 Dart SDK `>=3.3.0 <4.0.0`.
@@ -370,9 +370,12 @@ name. And there is **no patient-context panel** on a ticket: support staff hold 
 grant, and a "recent appointments" sidebar is the fastest way to turn a helpdesk into an
 unlogged route into someone's medical history.
 
-The console has no fixture mode (`useFixturesProvider` is overridden to `false` in
-`main_admin.dart`). A reviewer looking at invented applicants is worse than a reviewer looking
-at an error: one of those ends with approving a doctor who does not exist.
+The console runs on the same `USE_FIXTURES` flag as the app, and on sample data it signs in
+as an admin so all four sections are reachable without provisioning a staff account. What it
+does **not** do is pretend: opening a credential document, suspending an account and assigning
+a role all refuse with a clear message, because there is no file store behind the fixture and a
+console that reports "account suspended" when nothing was suspended is the most dangerous kind
+of mock.
 
 Deployed as its own Firebase Hosting target (`admin`), separate from the app's (`app`), with
 `X-Frame-Options: DENY` and a no-referrer policy.
@@ -486,16 +489,17 @@ wired into the router:
   (Twilio Lookup via callable Cloud Function, region `asia-south1`, degrades to "unverified"
   rather than blocking), `utils/phone_validator.dart`, `utils/debouncer.dart`
 
-**Dead — nothing imports these** (safe to delete, verify first):
-`lib/screens/tabs/appointments_tab.dart`, `lib/screens/tabs/records_tab.dart`,
-`lib/screens/doctors_screen.dart` (only referenced by the dead appointments_tab),
-`lib/services/connectivity_service.dart`, `lib/utils/page_transitions.dart`,
-`lib/features/booking/domain/payment.dart` (137 lines, zero importers anywhere), and
-`ProviderTodayTab` / `ProviderScheduleTab` / `ProviderPatientsTab` in
-`lib/features/provider_home/presentation/provider_tabs.dart` (the router uses
-`ProviderTodayScreen` / `AvailabilityScreen` / `ProviderPatientsScreen` instead;
-`ProviderProfileTab` from that file **is** live). `cupertino_icons` is a dependency with no
-references.
+**Already deleted**, so do not go looking for them: `tabs/appointments_tab.dart`,
+`tabs/records_tab.dart`, `doctors_screen.dart`, `services/connectivity_service.dart`,
+`utils/page_transitions.dart`, and the unused `ProviderTodayTab` / `ProviderScheduleTab` /
+`ProviderPatientsTab` from `provider_tabs.dart` — the router uses `ProviderTodayScreen` /
+`AvailabilityScreen` / `ProviderPatientsScreen`, and `ProviderProfileTab` from that file **is**
+live.
+
+**Still dead, deliberately kept:** `lib/features/booking/domain/payment.dart` has no importer
+in `lib/`, but `test/fr_coverage_test.dart` asserts FR-PAY against it. Deleting it would delete
+the only record that the payment model was designed. `cupertino_icons` is a dependency with no
+references anywhere.
 
 `lib/screens/onboarding_screen.dart` and `lib/screens/tabs/profile_tab.dart` now read and
 write the real patient profile through `accountRepositoryProvider`; they are legacy in style,
@@ -541,7 +545,7 @@ rotation — remain uncovered; they need the emulator.
 
 ## Localisation
 
-**The app reads its strings from the ARB.** ~470 keys in `app_en.arb`, ~430 translated in
+**The app reads its strings from the ARB.** ~470 keys in `app_en.arb`, ~455 translated in
 `app_hi.arb`. Screens use `context.l10n.someKey` via the extension in
 [lib/l10n/l10n.dart](lib/l10n/l10n.dart) — short on purpose, because localisation that costs
 more than typing the string does not happen.

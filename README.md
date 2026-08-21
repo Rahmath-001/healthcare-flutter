@@ -187,5 +187,6 @@ The analyzer runs with `strict-casts`, `strict-raw-types` and `strict-inference`
 `avoid_print` is an **error** — a stray `print()` in a healthcare app leaks clinical data into
 logcat.
 
-> **CI has not actually run yet.** `.github/` is untracked in a two-commit repository, so
-> every claim above is currently aspirational. Commit it and let it run before relying on it.
+> **CI is newly wired.** The workflows were committed for the first time along with the rest
+> of this work, so the run they describe has only just started happening — check the Actions
+> tab before treating a green badge as a long-standing guarantee.

@@ -135,7 +135,7 @@ bookings confirm unpaid. Before enabling:
   manifests already claim the capability: `POST_NOTIFICATIONS` on Android and
   `UIBackgroundModes: remote-notification` on iOS, the latter still missing the
   `aps-environment` entitlement that would make it work.
-- **Localisation.** About two thirds done: ~470 English keys, ~430 Hindi, and the
+- **Localisation.** About two thirds done: ~470 English keys, ~455 Hindi, and the
   screens read them. Roughly 100 literals remain in the app, and the operator
   console is deliberately English-only. LEGAL COPY stays untranslated by policy.
 - **Payments.** Deferred by decision; see below. `payment.dart` is 137 lines of
@@ -151,9 +151,9 @@ bookings confirm unpaid. Before enabling:
 
 - 208 Flutter tests and 47 API tests; `flutter analyze --fatal-infos` clean
   under `strict-casts`, `strict-raw-types`, `strict-inference`; debug, R8 release
-  and **web release** builds all green and verified. **Caveat: CI has never
-  actually run** — `.github/` is untracked in a two-commit repository, so every
-  "CI enforces" claim is currently aspirational until it is committed.
+  and **web release** builds all green and verified locally. The workflows were
+  committed for the first time with this work, so CI has only just begun
+  running — its results have not been reviewed here.
 - The `USE_FIXTURES=false` network path is covered: `api_repository_test.dart`
   asserts the wire contract of every API-backed repository.
 - Crash reporting, with PHI deliberately stripped — only failure kind and

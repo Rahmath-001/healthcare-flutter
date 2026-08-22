@@ -32,34 +32,51 @@ class OfflineCopyBanner extends ConsumerWidget {
     final tones = context.tones;
     final l10n = context.l10n;
 
+    // Two registers, because the cache now reaches back three days and one
+    // wording cannot carry both. An hour old is routine and should read as a
+    // note; two days old is something a patient must not plan around without
+    // checking, and should read as a caution.
+    final stale =
+        DateTime.now().difference(cachedAt) > ClinicalCache.staleAfter;
+
+    final foreground =
+        stale ? tones.onDangerContainer : tones.onWarningContainer;
+    final background = stale ? tones.dangerContainer : tones.warningContainer;
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(Insets.lg, Insets.sm, Insets.lg, 0),
       padding: const EdgeInsets.all(Insets.md),
       decoration: BoxDecoration(
-        color: tones.warningContainer,
+        color: background,
         borderRadius: Radii.smAll,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.cloud_off_outlined,
-              size: 18, color: tones.onWarningContainer),
+          Icon(
+            stale ? Icons.warning_amber_outlined : Icons.cloud_off_outlined,
+            size: 18,
+            color: foreground,
+          ),
           const SizedBox(width: Insets.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10n.offlineCopy(Fmt.relative(cachedAt)),
-                  style: theme.textTheme.labelLarge
-                      ?.copyWith(color: tones.onWarningContainer),
+                  stale
+                      ? l10n.offlineCopyStale(Fmt.relative(cachedAt))
+                      : l10n.offlineCopy(Fmt.relative(cachedAt)),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: foreground,
+                    fontWeight: stale ? FontWeight.w700 : null,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  l10n.offlineCopyBody,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: tones.onWarningContainer),
+                  stale ? l10n.offlineCopyStaleBody : l10n.offlineCopyBody,
+                  style: theme.textTheme.bodySmall?.copyWith(color: foreground),
                 ),
               ],
             ),

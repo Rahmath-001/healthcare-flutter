@@ -284,6 +284,18 @@ abstract class AppLocalizations {
   /// **'This may be out of date. It will refresh when you are back online.'**
   String get offlineCopyBody;
 
+  /// No description provided for @offlineCopyStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {when} — check before relying on it'**
+  String offlineCopyStale(String when);
+
+  /// No description provided for @offlineCopyStaleBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything booked or cancelled since then is not shown here.'**
+  String get offlineCopyStaleBody;
+
   /// No description provided for @notificationsTitle.
   ///
   /// In en, this message translates to:

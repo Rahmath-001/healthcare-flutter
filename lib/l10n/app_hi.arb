@@ -31,6 +31,8 @@
   "offline": "आप ऑफ़लाइन हैं",
   "offlineCopy": "{when} की ऑफ़लाइन प्रति",
   "offlineCopyBody": "यह पुरानी हो सकती है। ऑनलाइन आते ही यह अपने आप ताज़ा हो जाएगी।",
+  "offlineCopyStale": "{when} सहेजी गई — भरोसा करने से पहले जाँच लें",
+  "offlineCopyStaleBody": "उसके बाद बुक या रद्द हुआ कुछ भी यहाँ नहीं दिखेगा।",
   "notificationsTitle": "सूचनाएँ",
   "notificationsSettings": "सूचना सेटिंग",
   "notificationsMarkAllRead": "सभी पढ़ा हुआ करें",

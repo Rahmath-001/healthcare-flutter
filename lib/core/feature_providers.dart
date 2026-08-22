@@ -17,6 +17,7 @@ import '../features/consultation/data/telehealth_provider.dart';
 import '../features/credentials/data/api_credentials_repository.dart';
 import '../features/credentials/data/credentials_repository.dart';
 import '../features/prescriptions/data/api_prescription_repository.dart';
+import '../features/prescriptions/data/cached_prescription_repository.dart';
 import '../features/prescriptions/data/prescription_repository.dart';
 import '../features/providers_search/data/api_doctor_repository.dart';
 import '../features/providers_search/data/doctor_repository.dart';
@@ -112,7 +113,29 @@ final consentRepositoryProvider = Provider<ConsentRepository>((ref) {
   return ApiConsentRepository(ref.watch(apiClientProvider));
 });
 
+/// Wrapped in an offline copy, like appointments.
+///
+/// The most defensible list in the app to hold on a device: a patient at a
+/// pharmacy counter with no signal is exactly who needs it, and it is the one
+/// list where not being able to open the app has an immediate physical
+/// consequence.
 final prescriptionRepositoryProvider = Provider<PrescriptionRepository>((ref) {
+  return CachedPrescriptionRepository(
+    inner: ref.watch(_livePrescriptionRepositoryProvider),
+    cache: ref.watch(clinicalCacheProvider),
+    status: ref.watch(offlineCacheStatusProvider.notifier),
+    isOnline: () async {
+      try {
+        return ref.read(isOnlineProvider).value ?? true;
+      } catch (_) {
+        return true;
+      }
+    },
+  );
+});
+
+final _livePrescriptionRepositoryProvider =
+    Provider<PrescriptionRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixturePrescriptionRepository();
   return ApiPrescriptionRepository(ref.watch(apiClientProvider));
 });

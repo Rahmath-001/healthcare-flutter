@@ -52,10 +52,29 @@ class ClinicalCache {
 
   /// How long a cached clinical list may still be shown.
   ///
-  /// Twelve hours. Long enough to cover a commute, an overnight, and a day
-  /// with no signal; short enough that an appointment cancelled yesterday is
-  /// not still being presented as today's plan.
-  static const maxAge = Duration(hours: 12);
+  /// Three days. Long enough to cover a weekend away, a trip somewhere with no
+  /// coverage, and the stretch of rural travel this app was built for.
+  ///
+  /// It was twelve hours, and lengthening it is a real trade rather than a
+  /// setting: the longer this is, the longer a cancelled appointment can sit on
+  /// a phone looking current. Two safeguards were added with it rather than
+  /// after it, and both matter more at three days than they did at twelve
+  /// hours:
+  ///
+  ///  * Anything already in the past is **dropped on the way out of the
+  ///    cache**, not shown and struck through. A stale confirmed appointment
+  ///    from Tuesday would otherwise sit in "Upcoming" on Thursday.
+  ///  * The banner **escalates** past [staleAfter], because "an hour old" and
+  ///    "two days old" deserve different amounts of the reader's suspicion and
+  ///    one wording cannot carry both.
+  static const maxAge = Duration(days: 3);
+
+  /// When a cached copy stops being routine and starts being a caveat.
+  ///
+  /// Under a day is ordinary — a commute, a lift, a patchy afternoon. Past it,
+  /// the copy is old enough that a patient should not plan around it without
+  /// checking, and the banner says so in stronger terms.
+  static const staleAfter = Duration(hours: 24);
 
   /// Disabled on web, where "secure storage" is `localStorage`.
   bool get isSupported => !kIsWeb;
@@ -157,4 +176,5 @@ final offlineCacheStatusProvider =
 abstract final class CacheKeys {
   static const patientAppointments = 'appointments.patient';
   static const prescriptions = 'prescriptions.patient';
+  static const records = 'records.patient';
 }

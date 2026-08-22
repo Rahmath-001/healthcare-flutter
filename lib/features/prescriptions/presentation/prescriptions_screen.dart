@@ -7,11 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/storage/clinical_cache.dart';
 import '../../../core/feature_providers.dart';
 import '../../../core/files/blob_client.dart';
 import '../../../shared/formatters.dart';
 import '../../../shared/haptics.dart';
 import '../../../shared/widgets/async_view.dart';
+import '../../../shared/widgets/offline_copy_banner.dart';
 import '../data/prescription_pdf.dart';
 import '../domain/prescription.dart';
 import '../domain/refill_request.dart';
@@ -35,27 +37,36 @@ class PrescriptionsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.prescriptionsTitle)),
-      body: AsyncView<List<Prescription>>(
-        value: prescriptions,
-        onRetry: () => ref.invalidate(prescriptionsProvider),
-        data: (list) {
-          if (list.isEmpty) {
-            return const EmptyState(
-              icon: Icons.receipt_long_outlined,
-              title: 'No prescriptions yet',
-              message: 'Prescriptions your doctor issues will appear here.',
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () => ref.refresh(prescriptionsProvider.future),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, i) => _PrescriptionCard(prescription: list[i]),
+      body: Column(
+        children: [
+          const OfflineCopyBanner(cacheKey: CacheKeys.prescriptions),
+          Expanded(
+            child: AsyncView<List<Prescription>>(
+              value: prescriptions,
+              onRetry: () => ref.invalidate(prescriptionsProvider),
+              data: (list) {
+                if (list.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'No prescriptions yet',
+                    message:
+                        'Prescriptions your doctor issues will appear here.',
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () => ref.refresh(prescriptionsProvider.future),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: list.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) =>
+                        _PrescriptionCard(prescription: list[i]),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

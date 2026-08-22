@@ -688,14 +688,15 @@ retention notices must not be machine-translated. See [lib/l10n/README.md](lib/l
    **encrypted at rest** (Keychain / KeyStore, never `SharedPreferences`);
    **never on web**, where "secure storage" is `localStorage`;
    **metadata only** — never record bytes, never a prescription PDF;
-   **12-hour expiry**, because a clinical list from last week presented as today's plan is
-   worse than none; **wiped on sign-out**, before the next person on a shared phone signs in;
-   and **the screen says so** via `OfflineCopyBanner`. That last one is the justification for
+   **3-day expiry**, with anything already in the past dropped on the way out of the cache —
+   `isUpcoming` is a status, so a confirmed appointment cached on Tuesday still claims to be
+   upcoming on Thursday; **wiped on sign-out**, before the next person on a shared phone signs in;
+   and **the screen says so** via `OfflineCopyBanner`, which escalates past 24 hours because one wording cannot carry both "an hour old" and "two days old". That last one is the justification for
    the rest: silently rendering yesterday's appointments as today's is a wrong answer
    delivered confidently, which for a list somebody plans their day around is worse than an
    error.
 
-   The cache is a decorator (`CachedAppointmentRepository`), so the policy is in one place and
+   The cache is a decorator (`CachedAppointmentRepository`, `CachedPrescriptionRepository`), so the policy is in one place and
    it wraps the fixture too — flight mode exercises the whole path on sample data. A
    non-network `Failure` is never masked by it: a 403 is an answer, and serving last week's
    list would hide a suspension.

@@ -154,6 +154,64 @@ void main() {
     expect(cache.entries, isEmpty, reason: 'the stale entry is deleted');
   });
 
+  test('a copy that outlived the appointment does not show it as upcoming',
+      () async {
+    // The safeguard that makes a three-day window survivable. `isUpcoming` is
+    // a status, not a time: a confirmed appointment cached on Tuesday still
+    // claims to be upcoming on Thursday and would sit at the top of the list
+    // as today's plan. Nobody can act on it.
+    final past = DateTime.now().subtract(const Duration(days: 1));
+    inner.appointments = [
+      Appointment(
+        id: 'gone',
+        referenceCode: 'MDgone',
+        doctor: DoctorFixtures.byId('d1'),
+        patientName: 'Priya Sharma',
+        start: past,
+        end: past.add(const Duration(minutes: 30)),
+        mode: ConsultationMode.video,
+        status: AppointmentStatus.confirmed,
+        paymentStatus: PaymentStatus.notRequired,
+        feeInr: 800,
+      ),
+      appointment('future'),
+    ];
+    await build(online: true).listForPatient();
+
+    final offline = await build(online: false).listForPatient();
+
+    expect(offline.map((a) => a.id), ['future']);
+  });
+
+  test('but history is kept, because history does not go stale', () async {
+    final past = DateTime.now().subtract(const Duration(days: 1));
+    inner.appointments = [
+      Appointment(
+        id: 'done',
+        referenceCode: 'MDdone',
+        doctor: DoctorFixtures.byId('d1'),
+        patientName: 'Priya Sharma',
+        start: past,
+        end: past.add(const Duration(minutes: 30)),
+        mode: ConsultationMode.video,
+        status: AppointmentStatus.completed,
+        paymentStatus: PaymentStatus.notRequired,
+        feeInr: 800,
+      ),
+    ];
+    await build(online: true).listForPatient();
+
+    final offline = await build(online: false).listForPatient();
+    expect(offline.single.id, 'done');
+  });
+
+  test('the window is three days, and the escalation point is inside it', () {
+    // Both numbers are a deliberate trade rather than a default, so a change
+    // to either should be a change somebody made on purpose.
+    expect(ClinicalCache.maxAge, const Duration(days: 3));
+    expect(ClinicalCache.staleAfter, lessThan(ClinicalCache.maxAge));
+  });
+
   test('wiping removes everything', () async {
     inner.appointments = [appointment('a1')];
     await build(online: true).listForPatient();

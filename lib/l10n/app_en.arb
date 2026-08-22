@@ -34,6 +34,11 @@
     "placeholders": { "when": { "type": "String" } }
   },
   "offlineCopyBody": "This may be out of date. It will refresh when you are back online.",
+  "offlineCopyStale": "Saved {when} — check before relying on it",
+  "@offlineCopyStale": {
+    "placeholders": { "when": { "type": "String" } }
+  },
+  "offlineCopyStaleBody": "Anything booked or cancelled since then is not shown here.",
   "notificationsTitle": "Notifications",
   "notificationsSettings": "Notification settings",
   "notificationsMarkAllRead": "Mark all read",

@@ -105,6 +105,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'This may be out of date. It will refresh when you are back online.';
 
   @override
+  String offlineCopyStale(String when) {
+    return 'Saved $when — check before relying on it';
+  }
+
+  @override
+  String get offlineCopyStaleBody =>
+      'Anything booked or cancelled since then is not shown here.';
+
+  @override
   String get notificationsTitle => 'Notifications';
 
   @override

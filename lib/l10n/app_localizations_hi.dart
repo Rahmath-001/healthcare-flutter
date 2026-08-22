@@ -105,6 +105,15 @@ class AppLocalizationsHi extends AppLocalizations {
       'यह पुरानी हो सकती है। ऑनलाइन आते ही यह अपने आप ताज़ा हो जाएगी।';
 
   @override
+  String offlineCopyStale(String when) {
+    return '$when सहेजी गई — भरोसा करने से पहले जाँच लें';
+  }
+
+  @override
+  String get offlineCopyStaleBody =>
+      'उसके बाद बुक या रद्द हुआ कुछ भी यहाँ नहीं दिखेगा।';
+
+  @override
   String get notificationsTitle => 'सूचनाएँ';
 
   @override

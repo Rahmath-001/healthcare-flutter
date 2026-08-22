@@ -81,8 +81,17 @@ class CachedAppointmentRepository implements AppointmentRepository {
     final entry = await _cache.read(_key);
     if (entry == null) return null;
 
+    final now = DateTime.now();
     final list = (entry.data as List<dynamic>)
         .map((e) => Appointment.fromJson(e as Map<String, dynamic>))
+        // An upcoming appointment whose time has passed while the copy sat on
+        // the phone is dropped rather than shown. `isUpcoming` is a *status*,
+        // so a confirmed appointment cached on Tuesday still claims to be
+        // upcoming on Thursday and would sit at the top of the list as today's
+        // plan. Nobody can act on it, and showing it is worse than showing
+        // nothing. Past and cancelled entries are kept: they are history, and
+        // history does not go stale.
+        .where((a) => !(a.status.isUpcoming && a.start.isBefore(now)))
         .toList(growable: false);
 
     _status.servedFromCache(_key, entry.cachedAt);

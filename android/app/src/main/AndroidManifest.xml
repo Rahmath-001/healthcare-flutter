@@ -58,6 +58,21 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false"
         android:enableOnBackInvokedCallback="true">
+        <!--
+            The icon and channel FCM uses when the app is in the background.
+
+            Without the icon Android draws a grey square; without a channel id
+            that matches one the app created, Android 8+ drops the notification
+            on the floor with nothing in logcat. Both are the kind of failure
+            that only shows up on a real device with a real send.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/midoctor_teal" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

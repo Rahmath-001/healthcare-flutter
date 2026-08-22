@@ -6,10 +6,10 @@ Package name: `healthcare_mobile`. Product name: **MiDoctor**. Repo root is a Fl
 `functions/` is the **MiDoctor API** — a TypeScript Express app on Cloud Functions, plus the
 Twilio carrier check. See [functions/README.md](functions/README.md).
 
-**Backend status: every surface built.** `USE_FIXTURES=false` swaps all thirteen
+**Backend status: every surface built.** `USE_FIXTURES=false` swaps all fourteen
 repositories to API-backed implementations — auth/session, patient profile, doctors, booking,
 appointments, consent, records (with real object storage), prescriptions, credentials,
-availability, ratings, support and consultation. See
+availability, ratings, support, notifications and consultation. See
 [lib/core/feature_providers.dart](lib/core/feature_providers.dart).
 
 The fixtures are not scaffolding to delete, and they are no longer per-repository. Every one
@@ -47,7 +47,7 @@ Dart SDK `>=3.3.0 <4.0.0`.
 flutter pub get
 flutter analyze --fatal-infos        # must be clean; CI enforces
 dart format --set-exit-if-changed lib test
-flutter test                         # 240 tests
+flutter test                         # 265 tests
 flutter test --tags golden           # goldens; excluded from CI (host fonts)
 flutter gen-l10n                     # auto-runs on build (generate: true)
 flutter run --dart-define=USE_FIXTURES=true
@@ -221,7 +221,7 @@ the system font up, and this audience turns it up.
 [lib/core/providers.dart](lib/core/providers.dart) — config, Dio, ApiClient, secure store,
 device id, session. [lib/core/service_providers.dart](lib/core/service_providers.dart) —
 Firebase Auth + connectivity. [lib/core/feature_providers.dart](lib/core/feature_providers.dart) —
-all eleven repository bindings. Tests override any of these via `ProviderScope(overrides:)`.
+all fourteen repository bindings. Tests override any of these via `ProviderScope(overrides:)`.
 
 ### Network
 
@@ -319,7 +319,7 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 
 ---
 
-## Features (11 repositories = 11 backend surfaces)
+## Features (14 repositories = 14 backend surfaces)
 
 | Feature | Repository contract | Key screens |
 | --- | --- | --- |
@@ -334,6 +334,7 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 | availability | `AvailabilityRepository` — `rules`, `exceptions`, `addRule`, `deleteRule`, `toggleRule`, `blockDay`, `deleteException` | availability editor (provider Schedule tab) |
 | ratings | `RatingsRepository` — `listOwn`, `submit`, `edit` | rate appointment |
 | support | `SupportRepository` — `listOwn`, `create`, `reply` | support tickets |
+| notifications | `NotificationRepository` — `list`, `markRead`, `markAllRead`, `preferences`, `updatePreferences`, `registerDevice`, `unregisterDevice` + `PushService` (FCM) | notification centre, notification settings (per-kind toggles + quiet hours) |
 | consultation | `ConsultationRepository` — `byId`, `captureConsent`, `join`, `end`, `switchToAudio`, `sendMessage`, `networkQuality` + `TelehealthProvider` (media) | consultation screen: consent gate → waiting room → live call → chat, audio fallback |
 
 ### Domain rules already encoded (do not re-implement in UI)
@@ -348,6 +349,18 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 - **Consultation join window**: opens 15 min before start, closes 30 min after scheduled
   end; in-person is never joinable.
 - **Ratings**: one per completed appointment, editable 14 days, moderated before publish.
+- **Notifications**: a closed set of kinds, each deciding three things — which toggle
+  silences it, where it leads, and whether it may arrive at 3am.
+  `APPOINTMENT_CHANGED` and `ACCOUNT_UPDATE` are **mandatory**: they ignore both the toggle
+  and quiet hours, because a patient must not be able to opt out of the only warning that
+  their consultation is not happening. Quiet hours default to 22:00–07:00 and wrap past
+  midnight. The rule lives in `NotificationPreferences.allows` **and** in
+  `functions/src/api/notifications/send.ts` — stated twice deliberately, tested against the
+  same cases in both, so a divergence shows up as one suite failing.
+- **Rescheduling**: one call, never cancel-then-book. The server takes the new slot lock and
+  releases the old one in a single transaction, so the failure mode is "you keep your
+  original time". Status stays `CONFIRMED` — `RESCHEDULED` describes the booking left
+  behind. The reference code survives; a moved appointment is the same appointment.
 - **Provider verification gate**: all documents present **and** registration number **and**
   MFA enrolled before `submitForReview()`. A rejected document counts as not provided.
   There is deliberately **no Aadhaar credential kind** — identity is DigiLocker only.
@@ -377,6 +390,8 @@ The cross-feature consequences now hold:
 | Rate a consultation | Queued for moderation, and it turns up in the console |
 | Block a day | That day's slot grid genuinely empties |
 | Submit credentials | An application appears in the operator console's review queue |
+| Move an appointment | The old slot returns to the pool, the new one leaves it, and the reference code survives |
+| Anything notable | A notification is filed — and turning that kind off means it is never filed at all, not merely hidden |
 
 It enforces the real rules rather than accepting anything: slot exclusivity by the same
 deterministic `<doctorId>__<startMillis>` id the server uses, the 180-day consent ceiling, the
@@ -577,7 +592,7 @@ legacy by directory only.
 
 ---
 
-## Tests (`test/`, 240)
+## Tests (`test/`, 265)
 
 | File | Covers |
 | --- | --- |
@@ -585,7 +600,7 @@ legacy by directory only.
 | `account_test.dart` | patient profile parsing, partial-update semantics, erasure outcome |
 | `api_repository_test.dart` | the `USE_FIXTURES=false` wire contract for every API repository |
 | `admin_router_test.dart` | `resolveAdminRedirect`, and that the console's roles are the exact complement of the app's |
-| `fixture_backend_test.dart` | the cross-feature consequences: book → appointments, upload → readable, grant → visible, prescribe → patient, submit → review queue |
+| `fixture_backend_test.dart` | the cross-feature consequences: book → appointments, upload → readable, grant → visible, prescribe → patient, submit → review queue, book → reminder filed, reschedule → old slot freed and new one taken |
 | `widget/screens_test.dart` | screens mounted for real against the fixtures, in both locales, **and at 1.3×/2× text scale** |
 | `golden/screens_golden_test.dart` | layout regressions in light, dark and Hindi, tagged `golden` and excluded from CI. **Home is deliberately not goldened** — its hero card renders a live countdown, so the picture changes with the wall clock and the test would train people to regenerate without reading |
 | `integration_test/` | end-to-end journeys on a device: `flutter test integration_test` |
@@ -598,6 +613,7 @@ legacy by directory only.
 | `inactivity_timeout_test.dart` | automatic logoff: the window, re-arming on interaction, the backgrounded-and-returned path, and that it does nothing when signed out |
 | `screen_protection_test.dart` | `FLAG_SECURE` reference counting and release on tab switch — the shell-branch defect |
 | `certificate_pinning_test.dart` | that pinning is applied when pins exist, **not** applied when they do not (the kill switch), and that a null certificate is refused |
+| `notification_rules_test.dart` | quiet-hour wrapping, mandatory kinds that cannot be silenced, and that every mandatory kind also bypasses quiet hours — a rule that claims urgency and then waits until 7am contradicts itself |
 | `sensitive_clipboard_test.dart` | the MFA seed and recovery codes expire off the clipboard, and a later copy by the user is left alone |
 | `debouncer_test.dart`, `phone_validator_test.dart`, `widget_test.dart` | utils |
 
@@ -615,7 +631,7 @@ a broken inactivity timer, a `FLAG_SECURE` that never re-enables, a pin that is 
 a clipboard that never clears. None of them throw, none of them look wrong on screen, and
 two of the four were already broken when they were written.
 
-The API has its own suite: `cd functions && pnpm test` (vitest, 65 tests, no emulator
+The API has its own suite: `cd functions && pnpm test` (vitest, 77 tests, no emulator
 needed), covering the RBAC scope matrix, the IST/slot-id arithmetic, content inspection
 (magic bytes, EXIF stripping) and TOTP against the RFC 6238 vectors. The Firestore transactions — double-booking and refresh
 rotation — remain uncovered; they need the emulator.
@@ -676,7 +692,12 @@ retention notices must not be machine-translated. See [lib/l10n/README.md](lib/l
 12. **Crash reports must never carry PHI.** `CrashReporting` deliberately strips
     `Failure.message` — which can quote the server's `detail` verbatim — and forwards only the
     kind and machine code. Breadcrumbs are route names, never arguments.
-13. **The consent gate renders from `TelemedicineConsent`.** The same string is hashed into
+13. **No clinical content in a notification title or body.** They render on a lock screen,
+    mirror to a paired watch, and are read by whoever is holding the phone. "Prescription
+    ready" is fine; naming the drug is a disclosure with no consent record and no way to
+    withdraw it. The detail lives behind `targetId`, inside the app. There is a fixture test
+    asserting the issued-prescription body names no drug.
+14. **The consent gate renders from `TelemedicineConsent`.** The same string is hashed into
     the consent record, so inlining the copy in the widget again would let the two drift, and
     a hash of text nobody saw is not evidence of anything. Changing the wording means bumping
     `TelemedicineConsent.version`.

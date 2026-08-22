@@ -272,6 +272,144 @@ abstract class AppLocalizations {
   /// **'You are offline'**
   String get offline;
 
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification settings'**
+  String get notificationsSettings;
+
+  /// No description provided for @notificationsMarkAllRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all read'**
+  String get notificationsMarkAllRead;
+
+  /// No description provided for @notificationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet'**
+  String get notificationsEmpty;
+
+  /// No description provided for @notificationsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment reminders and updates will appear here.'**
+  String get notificationsEmptyBody;
+
+  /// No description provided for @notificationsWhatToSend.
+  ///
+  /// In en, this message translates to:
+  /// **'What to send'**
+  String get notificationsWhatToSend;
+
+  /// No description provided for @notificationsAlwaysOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Always sent — you need to know'**
+  String get notificationsAlwaysOn;
+
+  /// No description provided for @notificationsIgnoresQuietHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent even during quiet hours'**
+  String get notificationsIgnoresQuietHours;
+
+  /// No description provided for @notificationsQuietHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet hours'**
+  String get notificationsQuietHours;
+
+  /// No description provided for @notificationsQuietHoursBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing will be sent during these hours, except appointment changes and account alerts.'**
+  String get notificationsQuietHoursBody;
+
+  /// No description provided for @notificationsQuietFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get notificationsQuietFrom;
+
+  /// No description provided for @notificationsQuietTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Until'**
+  String get notificationsQuietTo;
+
+  /// No description provided for @notificationKindReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment reminders'**
+  String get notificationKindReminder;
+
+  /// No description provided for @notificationKindChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment moved or cancelled'**
+  String get notificationKindChanged;
+
+  /// No description provided for @notificationKindPrescription.
+  ///
+  /// In en, this message translates to:
+  /// **'New prescriptions'**
+  String get notificationKindPrescription;
+
+  /// No description provided for @notificationKindConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests to see your records'**
+  String get notificationKindConsent;
+
+  /// No description provided for @notificationKindRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploads finished checking'**
+  String get notificationKindRecord;
+
+  /// No description provided for @notificationKindRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate a consultation'**
+  String get notificationKindRating;
+
+  /// No description provided for @notificationKindAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account and verification'**
+  String get notificationKindAccount;
+
+  /// No description provided for @notificationsEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on notifications'**
+  String get notificationsEnable;
+
+  /// No description provided for @notificationsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are on'**
+  String get notificationsEnabled;
+
+  /// No description provided for @notificationsDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are off. You can turn them on in your phone settings.'**
+  String get notificationsDenied;
+
+  /// No description provided for @notificationsOnboardingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We will remind you before a consultation and tell you when a prescription is ready. No health details ever appear on your lock screen.'**
+  String get notificationsOnboardingBody;
+
   /// No description provided for @sessionTimedOut.
   ///
   /// In en, this message translates to:

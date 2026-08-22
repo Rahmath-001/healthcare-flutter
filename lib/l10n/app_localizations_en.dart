@@ -96,6 +96,79 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offline => 'You are offline';
 
   @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsSettings => 'Notification settings';
+
+  @override
+  String get notificationsMarkAllRead => 'Mark all read';
+
+  @override
+  String get notificationsEmpty => 'Nothing yet';
+
+  @override
+  String get notificationsEmptyBody =>
+      'Appointment reminders and updates will appear here.';
+
+  @override
+  String get notificationsWhatToSend => 'What to send';
+
+  @override
+  String get notificationsAlwaysOn => 'Always sent — you need to know';
+
+  @override
+  String get notificationsIgnoresQuietHours => 'Sent even during quiet hours';
+
+  @override
+  String get notificationsQuietHours => 'Quiet hours';
+
+  @override
+  String get notificationsQuietHoursBody =>
+      'Nothing will be sent during these hours, except appointment changes and account alerts.';
+
+  @override
+  String get notificationsQuietFrom => 'From';
+
+  @override
+  String get notificationsQuietTo => 'Until';
+
+  @override
+  String get notificationKindReminder => 'Appointment reminders';
+
+  @override
+  String get notificationKindChanged => 'Appointment moved or cancelled';
+
+  @override
+  String get notificationKindPrescription => 'New prescriptions';
+
+  @override
+  String get notificationKindConsent => 'Requests to see your records';
+
+  @override
+  String get notificationKindRecord => 'Uploads finished checking';
+
+  @override
+  String get notificationKindRating => 'Rate a consultation';
+
+  @override
+  String get notificationKindAccount => 'Account and verification';
+
+  @override
+  String get notificationsEnable => 'Turn on notifications';
+
+  @override
+  String get notificationsEnabled => 'Notifications are on';
+
+  @override
+  String get notificationsDenied =>
+      'Notifications are off. You can turn them on in your phone settings.';
+
+  @override
+  String get notificationsOnboardingBody =>
+      'We will remind you before a consultation and tell you when a prescription is ready. No health details ever appear on your lock screen.';
+
+  @override
   String get sessionTimedOut =>
       'Signed out after 15 minutes of inactivity, to keep your health information private.';
 

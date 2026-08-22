@@ -32,6 +32,7 @@ dependencies:
   hmssdk_flutter: ^1.11.1
   firebase_crashlytics: ^4.3.10
   meta: ^1.18.0
+  firebase_messaging: ^15.2.10
 
 dev_dependencies:
   flutter_lints: ^4.0.0

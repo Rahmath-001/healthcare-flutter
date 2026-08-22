@@ -27,6 +27,8 @@ import '../../features/records/presentation/records_screen.dart';
 import '../../features/settings/presentation/edit_profile_screen.dart';
 import '../../features/settings/presentation/privacy_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/notifications/presentation/notification_settings_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/support/presentation/support_screen.dart';
 import '../../screens/login_screen.dart';
@@ -131,6 +133,14 @@ List<RouteBase> buildRoutes() => [
         // class of data as a record, and previously the only PHI screen with
         // no screenshot protection at all.
         builder: (_, __) => const ProtectedScreen(child: EditProfileScreen()),
+      ),
+      GoRoute(
+        path: Routes.notifications,
+        builder: (_, __) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: Routes.notificationSettings,
+        builder: (_, __) => const NotificationSettingsScreen(),
       ),
       GoRoute(
         path: Routes.supportTickets,

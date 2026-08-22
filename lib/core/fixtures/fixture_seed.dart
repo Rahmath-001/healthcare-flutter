@@ -1,6 +1,7 @@
 import '../../features/appointments/domain/appointment.dart';
 import '../../features/availability/domain/availability.dart';
 import '../../features/consent/domain/consent.dart';
+import '../../features/notifications/domain/notification.dart';
 import '../../features/credentials/domain/credential.dart';
 import '../../features/prescriptions/domain/prescription.dart';
 import '../../features/providers_search/data/doctor_fixtures.dart';
@@ -373,6 +374,46 @@ abstract final class FixtureSeed {
           at: at(-9, 16, 10),
         ),
       ];
+
+  // --- notifications -------------------------------------------------------
+
+  /// A short history, so the notification centre has something to render on a
+  /// fresh install and the read/unread split is visible without waiting for an
+  /// event to fire.
+  ///
+  /// Every body here is deliberately free of clinical detail — these strings
+  /// are what a lock screen would show.
+  static List<AppNotification> notifications() {
+    final now = DateTime.now();
+    return [
+      AppNotification(
+        id: 'n-seed-1',
+        kind: NotificationKind.consentRequested,
+        title: 'A doctor asked to see your records',
+        body: 'Dr Vikram Mehta · tap to review',
+        createdAt: now.subtract(const Duration(hours: 5)),
+        targetId: 'req1',
+      ),
+      AppNotification(
+        id: 'n-seed-2',
+        kind: NotificationKind.prescriptionIssued,
+        title: 'Prescription ready',
+        body: 'From your consultation with Dr Anjali Rao',
+        createdAt: now.subtract(const Duration(days: 1)),
+        readAt: now.subtract(const Duration(hours: 20)),
+        targetId: 'rx1',
+      ),
+      AppNotification(
+        id: 'n-seed-3',
+        kind: NotificationKind.ratingRequested,
+        title: 'How was your consultation?',
+        body: 'Rate it to help other patients choose.',
+        createdAt: now.subtract(const Duration(days: 3)),
+        readAt: now.subtract(const Duration(days: 2)),
+        targetId: 'a2',
+      ),
+    ];
+  }
 
   // --- ratings -------------------------------------------------------------
 

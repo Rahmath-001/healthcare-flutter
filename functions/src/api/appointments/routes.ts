@@ -12,6 +12,7 @@ import {
   type SlotLockDoc,
 } from "../db";
 import { handler, Problem } from "../errors";
+import { istWhen, notify } from "../notifications/send";
 
 /** Batch-loads the doctors referenced by a set of appointments. */
 async function doctorsFor(appointments: AppointmentDoc[]): Promise<Map<string, DoctorDoc>> {
@@ -142,6 +143,20 @@ export function appointmentRoutes(secret: () => string): Router {
       });
 
       const doctorSnap = await firestore.collection(C.doctors).doc(updated.doctorId).get();
+
+      // Only when the *provider* cancelled. A patient who just tapped cancel
+      // does not need to be told; sending it anyway is how an app teaches
+      // people that its notifications are noise.
+      if (isProvider) {
+        await notify({
+          userId: updated.patientId,
+          kind: "APPOINTMENT_CHANGED",
+          title: "Appointment cancelled",
+          body: (doctorSnap.data() as DoctorDoc | undefined)?.name ?? "Your consultation",
+          targetId: req.params.id,
+        });
+      }
+
       res.json(
         appointmentJson(req.params.id, updated, updated.doctorId, doctorSnap.data() as DoctorDoc)
       );
@@ -265,6 +280,18 @@ export function appointmentRoutes(secret: () => string): Router {
       });
 
       const doctorSnap = await firestore.collection(C.doctors).doc(updated.doctorId).get();
+
+      // Mandatory kind, and unconditional. Even when the patient moved it
+      // themselves, this is the receipt — and when the provider moved it, it
+      // is the only thing standing between them and travelling to the old time.
+      await notify({
+        userId: updated.patientId,
+        kind: "APPOINTMENT_CHANGED",
+        title: "Appointment moved",
+        body: `Now ${istWhen(updated.start.toDate())}`,
+        targetId: req.params.id,
+      });
+
       res.json(
         appointmentJson(req.params.id, updated, updated.doctorId, doctorSnap.data() as DoctorDoc)
       );

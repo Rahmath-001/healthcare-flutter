@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#0E8388</color>
+    <!-- Tints the small icon FCM draws in the status bar. Same brand teal. -->
+    <color name="midoctor_teal">#0E8388</color>
 </resources>

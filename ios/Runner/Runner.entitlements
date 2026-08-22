@@ -29,6 +29,26 @@
 		`applinks:` only. `webcredentials:` is deliberately absent: this app has
 		no password to share with a website.
 	-->
+	<!--
+		Push notifications.
+
+		`development` here, and that is deliberate rather than an oversight:
+		Xcode rewrites this to `production` when it exports a release build, so
+		a hard-coded `production` breaks every debug install instead. What it
+		cannot do is invent the entitlement, which is why it is declared.
+
+		Also required, and none of it lives in this repo:
+		  - Push Notifications capability enabled on the App ID.
+		  - An APNs auth key (.p8) uploaded to the Firebase project. Without it
+		    FCM accepts the send and silently delivers nothing to iOS.
+		  - Background Modes → Remote notifications, if a notification should be
+		    able to wake the app rather than only appear.
+
+		Until the APNs key is uploaded, iOS push fails soundlessly: no error on
+		the client, a success from FCM, and nothing on the device.
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:midoctor.in</string>

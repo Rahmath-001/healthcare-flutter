@@ -4,6 +4,7 @@ import 'dart:math';
 import '../../features/appointments/domain/appointment.dart';
 import '../../features/availability/domain/availability.dart';
 import '../../features/consent/domain/consent.dart';
+import '../../features/notifications/domain/notification.dart';
 import '../../features/credentials/domain/credential.dart';
 import '../../features/prescriptions/domain/prescription.dart';
 import '../../features/providers_search/data/doctor_fixtures.dart';
@@ -65,6 +66,14 @@ class FixtureBackend {
   final List<AvailabilityRule> _rules = [];
   final List<AvailabilityException> _exceptions = [];
   final List<ProviderApplicationRecord> _applications = [];
+  final List<AppNotification> _notifications = [];
+  NotificationPreferences _notificationPreferences =
+      NotificationPreferences.defaults;
+
+  /// The last device token registered. Sample data has no push service behind
+  /// it, so this exists to prove the registration call happened rather than to
+  /// deliver anything.
+  String? _deviceToken;
 
   /// Slot ids that are booked or held, mapped to when a hold lapses.
   ///
@@ -98,6 +107,7 @@ class FixtureBackend {
     _tickets.addAll(FixtureSeed.tickets());
     _rules.addAll(FixtureSeed.availabilityRules());
     _applications.addAll(FixtureSeed.applications());
+    _notifications.addAll(FixtureSeed.notifications());
 
     // Every seeded appointment already owns its slot.
     for (final a in _appointments) {
@@ -191,7 +201,25 @@ class FixtureBackend {
     );
 
     _appointments.insert(0, appointment);
+
+    // The reminder the scheduled sweep would send. Filed at booking time in
+    // the fixture because there is no scheduler here — the consequence a
+    // reader needs to see is "booking produces a reminder", not "a cron ran".
+    notify(
+      kind: NotificationKind.appointmentReminder,
+      title: 'Appointment confirmed',
+      body: '${doctor.name} · ${_shortWhen(start)}',
+      targetId: appointmentId,
+    );
+
     return appointment;
+  }
+
+  /// A time, with no clinical detail attached. Used for notification bodies.
+  static String _shortWhen(DateTime at) {
+    final h = at.hour % 12 == 0 ? 12 : at.hour % 12;
+    final m = at.minute.toString().padLeft(2, '0');
+    return '${at.day}/${at.month} at $h:$m ${at.hour < 12 ? 'AM' : 'PM'}';
   }
 
   // --- appointments --------------------------------------------------------
@@ -229,6 +257,14 @@ class FixtureBackend {
     // The slot goes back into the pool, which is what makes a cancellation
     // useful to the next patient rather than merely to this one.
     _slotLocks.remove(slotId(existing.doctor.id, existing.start));
+
+    notify(
+      kind: NotificationKind.appointmentChanged,
+      title: 'Appointment cancelled',
+      body: '${existing.doctor.name} · ${_shortWhen(existing.start)}',
+      targetId: id,
+    );
+
     return updated;
   }
 
@@ -289,6 +325,16 @@ class FixtureBackend {
       status: AppointmentStatus.confirmed,
     );
     _replaceAppointment(updated);
+
+    // Mandatory kind: a patient who is not told their appointment moved will
+    // travel to the old time.
+    notify(
+      kind: NotificationKind.appointmentChanged,
+      title: 'Appointment moved',
+      body: '${existing.doctor.name} · now ${_shortWhen(start)}',
+      targetId: id,
+    );
+
     return updated;
   }
 
@@ -422,6 +468,15 @@ class FixtureBackend {
     final index = _records.indexWhere((r) => r.id == recordId);
     if (index < 0) return;
     _records[index] = _records[index].copyWith(scanStatus: ScanStatus.clean);
+
+    // The record title is the patient's own words and can name a condition, so
+    // it stays out of the body.
+    notify(
+      kind: NotificationKind.recordReady,
+      title: 'Record ready',
+      body: 'Your upload finished checking and can now be opened.',
+      targetId: recordId,
+    );
   }
 
   void deleteRecord(String id) {
@@ -566,7 +621,91 @@ class FixtureBackend {
             _appointments[index].copyWith(hasPrescription: true);
       }
     }
+
+    // Deliberately says nothing about the drug. "Your Sertraline prescription
+    // is ready" on a lock screen is a disclosure to whoever picked the phone
+    // up, with no consent record and no way to withdraw it.
+    notify(
+      kind: NotificationKind.prescriptionIssued,
+      title: 'Prescription ready',
+      body: 'From your consultation with ${prescription.providerName}',
+      targetId: prescription.id,
+    );
+
     return prescription;
+  }
+
+  // --- notifications -------------------------------------------------------
+
+  List<AppNotification> notifications() {
+    final sorted = [..._notifications]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return List.unmodifiable(sorted);
+  }
+
+  int unreadNotificationCount() =>
+      _notifications.where((n) => !n.isRead).length;
+
+  NotificationPreferences notificationPreferences() => _notificationPreferences;
+
+  void setNotificationPreferences(NotificationPreferences preferences) {
+    _notificationPreferences = preferences;
+  }
+
+  void registerDevice(String token) => _deviceToken = token;
+
+  String? get registeredDeviceToken => _deviceToken;
+
+  void unregisterDevice() => _deviceToken = null;
+
+  void markNotificationRead(String id) {
+    final index = _notifications.indexWhere((n) => n.id == id);
+    if (index < 0) return;
+    if (_notifications[index].isRead) return;
+    _notifications[index] =
+        _notifications[index].copyWith(readAt: DateTime.now());
+  }
+
+  void markAllNotificationsRead() {
+    final now = DateTime.now();
+    for (var i = 0; i < _notifications.length; i++) {
+      if (!_notifications[i].isRead) {
+        _notifications[i] = _notifications[i].copyWith(readAt: now);
+      }
+    }
+  }
+
+  /// Files a notification, if the user's preferences allow it right now.
+  ///
+  /// Routed through [NotificationPreferences.allows] rather than filed
+  /// unconditionally, because that is what the server does — and a fixture that
+  /// stores everything and filters at read time would let the preference screen
+  /// look like it works while proving nothing. Turning a kind off in sample
+  /// data really does stop it arriving.
+  ///
+  /// **No clinical content in [title] or [body].** These strings reach a lock
+  /// screen, a paired watch and anyone holding the phone. The detail lives
+  /// behind [targetId], inside the app.
+  void notify({
+    required NotificationKind kind,
+    required String title,
+    required String body,
+    String? targetId,
+  }) {
+    final now = DateTime.now();
+    if (!_notificationPreferences.allows(kind, at: now)) return;
+
+    _notifications.insert(
+      0,
+      AppNotification(
+        id: 'n-${_nextId()}',
+        kind: kind,
+        title: title,
+        body: body,
+        createdAt: now,
+        targetId: targetId,
+      ),
+    );
   }
 
   // --- ratings -------------------------------------------------------------

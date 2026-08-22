@@ -8,6 +8,7 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../features/appointments/domain/appointment.dart';
 import '../../features/appointments/presentation/appointments_controller.dart';
+import '../../features/notifications/presentation/notifications_controller.dart';
 import '../../features/providers_search/domain/doctor.dart';
 import '../../l10n/l10n.dart';
 import '../../shared/formatters.dart';
@@ -141,7 +142,9 @@ class _Greeting extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(width: Insets.md),
+            const SizedBox(width: Insets.sm),
+            _NotificationBell(),
+            const SizedBox(width: Insets.xs),
             // The avatar is the profile entry point every other app on the
             // phone puts here. Wrapped in a 48pt tap target rather than left as
             // a bare image, and labelled, because an unlabelled photo is
@@ -674,6 +677,44 @@ class _QuickAction extends StatelessWidget {
                       Flexible(child: label),
                     ],
                   ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The notification entry point, with its unread count.
+///
+/// Lives on Home rather than in a tab of its own: a fifth tab for something
+/// that is usually empty spends permanent screen space on an occasional need,
+/// and the bell is where every other app on the phone has taught people to
+/// look.
+class _NotificationBell extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(unreadCountProvider);
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+
+    return Semantics(
+      button: true,
+      // Counted out loud. A bare "notifications, button" tells a screen-reader
+      // user nothing about whether it is worth opening.
+      label: unread == 0
+          ? l10n.notificationsTitle
+          : '${l10n.notificationsTitle}, $unread',
+      excludeSemantics: true,
+      child: IconButton(
+        onPressed: () => context.push(Routes.notifications),
+        icon: Badge(
+          isLabelVisible: unread > 0,
+          label: Text('$unread'),
+          child: Icon(
+            unread > 0
+                ? Icons.notifications_active_outlined
+                : Icons.notifications_none_outlined,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ),

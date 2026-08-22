@@ -16,6 +16,7 @@ import { handler, Problem } from "../errors";
 import { rateLimit } from "../rate_limit";
 import { assertPrescribable, type DrugDoc, type DrugList } from "./drug_rules";
 import { signedDownloadUrl } from "../storage";
+import { notify } from "../notifications/send";
 import { storePrescriptionPdf } from "./pdf_store";
 
 /**
@@ -350,6 +351,16 @@ export function prescriptionRoutes(secret: () => string): Router {
       // doctor prescribing; `storePrescriptionPdf` records its own failure and
       // the scheduled sweep retries.
       const stored = await storePrescriptionPdf(id, doc);
+
+      // Names no drug. This body reaches a lock screen, and "your Sertraline
+      // prescription is ready" is a disclosure to whoever is holding the phone.
+      await notify({
+        userId: appt.patientId,
+        kind: "PRESCRIPTION_ISSUED",
+        title: "Prescription ready",
+        body: `From your consultation with ${doctor.name}`,
+        targetId: id,
+      });
 
       res.status(201).json(prescriptionJson(id, { ...doc, ...stored }));
     })

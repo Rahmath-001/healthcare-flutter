@@ -123,11 +123,11 @@ token revocation on account deletion is mandatory. See the Sign-in section of
 ```bash
 flutter analyze --fatal-infos                 # must be clean
 dart format --set-exit-if-changed lib test
-flutter test                                  # 240 tests
+flutter test                                  # 265 tests
 
 cd functions
 pnpm exec tsc --noEmit
-pnpm test                                     # 65 tests, no emulator needed
+pnpm test                                     # 77 tests, no emulator needed
 ```
 
 Goldens are tagged and excluded from CI (they render with the host's fonts):
@@ -136,6 +136,35 @@ regenerate. End-to-end journeys live in `integration_test/`.
 
 Known gaps: the operator console's screens have no widget tests, and the Firestore
 transactions (double-booking, refresh rotation) need the emulator to cover.
+
+---
+
+## Notifications
+
+Appointment reminders, prescription-ready, consent requests, record-ready and account
+updates — with per-kind toggles and quiet hours (22:00–07:00 by default, wrapping past
+midnight). Reminders go out on the 15-minute sweep at roughly T-24h and T-1h, idempotent
+through `remindersSent` so a re-run cannot send the same one twice.
+
+**No clinical content ever goes in a notification.** These strings render on a lock screen
+and mirror to a paired watch. "Prescription ready" is fine; naming the drug is a disclosure
+to whoever is holding the phone. The detail lives behind the tap, inside the app.
+
+Two kinds are **mandatory** and ignore both the toggle and quiet hours: an appointment
+moving or being cancelled, and an account change. A patient must not be able to opt out of
+the only warning that their consultation is not happening.
+
+Everything works on sample data — the centre, the badge, the toggles, quiet hours — because
+the fixture files notifications through the same `allows()` rule the server uses. Turning a
+kind off really does stop it arriving rather than merely hiding it.
+
+To make push actually deliver, once you have the credentials:
+
+| Platform | What is needed |
+| --- | --- |
+| Android | `google-services.json`. `POST_NOTIFICATIONS`, the default icon and the tint colour are already declared. |
+| iOS | Push Notifications capability on the App ID, and an **APNs auth key (.p8) uploaded to Firebase**. Without the key FCM reports success and iOS receives nothing — a silent failure with no client-side error. `aps-environment` is already in `Runner.entitlements`. |
+| Web | Not supported. It needs a `firebase-messaging-sw.js` service worker and a VAPID key; `PushService.isSupported` reports false and the UI says so rather than failing at runtime. |
 
 ---
 

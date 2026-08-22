@@ -12,6 +12,7 @@ import { consentRoutes } from "./consent/routes";
 import { consultationRoutes } from "./consultations/routes";
 import { credentialRoutes } from "./credentials/routes";
 import { doctorRoutes } from "./doctors/routes";
+import { notificationRoutes } from "./notifications/routes";
 import { problemHandler, Problem, requestId } from "./errors";
 import {
   prescriptionRoutes,
@@ -90,6 +91,7 @@ export function buildApp(deps: AppDependencies | (() => string)) {
   app.use("/v1/availability", availabilityRoutes(secret));
   app.use("/v1/credentials", credentialRoutes(secret));
   app.use("/v1/ratings", ratingRoutes(secret));
+  app.use("/v1/notifications", notificationRoutes(secret));
   app.use("/v1/support/tickets", supportRoutes(secret));
   app.use("/v1/prescriptions", prescriptionRoutes(secret));
   // Unauthenticated: a pharmacist verifying a QR code holds no token.

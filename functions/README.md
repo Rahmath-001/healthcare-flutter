@@ -96,6 +96,11 @@ part of the attack surface and easy to miss when reading the table below.
 | PUT | `/v1/ratings/:id` | `rating:write` |
 | POST | `/v1/ratings/:id/moderate` | `provider:review` |
 | GET/POST | `/v1/support/tickets`, `/:id/replies` | `support:ticket_create` |
+| GET | `/v1/notifications` | authenticated — the caller's own, newest first |
+| POST | `/v1/notifications/:id/read`, `/read-all` | authenticated |
+| GET/PUT | `/v1/notifications/preferences` | authenticated — per-kind toggles and quiet hours |
+| POST/DELETE | `/v1/notifications/devices` | authenticated — register/detach this install's push token |
+| POST | `/v1/appointments/:id/reschedule` | `appointment:create` — takes an instant, never a slot id |
 | GET | `/v1/prescriptions`, `/:id`, `/drugs` | authenticated / `prescription:write` |
 | GET | `/v1/prescriptions/:id/pdf` | patient or issuing doctor — signed link to the write-once PDF, with its SHA-256 |
 | POST | `/v1/prescriptions` | `prescription:write` |

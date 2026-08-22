@@ -35,7 +35,60 @@ export const C = {
   consultations: "consultations",
   credentials: "credentials",
   providerVerifications: "providerVerifications",
+  notifications: "notifications",
+  notificationPreferences: "notificationPreferences",
+  devices: "devices",
 } as const;
+
+export type NotificationKind =
+  | "APPOINTMENT_REMINDER"
+  | "APPOINTMENT_CHANGED"
+  | "PRESCRIPTION_ISSUED"
+  | "CONSENT_REQUESTED"
+  | "RECORD_READY"
+  | "RATING_REQUESTED"
+  | "ACCOUNT_UPDATE";
+
+/**
+ * One notification, as stored and as sent.
+ *
+ * **No clinical content in `title` or `body`.** These strings are rendered on a
+ * lock screen, mirrored to a paired watch, and read by whoever is holding the
+ * phone. "Your prescription is ready" is fine; naming the drug is a disclosure
+ * with no consent record and no way to withdraw it. `targetId` carries the
+ * reference, and resolving it happens inside the app behind authentication.
+ */
+export interface NotificationDoc {
+  userId: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  targetId?: string | null;
+  createdAt: Timestamp;
+  readAt?: Timestamp | null;
+  /** Whether a push was actually delivered, as opposed to only filed. */
+  pushedAt?: Timestamp | null;
+}
+
+export interface QuietHoursDoc {
+  startHour: number;
+  endHour: number;
+}
+
+export interface NotificationPreferencesDoc {
+  /** Kinds the user wants. Mandatory kinds are not listed; they always send. */
+  enabled: NotificationKind[];
+  quietHours: QuietHoursDoc;
+  updatedAt: Timestamp;
+}
+
+/** One install's push token. Document id is the token itself. */
+export interface DeviceDoc {
+  userId: string;
+  platform: string;
+  createdAt: Timestamp;
+  lastSeenAt: Timestamp;
+}
 
 export type Role =
   | "PATIENT"

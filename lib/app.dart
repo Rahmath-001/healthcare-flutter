@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
 import 'core/security/inactivity_timeout.dart';
+import 'features/notifications/presentation/push_coordinator.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/app_localizations.dart';
 import 'widgets/offline_banner.dart';
@@ -32,11 +33,13 @@ class MiDoctorApp extends ConsumerWidget {
       // still sits below `ScaffoldMessenger` and can explain itself on the way
       // out.
       builder: (context, child) => InactivityTimeout(
-        child: Column(
-          children: [
-            const OfflineBanner(),
-            Expanded(child: child ?? const SizedBox.shrink()),
-          ],
+        child: PushCoordinator(
+          child: Column(
+            children: [
+              const OfflineBanner(),
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ],
+          ),
         ),
       ),
     );

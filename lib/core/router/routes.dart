@@ -31,6 +31,8 @@ abstract final class Routes {
   static const recordUpload = '/patient/records/upload';
   static const prescriptions = '/patient/prescriptions';
   static const supportTickets = '/patient/support';
+  static const notifications = '/patient/notifications';
+  static const notificationSettings = '/patient/notifications/settings';
   static const settings = '/patient/settings';
   static const editProfile = '/patient/settings/profile';
   static const privacy = '/patient/settings/privacy';

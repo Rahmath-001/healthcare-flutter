@@ -8,6 +8,8 @@ import 'package:healthcare_mobile/features/availability/data/availability_reposi
 import 'package:healthcare_mobile/features/booking/data/booking_repository.dart';
 import 'package:healthcare_mobile/features/consent/data/consent_repository.dart';
 import 'package:healthcare_mobile/features/consent/domain/consent.dart';
+import 'package:healthcare_mobile/features/notifications/data/notification_repository.dart';
+import 'package:healthcare_mobile/features/notifications/domain/notification.dart';
 import 'package:healthcare_mobile/features/credentials/data/credentials_repository.dart';
 import 'package:healthcare_mobile/features/credentials/domain/credential.dart';
 import 'package:healthcare_mobile/features/prescriptions/data/prescription_repository.dart';
@@ -131,6 +133,161 @@ void main() {
       );
       // A cancellation that helps nobody else is not a cancellation.
       expect(again.firstWhere((s) => s.id == free.id).isAvailable, isTrue);
+    });
+  });
+
+  group('events reach the notification centre', () {
+    test('booking files a reminder the patient can see', () async {
+      final booking = FixtureBookingRepository(latency: fast);
+      final notifications = FixtureNotificationRepository(latency: fast);
+      final date = openDay();
+
+      final before = (await notifications.list()).length;
+
+      final free = (await booking.slotsFor(
+        doctorId: 'd1',
+        date: date,
+        mode: ConsultationMode.video,
+      ))
+          .firstWhere((s) => s.isAvailable);
+
+      final booked = await booking.book(
+        doctor: DoctorFixtures.byId('d1'),
+        slot: free,
+        mode: ConsultationMode.video,
+        patientName: 'Priya Sharma',
+      );
+
+      final after = await notifications.list();
+      expect(after.length, before + 1);
+      expect(after.first.kind, NotificationKind.appointmentReminder);
+      expect(after.first.targetId, booked.id);
+      expect(after.first.isRead, isFalse);
+    });
+
+    test('a notification body never names a drug', () async {
+      // The rule the whole feature is built around: these strings land on a
+      // lock screen, and naming the medicine discloses the condition to
+      // whoever is holding the phone.
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final notifications = FixtureNotificationRepository(latency: fast);
+
+      final drug = FixturePrescriptionRepository.drugCatalogue
+          .firstWhere((d) => d.telemedicineList == TelemedicineDrugList.listO);
+
+      await prescriptions.issue(
+        appointmentId: 'a2',
+        patientName: 'Priya Sharma',
+        patientAge: '34',
+        patientGender: 'Female',
+        isFollowUp: false,
+        items: [
+          PrescriptionItem(
+            drugId: drug.id,
+            drugName: drug.name,
+            genericName: drug.genericName,
+            strength: drug.commonStrengths.first,
+            form: drug.form,
+            frequency: '1-0-1',
+            durationDays: 5,
+          ),
+        ],
+      );
+
+      final issued = (await notifications.list()).firstWhere(
+        (n) => n.kind == NotificationKind.prescriptionIssued,
+      );
+
+      expect(issued.title, isNot(contains(drug.name)));
+      expect(issued.body, isNot(contains(drug.name)));
+      expect(issued.body, isNot(contains(drug.genericName)));
+    });
+
+    test('cancelling tells the patient, and cannot be switched off', () async {
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notifications = FixtureNotificationRepository(latency: fast);
+
+      // Everything optional turned off. The cancellation still arrives.
+      await notifications.updatePreferences(
+        const NotificationPreferences(
+          enabled: {},
+          quietHours: QuietHours.defaults,
+        ),
+      );
+
+      final upcoming =
+          (await appointments.listForPatient()).firstWhere((a) => a.canCancel);
+      await appointments.cancel(upcoming.id, reason: 'Plans changed');
+
+      final changed = (await notifications.list())
+          .where((n) => n.kind == NotificationKind.appointmentChanged);
+      expect(changed, isNotEmpty);
+      expect(changed.first.targetId, upcoming.id);
+    });
+
+    test('a kind the user turned off is never filed at all', () async {
+      // Not filtered at read time — not stored. A centre that fills up with
+      // things the user asked not to receive is the toggle failing quietly.
+      final records = FixtureRecordsRepository(latency: fast);
+      final notifications = FixtureNotificationRepository(latency: fast);
+
+      await notifications.updatePreferences(
+        NotificationPreferences(
+          enabled: NotificationKind.values
+              .where((k) => k != NotificationKind.recordReady)
+              .toSet(),
+          quietHours: const QuietHours(startHour: 0, endHour: 0),
+        ),
+      );
+
+      final before = (await notifications.list()).length;
+      await records.upload(
+        title: 'Blood work',
+        type: RecordType.labReport,
+        recordedAt: DateTime.now(),
+        file: testFile(name: 'bloods.pdf'),
+      );
+      // Past the fixture's simulated scan delay.
+      await Future<void>.delayed(const Duration(seconds: 4));
+
+      final after = await notifications.list();
+      expect(
+        after.where((n) => n.kind == NotificationKind.recordReady),
+        isEmpty,
+      );
+      expect(after.length, before);
+    });
+
+    test('marking read moves the unread count', () async {
+      final notifications = FixtureNotificationRepository(latency: fast);
+
+      final unread =
+          (await notifications.list()).where((n) => !n.isRead).toList();
+      expect(unread, isNotEmpty);
+
+      await notifications.markRead(unread.first.id);
+      final after = await notifications.list();
+      expect(after.firstWhere((n) => n.id == unread.first.id).isRead, isTrue);
+
+      await notifications.markAllRead();
+      expect((await notifications.list()).where((n) => !n.isRead), isEmpty);
+    });
+
+    test('registering a device is recorded', () async {
+      // Sample data has no push service behind it. Recording the call is what
+      // lets the coordinator's sign-in and sign-out wiring be exercised
+      // without one.
+      final notifications = FixtureNotificationRepository(latency: fast);
+
+      await notifications.registerDevice(
+        token: 'a-token-long-enough',
+        platform: 'android',
+      );
+      expect(
+          FixtureBackend.shared.registeredDeviceToken, 'a-token-long-enough');
+
+      await notifications.unregisterDevice();
+      expect(FixtureBackend.shared.registeredDeviceToken, isNull);
     });
   });
 

@@ -20,6 +20,7 @@ import '../features/prescriptions/data/prescription_repository.dart';
 import '../features/providers_search/data/api_doctor_repository.dart';
 import '../features/providers_search/data/doctor_repository.dart';
 import '../features/ratings/data/api_ratings_repository.dart';
+import '../features/notifications/data/notification_repository.dart';
 import '../features/ratings/data/ratings_repository.dart';
 import '../features/records/data/api_records_repository.dart';
 import '../features/records/data/records_repository.dart';
@@ -99,6 +100,17 @@ final availabilityRepositoryProvider = Provider<AvailabilityRepository>((ref) {
 final ratingsRepositoryProvider = Provider<RatingsRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixtureRatingsRepository();
   return ApiRatingsRepository(ref.watch(apiClientProvider));
+});
+
+/// The fourteenth repository. Notifications are the one surface where the
+/// fixture and the API differ in kind rather than in source: sample data files
+/// notifications into an in-memory list and nothing is ever pushed, because
+/// there is no FCM project behind it. Everything the user can *see* — the
+/// centre, the unread count, the preferences, quiet hours — behaves identically
+/// either way.
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureNotificationRepository();
+  return ApiNotificationRepository(ref.watch(apiClientProvider));
 });
 
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {

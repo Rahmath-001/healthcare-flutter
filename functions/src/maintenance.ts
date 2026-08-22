@@ -1,8 +1,9 @@
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
-import { C, db, type MedicalRecordDoc } from "./api/db";
+import { C, db, type AppointmentDoc, type MedicalRecordDoc } from "./api/db";
+import { istWhen, notify } from "./api/notifications/send";
 import { sweepMissingPrescriptionPdfs } from "./api/prescriptions/pdf_store";
 import { QUARANTINE_PREFIX, deleteObject } from "./api/storage";
 
@@ -82,8 +83,10 @@ export const sweepShortLived = onSchedule(
     // is usually a pharmacist holding a printout, not someone opening the app.
     const documents = await sweepMissingPrescriptionPdfs();
 
-    if (holds || requests || documents) {
-      logger.info("Short-lived sweep", { holds, requests, documents });
+    const reminders = await sendDueReminders();
+
+    if (holds || requests || documents || reminders) {
+      logger.info("Short-lived sweep", { holds, requests, documents, reminders });
     }
   }
 );
@@ -249,3 +252,74 @@ export const completeErasures = onSchedule(
     }
   }
 );
+
+/**
+ * Appointment reminders, roughly 24 hours and 1 hour ahead.
+ *
+ * Runs on the 15-minute sweep rather than a per-appointment scheduled task.
+ * One job that asks "what is due?" survives a deploy, a retry and a
+ * clock skew; ten thousand individually scheduled tasks are ten thousand
+ * things that can be scheduled once and then silently not fire — and the
+ * failure is invisible until a patient misses a consultation.
+ *
+ * Idempotent through `remindersSent`, an array on the appointment. A sweep
+ * that ran twice would otherwise send the same reminder twice, and the second
+ * one teaches people to ignore the first.
+ */
+const REMINDER_OFFSETS: { key: string; leadMs: number }[] = [
+  { key: "T24H", leadMs: 24 * 60 * 60 * 1000 },
+  { key: "T1H", leadMs: 60 * 60 * 1000 },
+];
+
+/** How far past the ideal moment a reminder is still worth sending. */
+const REMINDER_GRACE_MS = 30 * 60 * 1000;
+
+export async function sendDueReminders(limit = 100): Promise<number> {
+  const now = Date.now();
+  const furthest = Math.max(...REMINDER_OFFSETS.map((o) => o.leadMs));
+
+  const snap = await db()
+    .collection(C.appointments)
+    .where("status", "==", "CONFIRMED")
+    .where("start", ">", Timestamp.fromMillis(now))
+    .where("start", "<", Timestamp.fromMillis(now + furthest))
+    .limit(limit)
+    .get();
+
+  let sent = 0;
+
+  for (const doc of snap.docs) {
+    const a = doc.data() as AppointmentDoc;
+    const already: string[] = (a as { remindersSent?: string[] }).remindersSent ?? [];
+    const startMs = a.start.toMillis();
+
+    for (const offset of REMINDER_OFFSETS) {
+      if (already.includes(offset.key)) continue;
+
+      const dueAt = startMs - offset.leadMs;
+      // Not yet, or so long ago that the next reminder is more useful than a
+      // stale one.
+      if (now < dueAt || now > dueAt + REMINDER_GRACE_MS) continue;
+
+      const id = await notify({
+        userId: a.patientId,
+        kind: "APPOINTMENT_REMINDER",
+        title: offset.key === "T1H" ? "Your consultation is in an hour" : "Consultation tomorrow",
+        // No condition, no reason for visit. This lands on a lock screen.
+        body: istWhen(a.start.toDate()),
+        targetId: doc.id,
+      });
+
+      // Marked regardless of whether a push went out: the user's own
+      // preferences may have suppressed it, and retrying every 15 minutes
+      // against a preference that will not change is a loop, not a retry.
+      await doc.ref.update({
+        remindersSent: FieldValue.arrayUnion(offset.key),
+      });
+
+      if (id) sent++;
+    }
+  }
+
+  return sent;
+}

@@ -96,6 +96,80 @@ class AppLocalizationsHi extends AppLocalizations {
   String get offline => 'आप ऑफ़लाइन हैं';
 
   @override
+  String get notificationsTitle => 'सूचनाएँ';
+
+  @override
+  String get notificationsSettings => 'सूचना सेटिंग';
+
+  @override
+  String get notificationsMarkAllRead => 'सभी पढ़ा हुआ करें';
+
+  @override
+  String get notificationsEmpty => 'अभी कुछ नहीं';
+
+  @override
+  String get notificationsEmptyBody =>
+      'अपॉइंटमेंट रिमाइंडर और अपडेट यहाँ दिखेंगे।';
+
+  @override
+  String get notificationsWhatToSend => 'क्या भेजें';
+
+  @override
+  String get notificationsAlwaysOn =>
+      'हमेशा भेजा जाता है — आपको पता होना चाहिए';
+
+  @override
+  String get notificationsIgnoresQuietHours => 'शांत समय में भी भेजा जाता है';
+
+  @override
+  String get notificationsQuietHours => 'शांत समय';
+
+  @override
+  String get notificationsQuietHoursBody =>
+      'इन घंटों में कुछ नहीं भेजा जाएगा, सिवाय अपॉइंटमेंट बदलाव और खाता अलर्ट के।';
+
+  @override
+  String get notificationsQuietFrom => 'से';
+
+  @override
+  String get notificationsQuietTo => 'तक';
+
+  @override
+  String get notificationKindReminder => 'अपॉइंटमेंट रिमाइंडर';
+
+  @override
+  String get notificationKindChanged => 'अपॉइंटमेंट बदला या रद्द हुआ';
+
+  @override
+  String get notificationKindPrescription => 'नए नुस्ख़े';
+
+  @override
+  String get notificationKindConsent => 'आपके रिकॉर्ड देखने के अनुरोध';
+
+  @override
+  String get notificationKindRecord => 'अपलोड की जाँच पूरी हुई';
+
+  @override
+  String get notificationKindRating => 'परामर्श को रेट करें';
+
+  @override
+  String get notificationKindAccount => 'खाता और सत्यापन';
+
+  @override
+  String get notificationsEnable => 'सूचनाएँ चालू करें';
+
+  @override
+  String get notificationsEnabled => 'सूचनाएँ चालू हैं';
+
+  @override
+  String get notificationsDenied =>
+      'सूचनाएँ बंद हैं। आप इन्हें फ़ोन सेटिंग में चालू कर सकते हैं।';
+
+  @override
+  String get notificationsOnboardingBody =>
+      'परामर्श से पहले हम आपको याद दिलाएँगे और नुस्ख़ा तैयार होने पर बताएँगे। आपकी लॉक स्क्रीन पर कोई स्वास्थ्य जानकारी कभी नहीं दिखेगी।';
+
+  @override
   String get sessionTimedOut =>
       'आपकी स्वास्थ्य जानकारी निजी रखने के लिए, 15 मिनट की निष्क्रियता के बाद साइन आउट कर दिया गया।';
 

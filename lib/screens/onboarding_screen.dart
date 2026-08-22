@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/error/failure.dart';
 import '../core/feature_providers.dart';
 import '../core/session/onboarding_controller.dart';
+import '../features/notifications/data/push_service.dart';
+import '../features/notifications/presentation/push_coordinator.dart';
 import '../features/settings/domain/patient_profile.dart';
 import '../features/settings/presentation/account_controller.dart';
 import '../l10n/l10n.dart';
@@ -23,6 +26,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   DateTime? _dateOfBirth;
   BloodGroup? _selectedBloodGroup;
   bool _saving = false;
+
+  /// Starts unknown and is resolved on first build. Rendering the "enable"
+  /// button to someone who already granted permission asks them to do
+  /// something that is already done.
+  PushPermission _pushPermission = PushPermission.notDetermined;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final current = await ref.read(pushServiceProvider).currentPermission();
+      if (mounted) setState(() => _pushPermission = current);
+    });
+  }
 
   @override
   void dispose() {
@@ -208,38 +225,93 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
+  /// The notifications step.
+  ///
+  /// This used to be a button whose handler was a comment and a snackbar that
+  /// said "Notifications enabled" without asking the OS anything — the app
+  /// claiming a capability it did not have. It now shows the real system
+  /// prompt, reports the real answer, and says what will actually be sent.
+  ///
+  /// The copy no longer promises "medication schedules" either. There is no
+  /// medication module, deliberately: adherence tracking implies drug-
+  /// interaction liability nobody has scoped.
   Widget _buildNotificationsPage(ThemeData theme) {
+    final l10n = context.l10n;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_active_outlined,
-              size: 64, color: theme.colorScheme.primary),
+          Icon(
+            _pushPermission == PushPermission.granted
+                ? Icons.notifications_active
+                : Icons.notifications_active_outlined,
+            size: 64,
+            color: theme.colorScheme.primary,
+          ),
           const SizedBox(height: 24),
           Text('Stay in the loop',
               style: theme.textTheme.headlineSmall,
               textAlign: TextAlign.center),
           const SizedBox(height: 12),
           Text(
-            'Get reminders for appointments, medication schedules, and health tips.',
+            l10n.notificationsOnboardingBody,
             style: theme.textTheme.bodyLarge,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          OutlinedButton.icon(
-            onPressed: () {
-              // In production: request notification permission here.
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications enabled')),
-              );
-            },
-            icon: const Icon(Icons.notifications),
-            label: const Text('Enable notifications'),
-          ),
+          switch (_pushPermission) {
+            PushPermission.granted => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle,
+                      color: theme.colorScheme.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text(l10n.notificationsEnabled),
+                ],
+              ),
+            // Once denied, the OS will not prompt again — only Settings can
+            // change it. Offering the button again would be a button that
+            // does nothing, so this says where to go instead.
+            PushPermission.denied => Text(
+                l10n.notificationsDenied,
+                style: theme.textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            PushPermission.unsupported => const SizedBox.shrink(),
+            PushPermission.notDetermined => OutlinedButton.icon(
+                onPressed: _requestPush,
+                icon: const Icon(Icons.notifications),
+                label: Text(l10n.notificationsEnable),
+              ),
+          },
         ],
       ),
     );
+  }
+
+  Future<void> _requestPush() async {
+    final push = ref.read(pushServiceProvider);
+    final result = await push.requestPermission();
+    if (!mounted) return;
+    setState(() => _pushPermission = result);
+
+    if (result != PushPermission.granted) return;
+
+    // Registers immediately rather than waiting for the next launch: the
+    // patient has just been told they will get reminders, and the first one
+    // may be for an appointment they book in the next minute.
+    final token = await push.token();
+    if (token == null || !mounted) return;
+    try {
+      await ref.read(notificationRepositoryProvider).registerDevice(
+            token: token,
+            platform: defaultTargetPlatform.name,
+          );
+    } catch (_) {
+      // The coordinator retries on the next launch or token refresh.
+    }
   }
 
   Widget _buildDots() {

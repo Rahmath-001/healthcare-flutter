@@ -435,6 +435,17 @@
   "rateModerationNote": "Reviews are checked before they are published.",
   "rateSubmit": "Submit rating",
   "rateThanks": "Thank you. Your rating will appear once it is reviewed.",
+  "providerRatingsTitle": "Your ratings",
+  "providerRatingsEmpty": "No ratings yet",
+  "providerRatingsEmptyBody": "Patients can rate a consultation once it is completed.",
+  "ratingReplyAction": "Reply",
+  "ratingReplyTitle": "Reply publicly",
+  "ratingReplyHint": "Answer briefly and without clinical detail",
+  "ratingReplyNote": "Your reply is public and is reviewed before it appears. Never include anything about the patient’s condition or treatment.",
+  "ratingReplySend": "Send reply",
+  "ratingReplyPending": "Your reply is being reviewed",
+  "ratingReplyLabel": "Your reply",
+  "ratingReplySent": "Reply sent for review.",
   "rateEditWindow": "You can change this for {duration}",
   "@rateEditWindow": {
     "placeholders": {

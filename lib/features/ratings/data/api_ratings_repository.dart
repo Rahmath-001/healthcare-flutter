@@ -21,6 +21,23 @@ class ApiRatingsRepository implements RatingsRepository {
   }
 
   @override
+  Future<List<Rating>> listForProvider() async {
+    final json = await _api.get<List<dynamic>>('/v1/ratings/received');
+    return json
+        .map((e) => Rating.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<Rating> reply(String id, {required String reply}) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      '/v1/ratings/$id/reply',
+      body: {'reply': reply},
+    );
+    return Rating.fromJson(json);
+  }
+
+  @override
   Future<Rating> submit({
     required String appointmentId,
     required String doctorName,

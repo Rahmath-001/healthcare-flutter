@@ -1802,6 +1802,72 @@ abstract class AppLocalizations {
   /// **'Thank you. Your rating will appear once it is reviewed.'**
   String get rateThanks;
 
+  /// No description provided for @providerRatingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ratings'**
+  String get providerRatingsTitle;
+
+  /// No description provided for @providerRatingsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No ratings yet'**
+  String get providerRatingsEmpty;
+
+  /// No description provided for @providerRatingsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Patients can rate a consultation once it is completed.'**
+  String get providerRatingsEmptyBody;
+
+  /// No description provided for @ratingReplyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get ratingReplyAction;
+
+  /// No description provided for @ratingReplyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply publicly'**
+  String get ratingReplyTitle;
+
+  /// No description provided for @ratingReplyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer briefly and without clinical detail'**
+  String get ratingReplyHint;
+
+  /// No description provided for @ratingReplyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reply is public and is reviewed before it appears. Never include anything about the patient’s condition or treatment.'**
+  String get ratingReplyNote;
+
+  /// No description provided for @ratingReplySend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send reply'**
+  String get ratingReplySend;
+
+  /// No description provided for @ratingReplyPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reply is being reviewed'**
+  String get ratingReplyPending;
+
+  /// No description provided for @ratingReplyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reply'**
+  String get ratingReplyLabel;
+
+  /// No description provided for @ratingReplySent.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply sent for review.'**
+  String get ratingReplySent;
+
   /// No description provided for @rateEditWindow.
   ///
   /// In en, this message translates to:

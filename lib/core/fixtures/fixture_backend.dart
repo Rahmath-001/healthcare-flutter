@@ -740,6 +740,54 @@ class FixtureBackend {
     return rating;
   }
 
+  /// Files a doctor's public answer to a rating.
+  ///
+  /// Enters moderation exactly as the rating did. A reply is public text
+  /// written by the person with the most incentive to argue, and one that
+  /// names a patient's condition would be a disclosure published straight past
+  /// the queue that exists to catch it.
+  Rating replyToRating(String id, {required String reply}) {
+    final index = _ratings.indexWhere((r) => r.id == id);
+    if (index < 0) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That rating no longer exists.',
+        code: 'RATING_NOT_FOUND',
+      );
+    }
+
+    final trimmed = reply.trim();
+    if (trimmed.isEmpty) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Write a reply before sending it.',
+        code: 'REPLY_EMPTY',
+      );
+    }
+    if (trimmed.length > Rating.maxReplyLength) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'A reply can be at most 300 characters.',
+        code: 'REPLY_TOO_LONG',
+      );
+    }
+    if (!_ratings[index].canReply) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'This rating cannot be replied to.',
+        code: 'REPLY_NOT_ALLOWED',
+      );
+    }
+
+    final updated = _ratings[index].copyWith(
+      providerReply: trimmed,
+      providerRepliedAt: DateTime.now(),
+      replyStatus: RatingStatus.pendingModeration,
+    );
+    _ratings[index] = updated;
+    return updated;
+  }
+
   Rating editRating(String id, {required int stars, String? comment}) {
     final index = _ratings.indexWhere((r) => r.id == id);
     if (index < 0) {
@@ -769,13 +817,33 @@ class FixtureBackend {
     return updated;
   }
 
+  /// Anything awaiting a moderator: the rating, its reply, or both.
+  ///
+  /// A published rating whose reply is pending still belongs in this queue.
+  /// Filtering on the rating's own status alone would leave every reply
+  /// unreviewed and therefore never visible — the failure mode of adding a
+  /// moderated field and forgetting the queue that clears it.
   List<Rating> pendingRatings() => List.unmodifiable(
-        _ratings.where((r) => r.status == RatingStatus.pendingModeration),
+        _ratings.where((r) =>
+            r.status == RatingStatus.pendingModeration ||
+            (r.hasReply && r.replyStatus == RatingStatus.pendingModeration)),
       );
 
   void moderateRating(String id, RatingStatus status) {
     final index = _ratings.indexWhere((r) => r.id == id);
     if (index >= 0) _ratings[index] = _ratings[index].copyWith(status: status);
+  }
+
+  /// Moderates a doctor's reply, separately from the rating.
+  ///
+  /// Without this a reply sits at `pendingModeration` forever and never reaches
+  /// a patient — the failure mode of adding a moderated field and forgetting
+  /// the queue that clears it.
+  void moderateRatingReply(String id, RatingStatus status) {
+    final index = _ratings.indexWhere((r) => r.id == id);
+    if (index < 0) return;
+    if (!_ratings[index].hasReply) return;
+    _ratings[index] = _ratings[index].copyWith(replyStatus: status);
   }
 
   // --- support -------------------------------------------------------------

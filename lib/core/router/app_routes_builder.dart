@@ -20,6 +20,7 @@ import '../../features/provider_home/presentation/provider_today_screen.dart';
 import '../../features/provider_verification/presentation/provider_verification_screen.dart';
 import '../../features/providers_search/presentation/doctor_detail_screen.dart';
 import '../../features/providers_search/presentation/doctor_search_screen.dart';
+import '../../features/ratings/presentation/provider_ratings_screen.dart';
 import '../../features/ratings/presentation/rate_appointment_screen.dart';
 import '../../features/records/presentation/record_detail_screen.dart';
 import '../../features/records/presentation/record_upload_screen.dart';
@@ -169,6 +170,10 @@ List<RouteBase> buildRoutes() => [
       GoRoute(
         path: Routes.providerCredentials,
         builder: (_, __) => const CredentialsScreen(),
+      ),
+      GoRoute(
+        path: Routes.providerRatings,
+        builder: (_, __) => const ProviderRatingsScreen(),
       ),
       GoRoute(
         path: Routes.providerMfa,

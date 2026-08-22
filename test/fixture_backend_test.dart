@@ -137,6 +137,102 @@ void main() {
     });
   });
 
+  group('a doctor can answer a rating', () {
+    Future<Rating> published(FixtureRatingsRepository ratings) async {
+      final all = await ratings.listOwn();
+      final target = all.first;
+      FixtureBackend.shared.moderateRating(target.id, RatingStatus.published);
+      return (await ratings.listOwn()).firstWhere((r) => r.id == target.id);
+    }
+
+    test('a reply enters moderation rather than appearing', () async {
+      // A reply is public text written by the party with the most incentive to
+      // argue. Publishing it directly would walk it straight past the queue
+      // that exists to catch a reply naming someone's condition.
+      final ratings = FixtureRatingsRepository(latency: fast);
+      final target = await published(ratings);
+
+      final replied = await ratings.reply(target.id, reply: 'Thank you.');
+
+      expect(replied.hasReply, isTrue);
+      expect(replied.replyStatus, RatingStatus.pendingModeration);
+      expect(replied.replyIsVisible, isFalse);
+    });
+
+    test('and becomes visible only once moderated', () async {
+      final ratings = FixtureRatingsRepository(latency: fast);
+      final target = await published(ratings);
+      await ratings.reply(target.id, reply: 'Thank you.');
+
+      FixtureBackend.shared
+          .moderateRatingReply(target.id, RatingStatus.published);
+
+      final after =
+          (await ratings.listOwn()).firstWhere((r) => r.id == target.id);
+      expect(after.replyIsVisible, isTrue);
+    });
+
+    test('a pending reply keeps the rating in the moderation queue', () async {
+      // The failure this guards: adding a moderated field and forgetting the
+      // queue that clears it, so every reply sits pending forever.
+      final ratings = FixtureRatingsRepository(latency: fast);
+      final target = await published(ratings);
+
+      expect(
+        FixtureBackend.shared.pendingRatings().map((r) => r.id),
+        isNot(contains(target.id)),
+        reason: 'the rating itself is already published',
+      );
+
+      await ratings.reply(target.id, reply: 'Thank you.');
+
+      expect(
+        FixtureBackend.shared.pendingRatings().map((r) => r.id),
+        contains(target.id),
+      );
+    });
+
+    test('only once', () async {
+      final ratings = FixtureRatingsRepository(latency: fast);
+      final target = await published(ratings);
+      await ratings.reply(target.id, reply: 'Thank you.');
+
+      await expectLater(
+        ratings.reply(target.id, reply: 'And another thing.'),
+        throwsA(
+            isA<Failure>().having((f) => f.code, 'code', 'REPLY_NOT_ALLOWED')),
+      );
+    });
+
+    test('never to a rating a moderator took down', () async {
+      // Replying to a removed rating would surface, in the reply, the
+      // substance of the thing that was removed.
+      final ratings = FixtureRatingsRepository(latency: fast);
+      final all = await ratings.listOwn();
+      FixtureBackend.shared.moderateRating(all.first.id, RatingStatus.removed);
+
+      await expectLater(
+        ratings.reply(all.first.id, reply: 'That is unfair.'),
+        throwsA(
+            isA<Failure>().having((f) => f.code, 'code', 'REPLY_NOT_ALLOWED')),
+      );
+    });
+
+    test('an empty or over-long reply is refused', () async {
+      final ratings = FixtureRatingsRepository(latency: fast);
+      final target = await published(ratings);
+
+      await expectLater(
+        ratings.reply(target.id, reply: '   '),
+        throwsA(isA<Failure>().having((f) => f.code, 'code', 'REPLY_EMPTY')),
+      );
+      await expectLater(
+        ratings.reply(target.id, reply: 'x' * (Rating.maxReplyLength + 1)),
+        throwsA(isA<Failure>().having((f) => f.code, 'code', 'REPLY_TOO_LONG')),
+      );
+    });
+  });
+
   group('the seed clock', () {
     // The fixture is relative to "now" so a demo never looks stale. That is
     // right for the app and wrong for anything that has to be reproducible,

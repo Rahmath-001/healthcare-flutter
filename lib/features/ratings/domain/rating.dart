@@ -45,6 +45,9 @@ class Rating {
     required this.status,
     this.comment,
     this.editedAt,
+    this.providerReply,
+    this.providerRepliedAt,
+    this.replyStatus,
   });
 
   final String id;
@@ -55,6 +58,38 @@ class Rating {
   final RatingStatus status;
   final String? comment;
   final DateTime? editedAt;
+
+  /// The doctor's public answer, if they have written one.
+  ///
+  /// Doctors could not respond at all before this. A rating is the one thing
+  /// about a provider that search ranks on and that the provider cannot touch —
+  /// an unfair one stood unanswered forever, and the only alternative was
+  /// asking an operator to hide a rating that was merely unflattering.
+  final String? providerReply;
+  final DateTime? providerRepliedAt;
+
+  /// A reply is public, so it is moderated on the same terms as the rating.
+  ///
+  /// Null when there is no reply. Never assume published: a reply naming a
+  /// patient's condition would otherwise be a disclosure the moderation queue
+  /// existed to prevent, published by the person with the most incentive to
+  /// argue.
+  final RatingStatus? replyStatus;
+
+  bool get hasReply =>
+      providerReply != null && providerReply!.trim().isNotEmpty;
+
+  /// A reply is visible to patients only once it clears moderation.
+  bool get replyIsVisible => hasReply && replyStatus == RatingStatus.published;
+
+  /// One reply per rating, and only to something the public can see.
+  ///
+  /// Replying to a hidden or removed rating would surface, in the reply, the
+  /// substance of a rating a moderator took down.
+  bool get canReply =>
+      !hasReply &&
+      (status == RatingStatus.published ||
+          status == RatingStatus.pendingModeration);
 
   factory Rating.fromJson(Map<String, dynamic> json) => Rating(
         id: json['id'] as String,
@@ -67,6 +102,13 @@ class Rating {
         editedAt: json['editedAt'] == null
             ? null
             : DateTime.parse(json['editedAt'] as String).toLocal(),
+        providerReply: json['providerReply'] as String?,
+        providerRepliedAt: json['providerRepliedAt'] == null
+            ? null
+            : DateTime.parse(json['providerRepliedAt'] as String).toLocal(),
+        replyStatus: json['replyStatus'] == null
+            ? null
+            : RatingStatus.fromWire(json['replyStatus'] as String?),
       );
 
   Rating copyWith({
@@ -74,6 +116,9 @@ class Rating {
     String? comment,
     DateTime? editedAt,
     RatingStatus? status,
+    String? providerReply,
+    DateTime? providerRepliedAt,
+    RatingStatus? replyStatus,
   }) =>
       Rating(
         id: id,
@@ -84,10 +129,18 @@ class Rating {
         status: status ?? this.status,
         comment: comment ?? this.comment,
         editedAt: editedAt ?? this.editedAt,
+        providerReply: providerReply ?? this.providerReply,
+        providerRepliedAt: providerRepliedAt ?? this.providerRepliedAt,
+        replyStatus: replyStatus ?? this.replyStatus,
       );
 
   static const editWindow = Duration(days: 14);
   static const maxCommentLength = 500;
+
+  /// Shorter than a rating on purpose. A reply is a right of response, not a
+  /// second review — and a doctor with 500 characters and a grievance will use
+  /// them to relitigate a consultation in public.
+  static const maxReplyLength = 300;
 
   bool get canEdit =>
       DateTime.now().difference(createdAt) < editWindow &&

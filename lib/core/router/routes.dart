@@ -50,6 +50,7 @@ abstract final class Routes {
   static const providerSchedule = '/provider/schedule';
   static const providerPatients = '/provider/patients';
   static const providerProfile = '/provider/profile';
+  static const providerRatings = '/provider/ratings';
 
   /// Terminal screen for a provider who is not APPROVED. Mirrors the RBAC
   /// matrix, where an unverified provider may only read their own profile and

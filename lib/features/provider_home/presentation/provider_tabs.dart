@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/providers.dart';
+import '../../../core/router/routes.dart';
+import '../../../l10n/l10n.dart';
 
 /// The provider shell's Profile tab.
 ///
@@ -34,6 +37,12 @@ class ProviderProfileTab extends ConsumerWidget {
             leading: const Icon(Icons.verified_outlined),
             title: const Text('Verification status'),
             subtitle: Text(session?.providerStatus.name ?? 'unknown'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.star_outline),
+            title: Text(context.l10n.providerRatingsTitle),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () => context.push(Routes.providerRatings),
           ),
           ListTile(
             leading: const Icon(Icons.logout),

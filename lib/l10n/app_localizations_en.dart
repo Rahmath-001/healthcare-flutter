@@ -966,6 +966,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Thank you. Your rating will appear once it is reviewed.';
 
   @override
+  String get providerRatingsTitle => 'Your ratings';
+
+  @override
+  String get providerRatingsEmpty => 'No ratings yet';
+
+  @override
+  String get providerRatingsEmptyBody =>
+      'Patients can rate a consultation once it is completed.';
+
+  @override
+  String get ratingReplyAction => 'Reply';
+
+  @override
+  String get ratingReplyTitle => 'Reply publicly';
+
+  @override
+  String get ratingReplyHint => 'Answer briefly and without clinical detail';
+
+  @override
+  String get ratingReplyNote =>
+      'Your reply is public and is reviewed before it appears. Never include anything about the patient’s condition or treatment.';
+
+  @override
+  String get ratingReplySend => 'Send reply';
+
+  @override
+  String get ratingReplyPending => 'Your reply is being reviewed';
+
+  @override
+  String get ratingReplyLabel => 'Your reply';
+
+  @override
+  String get ratingReplySent => 'Reply sent for review.';
+
+  @override
   String rateEditWindow(String duration) {
     return 'You can change this for $duration';
   }

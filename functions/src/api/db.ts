@@ -665,6 +665,18 @@ export interface RatingDoc {
   createdAt: Timestamp;
   editedAt?: Timestamp | null;
   moderatedAt?: Timestamp | null;
+  /**
+   * The doctor's public answer.
+   *
+   * Moderated separately from the rating, with its own status: a reply is
+   * public text written by the party with the most incentive to argue, and one
+   * naming a patient's condition would be a disclosure published straight past
+   * the queue that exists to catch it.
+   */
+  providerReply?: string | null;
+  providerRepliedAt?: Timestamp | null;
+  replyStatus?: RatingStatus | null;
+  replyModeratedAt?: Timestamp | null;
 }
 
 /** Mirrors the client's `TicketCategory` one for one. */

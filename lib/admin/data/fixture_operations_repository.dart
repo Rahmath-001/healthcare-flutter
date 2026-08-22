@@ -292,6 +292,8 @@ class FixtureOperationsRepository implements OperationsRepository {
             createdAt: r.createdAt,
             comment: r.comment,
             editedAt: r.editedAt,
+            providerReply: r.providerReply,
+            replyStatus: r.replyStatus?.wire,
           ),
         )
         .toList(growable: false);
@@ -301,6 +303,19 @@ class FixtureOperationsRepository implements OperationsRepository {
   Future<void> moderateRating(String id, {required String status}) async {
     await _wait;
     _backend.moderateRating(
+      id,
+      switch (status) {
+        'PUBLISHED' => RatingStatus.published,
+        'HIDDEN' => RatingStatus.hidden,
+        _ => RatingStatus.removed,
+      },
+    );
+  }
+
+  @override
+  Future<void> moderateRatingReply(String id, {required String status}) async {
+    await _wait;
+    _backend.moderateRatingReply(
       id,
       switch (status) {
         'PUBLISHED' => RatingStatus.published,

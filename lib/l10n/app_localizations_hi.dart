@@ -966,6 +966,42 @@ class AppLocalizationsHi extends AppLocalizations {
   String get rateThanks => 'धन्यवाद। जाँच के बाद आपकी रेटिंग दिखेगी।';
 
   @override
+  String get providerRatingsTitle => 'आपकी रेटिंग';
+
+  @override
+  String get providerRatingsEmpty => 'अभी कोई रेटिंग नहीं';
+
+  @override
+  String get providerRatingsEmptyBody =>
+      'परामर्श पूरा होने पर मरीज़ उसे रेट कर सकते हैं।';
+
+  @override
+  String get ratingReplyAction => 'जवाब दें';
+
+  @override
+  String get ratingReplyTitle => 'सार्वजनिक जवाब';
+
+  @override
+  String get ratingReplyHint =>
+      'संक्षेप में उत्तर दें, कोई क्लिनिकल जानकारी न लिखें';
+
+  @override
+  String get ratingReplyNote =>
+      'आपका जवाब सार्वजनिक है और दिखने से पहले जाँचा जाता है। मरीज़ की स्थिति या इलाज के बारे में कभी कुछ न लिखें।';
+
+  @override
+  String get ratingReplySend => 'जवाब भेजें';
+
+  @override
+  String get ratingReplyPending => 'आपके जवाब की जाँच हो रही है';
+
+  @override
+  String get ratingReplyLabel => 'आपका जवाब';
+
+  @override
+  String get ratingReplySent => 'जवाब जाँच के लिए भेज दिया गया।';
+
+  @override
   String rateEditWindow(String duration) {
     return 'आप इसे $duration तक बदल सकते हैं';
   }

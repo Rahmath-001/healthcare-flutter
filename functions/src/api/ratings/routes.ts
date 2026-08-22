@@ -3,7 +3,13 @@ import { Router } from "express";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import { requireAuth, requireScope } from "../auth/middleware";
-import { C, db, type AppointmentDoc, type RatingDoc } from "../db";
+import {
+  C,
+  db,
+  type AppointmentDoc,
+  type RatingDoc,
+  type RatingStatus,
+} from "../db";
 import { handler, Problem } from "../errors";
 
 /**
@@ -35,8 +41,15 @@ function ratingJson(id: string, r: RatingDoc) {
     status: r.status,
     comment: r.comment ?? null,
     editedAt: r.editedAt ? r.editedAt.toDate().toISOString() : null,
+    providerReply: r.providerReply ?? null,
+    providerRepliedAt: r.providerRepliedAt
+      ? r.providerRepliedAt.toDate().toISOString()
+      : null,
+    replyStatus: r.replyStatus ?? null,
   };
 }
+
+const MAX_REPLY = 300;
 
 function assertStars(value: unknown): number {
   if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 5) {
@@ -236,6 +249,124 @@ export function ratingRoutes(secret: () => string): Router {
       await recomputeDoctorRating((snap.data() as RatingDoc).doctorId);
 
       res.json({ id: req.params.id, status });
+    })
+  );
+
+  /**
+   * Moderates a doctor's reply, separately from the rating itself.
+   *
+   * A separate decision because they are separate texts by separate authors: a
+   * fair rating can attract a reply that names a diagnosis, and hiding the
+   * patient's words to suppress the doctor's would punish the wrong person.
+   *
+   * Without this endpoint a reply would sit at PENDING_MODERATION forever and
+   * never reach a patient — which is the failure mode of adding a moderated
+   * field and forgetting the queue that clears it.
+   */
+  r.post(
+    "/:id/reply/moderate",
+    requireScope("provider:review"),
+    handler(async (req, res) => {
+      const { status } = req.body ?? {};
+      if (!["PUBLISHED", "HIDDEN", "REMOVED"].includes(status)) {
+        throw Problem.validation("Unknown moderation outcome.", { status: "invalid" });
+      }
+
+      const ref = db().collection(C.ratings).doc(req.params.id);
+      const snap = await ref.get();
+      if (!snap.exists) throw Problem.notFound("RATING_NOT_FOUND", "Rating not found.");
+      if (!(snap.data() as RatingDoc).providerReply) {
+        throw Problem.conflict("NO_REPLY", "This rating has no reply to moderate.");
+      }
+
+      await ref.update({
+        replyStatus: status,
+        replyModeratedAt: FieldValue.serverTimestamp(),
+      });
+
+      // Deliberately does not touch the doctor's average. A reply is not a
+      // rating and must not move the number search ranks on.
+      res.json({ id: req.params.id, replyStatus: status });
+    })
+  );
+
+  /**
+   * Ratings written about the signed-in provider.
+   *
+   * Separate path from `/v1/ratings`, which is the patient's own. Same
+   * collection, opposite side, and keeping them apart is what stops a scope
+   * mistake turning one into the other.
+   */
+  r.get(
+    "/received",
+    requireScope("ratings:read_own"),
+    handler(async (req, res) => {
+      const doctorId = req.user!.doctorId;
+      if (!doctorId) throw Problem.forbidden("NOT_A_PROVIDER", "Not a provider.");
+
+      const snap = await db()
+        .collection(C.ratings)
+        .where("doctorId", "==", doctorId)
+        .orderBy("createdAt", "desc")
+        .limit(200)
+        .get();
+
+      res.json(snap.docs.map((d) => ratingJson(d.id, d.data() as RatingDoc)));
+    })
+  );
+
+  /**
+   * The doctor's public answer to a rating.
+   *
+   * One per rating, and only to a rating the public can see: replying to a
+   * hidden or removed one would surface, in the reply, the substance of
+   * something a moderator took down.
+   *
+   * Enters moderation on its own status rather than being published directly.
+   */
+  r.post(
+    "/:id/reply",
+    requireScope("ratings:read_own"),
+    handler(async (req, res) => {
+      const doctorId = req.user!.doctorId;
+      if (!doctorId) throw Problem.forbidden("NOT_A_PROVIDER", "Not a provider.");
+
+      const reply = typeof req.body?.reply === "string" ? req.body.reply.trim() : "";
+      if (!reply) {
+        throw Problem.validation("Write a reply before sending it.", { reply: "required" });
+      }
+      if (reply.length > MAX_REPLY) {
+        throw Problem.validation("A reply can be at most 300 characters.", {
+          reply: "too_long",
+        });
+      }
+
+      const ref = db().collection(C.ratings).doc(req.params.id);
+      const snap = await ref.get();
+      if (!snap.exists) throw Problem.notFound("RATING_NOT_FOUND", "Rating not found.");
+
+      const rating = snap.data() as RatingDoc;
+      if (rating.doctorId !== doctorId) {
+        // Same shape as an unknown id: confirming a rating exists but belongs
+        // to another doctor is itself information.
+        throw Problem.notFound("RATING_NOT_FOUND", "Rating not found.");
+      }
+      if (rating.providerReply) {
+        throw Problem.conflict("ALREADY_REPLIED", "You have already replied to this rating.");
+      }
+      if (rating.status !== "PUBLISHED" && rating.status !== "PENDING_MODERATION") {
+        throw Problem.conflict("REPLY_NOT_ALLOWED", "This rating cannot be replied to.");
+      }
+
+      const patch = {
+        providerReply: reply,
+        providerRepliedAt: Timestamp.now(),
+        replyStatus: "PENDING_MODERATION" as RatingStatus,
+        replyModeratedAt: null,
+      };
+      await ref.update(patch);
+
+      res.json(ratingJson(req.params.id, { ...rating, ...patch }));
     })
   );
 

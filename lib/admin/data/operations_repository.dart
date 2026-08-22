@@ -171,6 +171,8 @@ class PendingRating {
     required this.createdAt,
     this.comment,
     this.editedAt,
+    this.providerReply,
+    this.replyStatus,
   });
 
   final String id;
@@ -179,6 +181,17 @@ class PendingRating {
   final int stars;
   final DateTime createdAt;
   final String? comment;
+
+  /// The doctor's reply, when there is one awaiting a decision.
+  ///
+  /// Carried here so a moderator sees the text they are ruling on. A queue that
+  /// showed only "this rating has a reply" would be asking someone to approve
+  /// words they cannot read.
+  final String? providerReply;
+  final String? replyStatus;
+
+  bool get replyNeedsModeration =>
+      providerReply != null && replyStatus == 'PENDING_MODERATION';
   final DateTime? editedAt;
 
   factory PendingRating.fromJson(Map<String, dynamic> json) => PendingRating(
@@ -191,6 +204,8 @@ class PendingRating {
         editedAt: json['editedAt'] == null
             ? null
             : DateTime.parse(json['editedAt'] as String).toLocal(),
+        providerReply: json['providerReply'] as String?,
+        replyStatus: json['replyStatus'] as String?,
       );
 }
 
@@ -264,6 +279,13 @@ abstract class OperationsRepository {
 
   Future<List<PendingRating>> pendingRatings();
   Future<void> moderateRating(String id, {required String status});
+
+  /// Moderates the doctor's reply, separately from the rating.
+  ///
+  /// Separate because they are separate texts by separate authors: a fair
+  /// rating can attract a reply that names a diagnosis, and hiding the
+  /// patient's words to suppress the doctor's would punish the wrong person.
+  Future<void> moderateRatingReply(String id, {required String status});
 
   Future<List<QueuedTicket>> ticketQueue({TicketStatus? status});
   Future<SupportTicket> ticket(String id);
@@ -373,6 +395,13 @@ class ApiOperationsRepository implements OperationsRepository {
   Future<void> moderateRating(String id, {required String status}) =>
       _api.post<Map<String, dynamic>>(
         '/v1/ratings/$id/moderate',
+        body: {'status': status},
+      );
+
+  @override
+  Future<void> moderateRatingReply(String id, {required String status}) =>
+      _api.post<Map<String, dynamic>>(
+        '/v1/ratings/$id/reply/moderate',
         body: {'status': status},
       );
 

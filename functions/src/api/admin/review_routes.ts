@@ -215,19 +215,42 @@ export function reviewRoutes(secret: () => string): Router {
 
   // ----------------------------------------------------------------- ratings
 
-  /** Ratings awaiting moderation. Nothing counts towards a doctor until it passes. */
+  /**
+   * Ratings awaiting moderation. Nothing counts towards a doctor until it
+   * passes.
+   *
+   * Two queries, unioned, because a **published** rating can be carrying a
+   * reply that has not been reviewed. Filtering on the rating's own status
+   * alone would leave every reply pending forever and therefore never visible —
+   * the failure mode of adding a moderated field and forgetting the queue that
+   * clears it. Firestore has no OR across different fields, so this is two
+   * reads and a merge rather than one clever query.
+   */
   r.get(
     "/ratings/pending",
     requireScope("provider:review"),
     handler(async (_req, res) => {
-      const snap = await db()
-        .collection(C.ratings)
-        .where("status", "==", "PENDING_MODERATION")
-        .limit(100)
-        .get();
+      const [byRating, byReply] = await Promise.all([
+        db()
+          .collection(C.ratings)
+          .where("status", "==", "PENDING_MODERATION")
+          .limit(100)
+          .get(),
+        db()
+          .collection(C.ratings)
+          .where("replyStatus", "==", "PENDING_MODERATION")
+          .limit(100)
+          .get(),
+      ]);
 
-      const items = snap.docs
-        .map((d) => ({ id: d.id, r: d.data() as RatingDoc }))
+      // A rating pending on both counts appears in both queries.
+      const merged = new Map<string, RatingDoc>();
+      for (const d of [...byRating.docs, ...byReply.docs]) {
+        merged.set(d.id, d.data() as RatingDoc);
+      }
+
+      const items = [...merged.entries()]
+        .map(([id, r]) => ({ id, r }))
         .sort((a, b) => a.r.createdAt.toMillis() - b.r.createdAt.toMillis());
 
       res.json(
@@ -239,6 +262,11 @@ export function reviewRoutes(secret: () => string): Router {
           comment: rating.comment ?? null,
           createdAt: rating.createdAt.toDate().toISOString(),
           editedAt: rating.editedAt ? rating.editedAt.toDate().toISOString() : null,
+          // Carried so a moderator can read the words they are ruling on. A
+          // queue that said only "this rating has a reply" would be asking
+          // someone to approve text they cannot see.
+          providerReply: rating.providerReply ?? null,
+          replyStatus: rating.replyStatus ?? null,
         }))
       );
     })

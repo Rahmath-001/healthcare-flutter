@@ -25,12 +25,20 @@ class _RatingModerationScreenState
     extends ConsumerState<RatingModerationScreen> {
   String? _busyId;
 
-  Future<void> _moderate(PendingRating rating, String status) async {
+  Future<void> _moderate(
+    PendingRating rating,
+    String status, {
+    bool reply = false,
+  }) async {
     setState(() => _busyId = rating.id);
     try {
-      await ref
-          .read(operationsRepositoryProvider)
-          .moderateRating(rating.id, status: status);
+      final ops = ref.read(operationsRepositoryProvider);
+      // Two separate decisions on purpose: a fair rating can attract a reply
+      // that names a diagnosis, and hiding the patient's words to suppress the
+      // doctor's would punish the wrong person.
+      await (reply
+          ? ops.moderateRatingReply(rating.id, status: status)
+          : ops.moderateRating(rating.id, status: status));
       ref.invalidate(pendingRatingsProvider);
     } on Failure catch (f) {
       if (!mounted) return;
@@ -66,7 +74,10 @@ class _RatingModerationScreenState
           Text(
             'Publishing a rating changes the doctor’s average, which is '
             'what search ranks on. Hide anything abusive or identifying; '
-            'remove anything that is not a genuine review.',
+            'remove anything that is not a genuine review. A doctor’s reply '
+            'is judged separately — it is public text written by the party '
+            'with the most reason to argue, and a reply naming a condition '
+            'is a disclosure the patient never agreed to.',
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
@@ -132,6 +143,80 @@ class _RatingModerationScreenState
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   fontStyle: FontStyle.italic,
                                   color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                            if (r.providerReply != null) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.reply,
+                                            size: 16,
+                                            color: theme
+                                                .colorScheme.onSurfaceVariant),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Doctor’s reply',
+                                          style: theme.textTheme.labelLarge,
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          r.replyStatus ?? '',
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(r.providerReply!,
+                                        style: theme.textTheme.bodyMedium),
+                                    if (r.replyNeedsModeration) ...[
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          TextButton(
+                                            onPressed: busy
+                                                ? null
+                                                : () => _moderate(r, 'REMOVED',
+                                                    reply: true),
+                                            child: Text(
+                                              'Remove reply',
+                                              style: TextStyle(
+                                                color: theme.colorScheme.error,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          OutlinedButton(
+                                            onPressed: busy
+                                                ? null
+                                                : () => _moderate(r, 'HIDDEN',
+                                                    reply: true),
+                                            child: const Text('Hide reply'),
+                                          ),
+                                          const Spacer(),
+                                          FilledButton(
+                                            onPressed: busy
+                                                ? null
+                                                : () => _moderate(
+                                                    r, 'PUBLISHED',
+                                                    reply: true),
+                                            child: const Text('Publish reply'),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ],

@@ -47,7 +47,7 @@ Dart SDK `>=3.3.0 <4.0.0`.
 flutter pub get
 flutter analyze --fatal-infos        # must be clean; CI enforces
 dart format --set-exit-if-changed lib test
-flutter test                         # 265 tests
+flutter test                         # 267 tests
 flutter test --tags golden           # goldens; excluded from CI (host fonts)
 flutter gen-l10n                     # auto-runs on build (generate: true)
 flutter run --dart-define=USE_FIXTURES=true
@@ -592,7 +592,7 @@ legacy by directory only.
 
 ---
 
-## Tests (`test/`, 265)
+## Tests (`test/`, 267)
 
 | File | Covers |
 | --- | --- |
@@ -618,6 +618,14 @@ legacy by directory only.
 | `debouncer_test.dart`, `phone_validator_test.dart`, `widget_test.dart` | utils |
 
 `fake_async` is pinned explicitly for deterministic timer tests.
+
+**The fixture seed is relative to "now", and that makes date-dependent tests easy to write
+by accident.** Two have already bitten: three booking tests reached for "tomorrow" and
+`slotsFor` returns nothing on a Sunday, so they failed one day in seven; and the goldens
+render seeded dates, which only survived a rollover because the test font draws every digit
+as an identical box. Use `FixtureSeed.pinClock(at)` — it returns its own undo, so a test
+cannot date-lock the ones after it — or skip the closed day, as
+`fixture_backend_test.openDay()` does.
 
 `http_mock_adapter` backs `api_repository_test.dart`, which covers the wire contract of the
 API-backed repositories — paths, request shapes, enum mapping both ways, and that a server

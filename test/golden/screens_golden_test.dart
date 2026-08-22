@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:healthcare_mobile/core/fixtures/fixture_seed.dart';
 import 'package:healthcare_mobile/features/prescriptions/presentation/prescriptions_screen.dart';
 import 'package:healthcare_mobile/features/records/presentation/records_screen.dart';
 
@@ -23,6 +24,19 @@ import '../support/pump.dart';
 /// excluded from the default suite — CI on a different platform would otherwise
 /// fail on antialiasing rather than on anything real.
 void main() {
+  // The seed is relative to "now" so the demo never looks stale, which makes a
+  // golden only stable until a rendered date changes width. It has survived so
+  // far because the test font draws every digit as an identical box — a
+  // 9-to-10 or 31-to-1 rollover would have broken these roughly twice a month,
+  // for a reason nobody could have acted on. Pinning removes the dependency
+  // rather than waiting to be surprised by it.
+  //
+  // A Wednesday, so the seeded availability (Mon/Wed/Fri) has slots and the
+  // fixture's closed Sunday is nowhere near.
+  setUp(() {
+    addTearDown(FixtureSeed.pinClock(DateTime(2026, 6, 17, 10, 30)));
+  });
+
   useFreshBackend();
 
   testWidgets('records list', (tester) async {

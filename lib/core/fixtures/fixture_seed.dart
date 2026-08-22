@@ -1,8 +1,10 @@
+import 'package:meta/meta.dart';
+
 import '../../features/appointments/domain/appointment.dart';
 import '../../features/availability/domain/availability.dart';
 import '../../features/consent/domain/consent.dart';
-import '../../features/notifications/domain/notification.dart';
 import '../../features/credentials/domain/credential.dart';
+import '../../features/notifications/domain/notification.dart';
 import '../../features/prescriptions/domain/prescription.dart';
 import '../../features/providers_search/data/doctor_fixtures.dart';
 import '../../features/providers_search/domain/doctor.dart';
@@ -24,9 +26,38 @@ import 'provider_application.dart';
 /// appointment seeded at a fixed date would be in the past by the time anyone
 /// demoed it.
 abstract final class FixtureSeed {
+  /// The clock the seed is built against.
+  ///
+  /// Real time in the app, pinnable in a test. Everything here is relative to
+  /// "now" so the sample data never looks stale — which is right for a demo and
+  /// wrong for a golden file: a records list renders "21 Aug 2026" today and
+  /// "22 Aug 2026" tomorrow, so the picture is only stable until the date
+  /// changes width. It survived until now purely because the test font draws
+  /// every digit as an identical box; a 9-to-10 or 31-to-1 rollover would have
+  /// broken it, roughly twice a month, for no reason anyone could act on.
+  ///
+  /// Pin it with [pinClock] and the seed becomes fully deterministic.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
+  /// Freezes the seed's clock at [at]. Returns a function that restores it.
+  ///
+  /// Deliberately returns the undo rather than relying on the caller to
+  /// remember the previous value: a test that pins the clock and forgets to
+  /// release it makes every test after it in the same process mysteriously
+  /// date-locked.
+  @visibleForTesting
+  static void Function() pinClock(DateTime at) {
+    final previous = clock;
+    clock = () => at;
+    return () => clock = previous;
+  }
+
+  static DateTime _now() => clock();
+
   /// A date [days] from today at [hour]:[minute], local time.
   static DateTime at(int days, int hour, int minute) {
-    final now = DateTime.now();
+    final now = _now();
     final day =
         DateTime(now.year, now.month, now.day).add(Duration(days: days));
     return DateTime(day.year, day.month, day.day, hour, minute);
@@ -129,7 +160,7 @@ abstract final class FixtureSeed {
   /// An hour later today, clamped so the seeded consultation is always ahead of
   /// "now" and inside its join window rather than accidentally expired.
   static int _soonHour() {
-    final hour = DateTime.now().hour + 1;
+    final hour = _now().hour + 1;
     return hour > 22 ? 22 : hour;
   }
 
@@ -195,7 +226,7 @@ abstract final class FixtureSeed {
           type: RecordType.labReport,
           source: RecordSource.patient,
           recordedAt: at(-1, 8, 0),
-          uploadedAt: DateTime.now().subtract(const Duration(minutes: 2)),
+          uploadedAt: _now().subtract(const Duration(minutes: 2)),
           scanStatus: ScanStatus.pending,
           sizeBytes: 96 * 1024,
           contentType: 'application/pdf',
@@ -291,7 +322,7 @@ abstract final class FixtureSeed {
           purpose: ConsentPurpose.consultation,
           grantedAt: at(-6, 9, 0),
           // Close enough that the countdown is visible on screen.
-          expiresAt: DateTime.now().add(const Duration(days: 3, hours: 4)),
+          expiresAt: _now().add(const Duration(days: 3, hours: 4)),
           recordTypeLabels: const ['Lab report', 'X-ray'],
           appointmentReference: 'MD-7K2P4Q',
           usesCount: 2,
@@ -304,7 +335,7 @@ abstract final class FixtureSeed {
           scopeKind: ConsentScopeKind.specificRecords,
           purpose: ConsentPurpose.continuityOfCare,
           grantedAt: at(-9, 15, 30),
-          expiresAt: DateTime.now().add(const Duration(days: 51)),
+          expiresAt: _now().add(const Duration(days: 51)),
           recordIds: const ['r1'],
           appointmentReference: 'MD-9L5N1T',
           usesCount: 1,
@@ -318,7 +349,7 @@ abstract final class FixtureSeed {
           scopeKind: ConsentScopeKind.allRecords,
           purpose: ConsentPurpose.secondOpinion,
           grantedAt: at(-40, 12, 0),
-          expiresAt: DateTime.now().add(const Duration(days: 20)),
+          expiresAt: _now().add(const Duration(days: 20)),
           revokedAt: at(-31, 18, 0),
           usesCount: 4,
         ),
@@ -331,8 +362,8 @@ abstract final class FixtureSeed {
           providerName: 'Dr Rajesh Kumar',
           providerSpecialty: 'General Physician',
           purpose: ConsentPurpose.consultation,
-          requestedAt: DateTime.now().subtract(const Duration(hours: 5)),
-          expiresAt: DateTime.now().add(const Duration(hours: 67)),
+          requestedAt: _now().subtract(const Duration(hours: 5)),
+          expiresAt: _now().add(const Duration(hours: 67)),
           status: AccessRequestStatus.pending,
           message: 'I would like to see your recent blood work before we '
               'talk on Thursday.',
@@ -347,7 +378,7 @@ abstract final class FixtureSeed {
           recordTitle: 'Complete Blood Count',
           action: AccessAction.view,
           purpose: ConsentPurpose.consultation,
-          at: DateTime.now().subtract(const Duration(hours: 20)),
+          at: _now().subtract(const Duration(hours: 20)),
         ),
         RecordAccessEvent(
           id: 'ev2',
@@ -355,7 +386,7 @@ abstract final class FixtureSeed {
           recordTitle: '2 record(s)',
           action: AccessAction.viewMetadata,
           purpose: ConsentPurpose.consultation,
-          at: DateTime.now().subtract(const Duration(hours: 20, minutes: 2)),
+          at: _now().subtract(const Duration(hours: 20, minutes: 2)),
         ),
         // A denial, because the log records attempts as deliberately as reads.
         RecordAccessEvent(
@@ -363,7 +394,7 @@ abstract final class FixtureSeed {
           actorName: 'Dr Vikram Nair',
           recordTitle: 'Thyroid Profile',
           action: AccessAction.denied,
-          at: DateTime.now().subtract(const Duration(days: 30)),
+          at: _now().subtract(const Duration(days: 30)),
         ),
         RecordAccessEvent(
           id: 'ev4',
@@ -384,7 +415,7 @@ abstract final class FixtureSeed {
   /// Every body here is deliberately free of clinical detail — these strings
   /// are what a lock screen would show.
   static List<AppNotification> notifications() {
-    final now = DateTime.now();
+    final now = _now();
     return [
       AppNotification(
         id: 'n-seed-1',
@@ -434,7 +465,7 @@ abstract final class FixtureSeed {
           appointmentId: 'a-seed-old',
           doctorName: 'Dr Rajesh Kumar',
           stars: 4,
-          createdAt: DateTime.now().subtract(const Duration(hours: 6)),
+          createdAt: _now().subtract(const Duration(hours: 6)),
           status: RatingStatus.pendingModeration,
           comment: 'Good consultation, though the call dropped once.',
         ),
@@ -449,14 +480,14 @@ abstract final class FixtureSeed {
           subject: 'Could not join my video consultation',
           category: TicketCategory.bookingProblem,
           status: TicketStatus.assigned,
-          createdAt: DateTime.now().subtract(const Duration(days: 2)),
-          updatedAt: DateTime.now().subtract(const Duration(hours: 20)),
+          createdAt: _now().subtract(const Duration(days: 2)),
+          updatedAt: _now().subtract(const Duration(hours: 20)),
           messages: [
             TicketMessage(
               id: 'tm1',
               body: 'The Join button did nothing on Tuesday at 4pm. I waited '
                   'ten minutes and then the appointment was over.',
-              sentAt: DateTime.now().subtract(const Duration(days: 2)),
+              sentAt: _now().subtract(const Duration(days: 2)),
               isFromSupport: false,
               authorName: 'Priya Sharma',
             ),
@@ -465,7 +496,7 @@ abstract final class FixtureSeed {
               body: 'Sorry about that. We can see the consultation did not '
                   'connect from our side either, and the doctor has been '
                   'asked to reschedule at no charge.',
-              sentAt: DateTime.now().subtract(const Duration(hours: 20)),
+              sentAt: _now().subtract(const Duration(hours: 20)),
               isFromSupport: true,
               authorName: 'MiDoctor Support',
             ),
@@ -477,14 +508,14 @@ abstract final class FixtureSeed {
           subject: 'Wrong blood group on my profile',
           category: TicketCategory.recordsProblem,
           status: TicketStatus.open,
-          createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-          updatedAt: DateTime.now().subtract(const Duration(hours: 3)),
+          createdAt: _now().subtract(const Duration(hours: 3)),
+          updatedAt: _now().subtract(const Duration(hours: 3)),
           messages: [
             TicketMessage(
               id: 'tm3',
               body: 'My profile says O+ but my report says O-. How do I get '
                   'this corrected?',
-              sentAt: DateTime.now().subtract(const Duration(hours: 3)),
+              sentAt: _now().subtract(const Duration(hours: 3)),
               isFromSupport: false,
               authorName: 'Priya Sharma',
             ),
@@ -543,13 +574,13 @@ abstract final class FixtureSeed {
             kind: CredentialKind.degreeCertificate,
             status: CredentialReviewStatus.submitted,
             fileName: 'mbbs-degree.pdf',
-            uploadedAt: DateTime.now().subtract(const Duration(days: 1)),
+            uploadedAt: _now().subtract(const Duration(days: 1)),
           ),
           ProviderCredential(
             kind: CredentialKind.medicalRegistration,
             status: CredentialReviewStatus.submitted,
             fileName: 'nmc-registration.pdf',
-            uploadedAt: DateTime.now().subtract(const Duration(days: 1)),
+            uploadedAt: _now().subtract(const Duration(days: 1)),
           ),
           const ProviderCredential(
             kind: CredentialKind.identityProof,
@@ -577,35 +608,35 @@ abstract final class FixtureSeed {
           registrationNumber: 'KMC-58210',
           mfaEnrolled: true,
           status: ProviderApplicationStatus.submitted,
-          submittedAt: DateTime.now().subtract(const Duration(days: 2)),
+          submittedAt: _now().subtract(const Duration(days: 2)),
           documents: [
             ProviderApplicationDocument(
               id: 'u-dr-sunita-DEGREE_CERTIFICATE',
               kind: CredentialKind.degreeCertificate,
               status: CredentialReviewStatus.submitted,
               fileName: 'mbbs-md-degree.pdf',
-              uploadedAt: DateTime.now().subtract(const Duration(days: 2)),
+              uploadedAt: _now().subtract(const Duration(days: 2)),
             ),
             ProviderApplicationDocument(
               id: 'u-dr-sunita-MEDICAL_REGISTRATION',
               kind: CredentialKind.medicalRegistration,
               status: CredentialReviewStatus.submitted,
               fileName: 'kmc-certificate.pdf',
-              uploadedAt: DateTime.now().subtract(const Duration(days: 2)),
+              uploadedAt: _now().subtract(const Duration(days: 2)),
             ),
             ProviderApplicationDocument(
               id: 'u-dr-sunita-IDENTITY_PROOF',
               kind: CredentialKind.identityProof,
               status: CredentialReviewStatus.submitted,
               fileName: 'digilocker-verified',
-              uploadedAt: DateTime.now().subtract(const Duration(days: 2)),
+              uploadedAt: _now().subtract(const Duration(days: 2)),
             ),
             ProviderApplicationDocument(
               id: 'u-dr-sunita-HOSPITAL_AFFILIATION',
               kind: CredentialKind.hospitalAffiliation,
               status: CredentialReviewStatus.submitted,
               fileName: 'affiliation-letter.pdf',
-              uploadedAt: DateTime.now().subtract(const Duration(days: 2)),
+              uploadedAt: _now().subtract(const Duration(days: 2)),
             ),
           ],
         ),
@@ -617,35 +648,35 @@ abstract final class FixtureSeed {
           registrationNumber: 'TSMC-31889',
           mfaEnrolled: true,
           status: ProviderApplicationStatus.underReview,
-          submittedAt: DateTime.now().subtract(const Duration(days: 5)),
+          submittedAt: _now().subtract(const Duration(days: 5)),
           documents: [
             ProviderApplicationDocument(
               id: 'u-dr-arun-DEGREE_CERTIFICATE',
               kind: CredentialKind.degreeCertificate,
               status: CredentialReviewStatus.accepted,
               fileName: 'degree.pdf',
-              uploadedAt: DateTime.now().subtract(const Duration(days: 5)),
+              uploadedAt: _now().subtract(const Duration(days: 5)),
             ),
             ProviderApplicationDocument(
               id: 'u-dr-arun-MEDICAL_REGISTRATION',
               kind: CredentialKind.medicalRegistration,
               status: CredentialReviewStatus.submitted,
               fileName: 'registration-scan.jpg',
-              uploadedAt: DateTime.now().subtract(const Duration(days: 5)),
+              uploadedAt: _now().subtract(const Duration(days: 5)),
             ),
             ProviderApplicationDocument(
               id: 'u-dr-arun-IDENTITY_PROOF',
               kind: CredentialKind.identityProof,
               status: CredentialReviewStatus.accepted,
               fileName: 'digilocker-verified',
-              uploadedAt: DateTime.now().subtract(const Duration(days: 5)),
+              uploadedAt: _now().subtract(const Duration(days: 5)),
             ),
             ProviderApplicationDocument(
               id: 'u-dr-arun-HOSPITAL_AFFILIATION',
               kind: CredentialKind.hospitalAffiliation,
               status: CredentialReviewStatus.rejected,
               fileName: 'letter.jpg',
-              uploadedAt: DateTime.now().subtract(const Duration(days: 5)),
+              uploadedAt: _now().subtract(const Duration(days: 5)),
               reasonCode: RejectionReasonCode.docIllegible,
               reviewerNote: 'The letterhead is cut off. Please rescan the '
                   'whole page.',

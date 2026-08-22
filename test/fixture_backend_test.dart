@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthcare_mobile/core/error/failure.dart';
 import 'package:healthcare_mobile/core/fixtures/fixture_backend.dart';
+import 'package:healthcare_mobile/core/fixtures/fixture_seed.dart';
 import 'package:healthcare_mobile/core/fixtures/provider_application.dart';
 import 'package:healthcare_mobile/features/appointments/data/appointment_repository.dart';
 import 'package:healthcare_mobile/features/appointments/domain/appointment.dart';
@@ -133,6 +134,40 @@ void main() {
       );
       // A cancellation that helps nobody else is not a cancellation.
       expect(again.firstWhere((s) => s.id == free.id).isAvailable, isTrue);
+    });
+  });
+
+  group('the seed clock', () {
+    // The fixture is relative to "now" so a demo never looks stale. That is
+    // right for the app and wrong for anything that has to be reproducible,
+    // which is why the clock can be pinned — and why pinning has to restore
+    // itself, or one test date-locks every test after it in the same process.
+    test('pinning makes the seed deterministic, and releases cleanly', () {
+      final realTomorrow = FixtureSeed.at(1, 9, 0);
+
+      final release = FixtureSeed.pinClock(DateTime(2026, 6, 17, 10, 30));
+      addTearDown(release);
+
+      expect(FixtureSeed.at(0, 9, 0), DateTime(2026, 6, 17, 9, 0));
+      expect(FixtureSeed.at(1, 9, 0), DateTime(2026, 6, 18, 9, 0));
+      // Same answer twice: a pinned clock does not drift mid-test.
+      expect(FixtureSeed.at(1, 9, 0), DateTime(2026, 6, 18, 9, 0));
+
+      release();
+      expect(FixtureSeed.at(1, 9, 0).day, realTomorrow.day);
+    });
+
+    test('a pinned seed produces identical data on every reset', () {
+      final release = FixtureSeed.pinClock(DateTime(2026, 6, 17, 10, 30));
+      addTearDown(release);
+
+      FixtureBackend.resetShared();
+      final first = FixtureBackend.shared.appointments().map((a) => a.start);
+
+      FixtureBackend.resetShared();
+      final second = FixtureBackend.shared.appointments().map((a) => a.start);
+
+      expect(first, orderedEquals(second));
     });
   });
 

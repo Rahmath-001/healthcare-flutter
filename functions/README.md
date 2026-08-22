@@ -107,6 +107,11 @@ part of the attack surface and easy to miss when reading the table below.
 | POST | `/v1/prescriptions` | `prescription:write` |
 | **GET** | **`/v1/rx/:code`** | **none — a pharmacist holds no token** |
 | GET | `/v1/medications/doses?from=` | `prescription:read_own` — your own dose log, bounded to 400 days |
+| GET/POST/DELETE | `/v1/prescriptions/templates` | `prescription:write` — a doctor's own saved sets |
+| GET | `/v1/auth/sessions` | authenticated — where this account is signed in |
+| DELETE/POST | `/v1/auth/sessions/:id`, `/revoke-others` | authenticated — bumps permissionVersion so it lands next request |
+| GET | `/v1/admin/summary` | per-queue scope — sections omitted, never zeroed |
+| GET | `/v1/admin/audit/:userId` | `user:suspend` — includes refusals, and records the reader |
 | PUT/DELETE | `/v1/medications/doses/:id` | `prescription:read_own` — id is derived, so a retry is the same write |
 | GET | `/v1/consultations/:id` | participant |
 | POST | `/v1/consultations/:id/{consent,join-token,audio,messages,end}` | participant |

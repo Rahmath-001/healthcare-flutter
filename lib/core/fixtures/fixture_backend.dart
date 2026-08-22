@@ -1228,6 +1228,71 @@ class FixtureBackend {
     );
   }
 
+  // --- operator audit -------------------------------------------------------
+
+  /// One patient's access log, for an operator investigating a complaint.
+  ///
+  /// Reading it **files an entry of its own**. An audit log whose readers are
+  /// not audited protects everybody except from the people holding it, and a
+  /// helpdesk with unlogged read access to who-saw-what is a surveillance tool
+  /// with a support ticket attached.
+  List<RecordAccessEvent> auditTrailFor(String userId, {String? operatorName}) {
+    final trail = List<RecordAccessEvent>.unmodifiable(_accessLog);
+
+    _accessLog.insert(
+      0,
+      RecordAccessEvent(
+        id: 'ev-${_nextId()}',
+        actorName: operatorName ?? 'Operations',
+        recordTitle: 'Access log',
+        action: AccessAction.viewMetadata,
+        at: DateTime.now(),
+      ),
+    );
+    return trail;
+  }
+
+  /// How many provider applications are waiting, and since when.
+  ({int pending, DateTime? oldest}) verificationLoad() {
+    final waiting = _applications
+        .where((a) =>
+            a.status == ProviderApplicationStatus.submitted ||
+            a.status == ProviderApplicationStatus.underReview)
+        .toList();
+    if (waiting.isEmpty) return (pending: 0, oldest: null);
+    final oldest = waiting
+        .map((a) => a.submittedAt)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    return (pending: waiting.length, oldest: oldest);
+  }
+
+  /// Ratings awaiting moderation.
+  ({int pending, DateTime? oldest}) moderationLoad() {
+    final waiting = _ratings
+        .where((r) => r.status == RatingStatus.pendingModeration)
+        .toList();
+    if (waiting.isEmpty) return (pending: 0, oldest: null);
+    final oldest =
+        waiting.map((r) => r.createdAt).reduce((a, b) => a.isBefore(b) ? a : b);
+    return (pending: waiting.length, oldest: oldest);
+  }
+
+  /// Open tickets, and how many are past the response target.
+  ({int open, int breaching, DateTime? oldest}) supportLoad() {
+    final open =
+        _tickets.where((t) => t.status != TicketStatus.closed).toList();
+    if (open.isEmpty) return (open: 0, breaching: 0, oldest: null);
+
+    final now = DateTime.now();
+    // 24 hours to first response. A placeholder target with no contractual
+    // authority behind it, same as the free-cancellation window.
+    final breaching =
+        open.where((t) => now.difference(t.createdAt).inHours >= 24).length;
+    final oldest =
+        open.map((t) => t.createdAt).reduce((a, b) => a.isBefore(b) ? a : b);
+    return (open: open.length, breaching: breaching, oldest: oldest);
+  }
+
   // --- signed-in devices ----------------------------------------------------
 
   List<SignedInDevice> signedInDevices() {

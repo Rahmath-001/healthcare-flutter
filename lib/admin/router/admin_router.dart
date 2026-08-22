@@ -6,6 +6,8 @@ import '../../core/providers.dart';
 import '../../core/session/session.dart';
 import '../admin_app.dart';
 import '../screens/admin_shell.dart';
+import '../screens/audit_screen.dart';
+import '../screens/dashboard_screen.dart';
 import '../screens/operator_sign_in_screen.dart';
 import '../screens/provider_review_screen.dart';
 import '../screens/rating_moderation_screen.dart';
@@ -16,6 +18,8 @@ import '../screens/user_admin_screen.dart';
 
 abstract final class AdminRoutes {
   static const signIn = '/sign-in';
+  static const dashboard = '/';
+  static const audit = '/audit';
   static const queue = '/queue';
   static const users = '/users';
   static const ratings = '/ratings';
@@ -95,6 +99,14 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state, child) =>
             AdminShell(location: state.matchedLocation, child: child),
         routes: [
+          GoRoute(
+            path: AdminRoutes.dashboard,
+            builder: (_, __) => const DashboardScreen(),
+          ),
+          GoRoute(
+            path: AdminRoutes.audit,
+            builder: (_, __) => const AuditScreen(),
+          ),
           GoRoute(
             path: AdminRoutes.queue,
             builder: (_, __) => const ReviewQueueScreen(),

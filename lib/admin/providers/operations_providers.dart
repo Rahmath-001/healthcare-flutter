@@ -4,6 +4,7 @@ import '../../core/providers.dart';
 import '../../features/support/domain/support_ticket.dart';
 import '../data/fixture_operations_repository.dart';
 import '../data/operations_repository.dart';
+import '../admin_app.dart';
 
 /// Composition root for the operator console.
 ///
@@ -12,7 +13,13 @@ import '../data/operations_repository.dart';
 /// the same `Failure` mapping as the app. A second HTTP stack for staff would
 /// be a second place for token handling to be wrong.
 final operationsRepositoryProvider = Provider<OperationsRepository>((ref) {
-  if (ref.watch(useFixturesProvider)) return FixtureOperationsRepository();
+  if (ref.watch(useFixturesProvider)) {
+    // The same scope set the API would enforce against, so the fixture
+    // refuses exactly what the endpoint refuses.
+    return FixtureOperationsRepository(
+      scopes: ref.watch(operatorScopesProvider),
+    );
+  }
   return ApiOperationsRepository(ref.watch(apiClientProvider));
 });
 

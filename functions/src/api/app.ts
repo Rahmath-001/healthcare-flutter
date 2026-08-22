@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 
 import { adminRoutes } from "./admin/routes";
+import { overviewRoutes } from "./admin/overview_routes";
 import { reviewRoutes } from "./admin/review_routes";
 import { appointmentRoutes, noteRoutes } from "./appointments/routes";
 import { medicationRoutes } from "./medications/routes";
@@ -92,6 +93,7 @@ export function buildApp(deps: AppDependencies | (() => string)) {
   app.use("/v1/doctors", doctorRoutes(secret));
   app.use("/v1/consent", consentRoutes(secret));
   app.use("/v1/provider", providerRoutes(secret));
+  app.use("/v1/admin", overviewRoutes(secret));
   app.use("/v1/admin", adminRoutes(secret));
   app.use("/v1/review", reviewRoutes(secret));
   app.use("/v1/records", recordRoutes(secret));

@@ -26,6 +26,14 @@ class AdminShell extends ConsumerWidget {
     final theme = Theme.of(context);
 
     final destinations = <_Destination>[
+      // First, because "what needs me" is the question an operator opens the
+      // console with.
+      const _Destination(
+        path: AdminRoutes.dashboard,
+        icon: Icons.dashboard_outlined,
+        selectedIcon: Icons.dashboard,
+        label: 'Overview',
+      ),
       if (scopes.canReviewProviders)
         const _Destination(
           path: AdminRoutes.queue,
@@ -53,6 +61,16 @@ class AdminShell extends ConsumerWidget {
           icon: Icons.support_agent_outlined,
           selectedIcon: Icons.support_agent,
           label: 'Support',
+        ),
+      // Behind the same scope as suspending an account: reading who saw whose
+      // records is at least as sensitive as ending a session, and it is the
+      // operators who already act on accounts who need it.
+      if (scopes.canSuspendAccounts)
+        const _Destination(
+          path: AdminRoutes.audit,
+          icon: Icons.history_toggle_off_outlined,
+          selectedIcon: Icons.history_toggle_off,
+          label: 'Access log',
         ),
     ];
 

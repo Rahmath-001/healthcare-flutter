@@ -48,7 +48,7 @@ Dart SDK `>=3.3.0 <4.0.0`.
 flutter pub get
 flutter analyze --fatal-infos        # must be clean; CI enforces
 dart format --set-exit-if-changed lib test
-flutter test                         # 358 tests
+flutter test                         # 385 tests
 flutter test --tags golden           # goldens; excluded from CI (host fonts)
 flutter gen-l10n                     # auto-runs on build (generate: true)
 flutter run --dart-define=USE_FIXTURES=true
@@ -331,6 +331,8 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 | records | `RecordsRepository` — `listOwn`, `listGranted(patientId)`, `upload`, `delete` | records list (filtered), record upload (camera/gallery/doc) |
 | consent | `ConsentRepository` — `grants`, `pendingRequests`, `accessLog`, `grant`, `revoke`, `approveRequest`, `denyRequest` | sharing screen (grants / requests / access log tabs) |
 | prescriptions | `PrescriptionRepository` — `listForPatient`, `byId`, `searchDrugs`, `issue` | prescriptions list, prescription detail, prescribe (provider) |
+| prescription sets | `PrescriptionTemplateRepository` — `list`, `create`, `delete` | saved-set picker inside the composer |
+| devices | `DeviceSessionRepository` — `list`, `revoke`, `revokeOthers` | signed-in devices (settings) |
 | medications | `MedicationRepository` — `marksSince`, `mark`, `clear` (the dose log only; courses are derived from prescriptions) | medicines (today's doses by time of day) |
 | settings | `AccountRepository` — patient profile read/update, erasure | edit profile, privacy, onboarding |
 | credentials | `CredentialsRepository` — `checklist`, `uploadDocument`, `verifyIdentityWithDigiLocker`, `setRegistrationNumber`, `beginMfaEnrolment`, `confirmMfaEnrolment`, `submitForReview` | credentials checklist, MFA (TOTP) enrolment |
@@ -360,6 +362,16 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
   promised these existed — see `TelemedicineConsent.points` — and its exact wording is hashed
   into the consent record, so until this shipped the app was attesting to something it could
   not do.
+- **A saved prescribing set grants nothing.** Applying one fills the composer;
+  issuing still re-resolves every item from the catalogue. Sets store drug **ids and
+  doses only** — names and classifications are read back on every request, so a drug
+  moved to List B starts refusing on first consultations in every set containing it
+  that same day. Applying filters to what is prescribable on *this* consultation, and
+  the picker says how many items will be left behind before the doctor commits.
+- **The provider timeline separates a doctor's own acts from the patient's records.**
+  A note this doctor wrote does not stop being theirs when a grant lapses; a scan the
+  patient uploaded is visible only while consent covers it. A lapsed grant is stated,
+  never inferred from an empty list.
 - **Dosing instructions are parsed, and the parser refuses.** `DoseSchedule.parse`
   understands positional notation (`1-0-1`), the Latin abbreviations and a handful of English
   phrases. **Everything else gets no schedule at all** and renders as the doctor's own words
@@ -473,6 +485,8 @@ because the authorization story is identical and having two of those is how they
 | Accounts | `user:suspend`, `user:set_role` | Look up by id, suspend/deactivate with a recorded reason, reactivate, assign a role |
 | Ratings | `provider:review` | Publish, hide or remove — this queue is a direct lever on which doctors search surfaces |
 | Support | `support:ticket_read` | Queue, thread, reply, escalate, close |
+| Overview | per-queue | What is waiting across the queues this operator may see. Sections are **omitted, not zeroed**, when the scope is missing |
+| Access log | `user:suspend` | Every recorded read of one account's records, refusals included. Reading it is itself recorded |
 
 `resolveAdminRedirect` is pure and unit-tested, exactly like the mobile one, and deliberately
 **not** shared with it: one function serving both would mean a single edit could let a patient
@@ -639,6 +653,9 @@ legacy by directory only.
 | `golden/screens_golden_test.dart` | layout regressions in light, dark and Hindi, tagged `golden` and excluded from CI. **Home is deliberately not goldened** — its hero card renders a live countdown, so the picture changes with the wall clock and the test would train people to regenerate without reading |
 | `integration_test/` | end-to-end journeys on a device: `flutter test integration_test` |
 | `domain_rules_test.dart` | drug lists, consent expiry, cancellation, join window, holds, verification gate, ratings |
+| `admin_operations_test.dart` | the console overview's scope behaviour (sections omitted, never zeroed) and that reading the access log records the reader |
+| `device_sessions_test.dart` | signed-in devices: ordering, revoking, and that clearing other devices cannot be done quietly |
+| `patient_timeline_test.dart` | own clinical acts versus the patient's records, and day grouping |
 | `medication_schedule_test.dart` | the dosing parser (including every interval it refuses), course windows, adherence arithmetic, and the dose log's derived ids |
 | `fr_coverage_test.dart` | traceability against the FR spec (`docs/*.docx`) |
 | `repository_behaviour_test.dart` | fixture repository semantics |
@@ -830,7 +847,17 @@ Rules that are not obvious from reading a screen:
   sets and page script cannot forge — native clients send none and are
   unaffected.
 - **The audit log is server-side only, deliberately.** A client-side log is
-  evidence the audited party can edit. `logAccess` records denials too.
+  evidence the audited party can edit. `logAccess` records denials too, and
+  the operator console can now read it — behind `user:suspend`, showing
+  refusals, and **recording the operator's own read**. An audit log whose
+  readers are not audited protects everybody except from the people holding
+  it.
+- **Signed-in devices carry no location.** Platform and last-seen only: no IP,
+  no city, no hardware id. A location history is more use to somebody reading
+  an unlocked phone than to its owner. Revoking a session bumps
+  `permissionVersion`, because `requireAuth` reads `users` and never
+  `sessions` — without the bump a stolen access token keeps working for the
+  rest of its fifteen minutes.
 - **The whole app sits inside `InactivityTimeout`** (15 min). It arms off
   `currentSessionProvider` rather than starting unconditionally — an earlier
   version read the session only when the timer fired, caught it mid-restore,

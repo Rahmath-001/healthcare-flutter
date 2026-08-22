@@ -3,8 +3,10 @@ import '../../core/fixtures/fixture_backend.dart';
 import '../../core/fixtures/provider_application.dart';
 import '../../core/session/user_role.dart';
 import '../../features/credentials/domain/credential.dart';
+import '../../features/consent/domain/consent.dart';
 import '../../features/ratings/domain/rating.dart';
 import '../../features/support/domain/support_ticket.dart';
+import '../admin_app.dart';
 import 'operations_repository.dart';
 
 /// The operator console against the shared fixture backend.
@@ -22,10 +24,19 @@ class FixtureOperationsRepository implements OperationsRepository {
   FixtureOperationsRepository({
     this.latency = const Duration(milliseconds: 300),
     FixtureBackend? backend,
-  }) : _backend = backend ?? FixtureBackend.shared;
+    Set<String> scopes = const {'*:*'},
+  })  : _backend = backend ?? FixtureBackend.shared,
+        _scopes = scopes;
 
   final Duration latency;
   final FixtureBackend _backend;
+
+  /// What the caller may see.
+  ///
+  /// Held here rather than read in a widget, because the server decides this
+  /// from the token and a count that reaches the client and is merely hidden
+  /// has already leaked.
+  final Set<String> _scopes;
 
   Future<void> get _wait => Future<void>.delayed(latency);
 
@@ -372,5 +383,72 @@ class FixtureOperationsRepository implements OperationsRepository {
   Future<void> setTicketStatus(String id, TicketStatus status) async {
     await _wait;
     _backend.setTicketStatus(id, status);
+  }
+
+  // --- overview and audit ---------------------------------------------------
+
+  @override
+  Future<OperationsSummary> summary() async {
+    await _wait;
+
+    // Scoped here, not filtered in the widget. A support agent has no business
+    // knowing how many doctors are awaiting verification, and a count that
+    // reaches the client and is merely hidden has already leaked.
+    final canReview = _scopes.canReviewProviders;
+    final canReadTickets = _scopes.canReadTickets;
+
+    final now = DateTime.now();
+    Duration? since(DateTime? at) => at == null ? null : now.difference(at);
+
+    final verification = _backend.verificationLoad();
+    final moderation = _backend.moderationLoad();
+    final support = _backend.supportLoad();
+
+    return OperationsSummary(
+      verification: canReview
+          ? VerificationLoad(
+              pending: verification.pending,
+              oldestWaiting: since(verification.oldest),
+            )
+          : null,
+      moderation: canReview
+          ? ModerationLoad(
+              pending: moderation.pending,
+              oldestWaiting: since(moderation.oldest),
+            )
+          : null,
+      support: canReadTickets
+          ? SupportLoad(
+              open: support.open,
+              breachingSla: support.breaching,
+              oldestWaiting: since(support.oldest),
+            )
+          : null,
+    );
+  }
+
+  @override
+  Future<List<AuditEvent>> auditTrail(String userId) async {
+    await _wait;
+
+    // Reading an access log is an access of its own, and the fixture records
+    // it for the same reason the server does: an audit log whose readers are
+    // not audited protects everybody except from the people holding it.
+    final events = _backend.auditTrailFor(userId, operatorName: 'Operations');
+
+    return events
+        .map((e) => AuditEvent(
+              id: e.id,
+              actorName: e.actorName,
+              actorRole: 'Provider',
+              recordTitle: e.recordTitle,
+              action: e.action == AccessAction.denied
+                  ? 'denied'
+                  : e.action == AccessAction.download
+                      ? 'downloaded'
+                      : 'viewed',
+              at: e.at,
+            ))
+        .toList(growable: false);
   }
 }

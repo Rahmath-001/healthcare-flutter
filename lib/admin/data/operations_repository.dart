@@ -249,6 +249,150 @@ class QueuedTicket {
 /// One repository rather than five, because the console is one tool and the
 /// endpoints behind it are all reviewer-side. Splitting it would imply the
 /// pieces are independently useful, and they are not.
+
+/// One recorded touch of a patient's records.
+///
+/// The server has written these since consent shipped and nothing could read
+/// them back: investigating "who opened my records" meant somebody with a
+/// Firestore console. This is the type that closes that.
+///
+/// Denials are in here too, and they are the entries that matter most — a
+/// doctor repeatedly trying records they hold no grant for is the pattern an
+/// audit log exists to surface, and a log of successes only would hide it.
+@immutable
+class AuditEvent {
+  const AuditEvent({
+    required this.id,
+    required this.actorName,
+    required this.actorRole,
+    required this.recordTitle,
+    required this.action,
+    required this.at,
+  });
+
+  final String id;
+  final String actorName;
+
+  /// What the actor was at the time, not what they are now. A doctor since
+  /// suspended still read the record as an approved one.
+  final String actorRole;
+
+  final String recordTitle;
+
+  /// `viewed`, `downloaded`, or `denied`.
+  final String action;
+
+  final DateTime at;
+
+  bool get wasDenied => action.toLowerCase() == 'denied';
+
+  factory AuditEvent.fromJson(Map<String, dynamic> json) => AuditEvent(
+        id: json['id'] as String,
+        actorName: (json['actorName'] as String?) ?? 'Unknown',
+        actorRole: (json['actorRole'] as String?) ?? '',
+        recordTitle: (json['recordTitle'] as String?) ?? '',
+        action: (json['action'] as String?) ?? 'viewed',
+        at: DateTime.parse(json['at'] as String).toLocal(),
+      );
+}
+
+/// The verification backlog.
+@immutable
+class VerificationLoad {
+  const VerificationLoad({required this.pending, this.oldestWaiting});
+
+  final int pending;
+
+  /// How long the longest-waiting applicant has been waiting.
+  ///
+  /// The number that matters more than the count: ten applications filed this
+  /// morning is a normal Tuesday, and one filed three weeks ago is somebody
+  /// who cannot earn a living.
+  final Duration? oldestWaiting;
+
+  factory VerificationLoad.fromJson(Map<String, dynamic> json) =>
+      VerificationLoad(
+        pending: (json['pending'] as num?)?.toInt() ?? 0,
+        oldestWaiting: json['oldestWaitingHours'] == null
+            ? null
+            : Duration(hours: (json['oldestWaitingHours'] as num).toInt()),
+      );
+}
+
+/// The moderation backlog.
+@immutable
+class ModerationLoad {
+  const ModerationLoad({required this.pending, this.oldestWaiting});
+
+  final int pending;
+  final Duration? oldestWaiting;
+
+  factory ModerationLoad.fromJson(Map<String, dynamic> json) => ModerationLoad(
+        pending: (json['pending'] as num?)?.toInt() ?? 0,
+        oldestWaiting: json['oldestWaitingHours'] == null
+            ? null
+            : Duration(hours: (json['oldestWaitingHours'] as num).toInt()),
+      );
+}
+
+/// The support queue.
+@immutable
+class SupportLoad {
+  const SupportLoad({
+    required this.open,
+    required this.breachingSla,
+    this.oldestWaiting,
+  });
+
+  final int open;
+
+  /// Tickets past the response target.
+  final int breachingSla;
+
+  final Duration? oldestWaiting;
+
+  factory SupportLoad.fromJson(Map<String, dynamic> json) => SupportLoad(
+        open: (json['open'] as num?)?.toInt() ?? 0,
+        breachingSla: (json['breachingSla'] as num?)?.toInt() ?? 0,
+        oldestWaiting: json['oldestWaitingHours'] == null
+            ? null
+            : Duration(hours: (json['oldestWaitingHours'] as num).toInt()),
+      );
+}
+
+/// What is waiting, across the queues this operator may see.
+///
+/// Each section is **nullable, and null means "not yours to see"** rather than
+/// "nothing pending". A support agent has no business knowing how many doctors
+/// are awaiting verification, and a dashboard that leaked a count would be a
+/// smaller version of the user-search this console deliberately does not have.
+@immutable
+class OperationsSummary {
+  const OperationsSummary({this.verification, this.moderation, this.support});
+
+  final VerificationLoad? verification;
+  final ModerationLoad? moderation;
+  final SupportLoad? support;
+
+  bool get isEmpty =>
+      verification == null && moderation == null && support == null;
+
+  factory OperationsSummary.fromJson(Map<String, dynamic> json) =>
+      OperationsSummary(
+        verification: json['verification'] == null
+            ? null
+            : VerificationLoad.fromJson(
+                json['verification'] as Map<String, dynamic>),
+        moderation: json['moderation'] == null
+            ? null
+            : ModerationLoad.fromJson(
+                json['moderation'] as Map<String, dynamic>),
+        support: json['support'] == null
+            ? null
+            : SupportLoad.fromJson(json['support'] as Map<String, dynamic>),
+      );
+}
+
 abstract class OperationsRepository {
   Future<List<ProviderApplication>> reviewQueue();
   Future<ProviderDossier> dossier(String userId);
@@ -291,6 +435,20 @@ abstract class OperationsRepository {
   Future<SupportTicket> ticket(String id);
   Future<void> replyToTicket(String id, String body);
   Future<void> setTicketStatus(String id, TicketStatus status);
+
+  /// What is waiting, limited to the queues this operator may see.
+  Future<OperationsSummary> summary();
+
+  /// Every recorded touch of one patient's records, newest first.
+  ///
+  /// Takes a user id rather than a search term, for the same reason this
+  /// console has no user search: an operator acting on an account already has
+  /// its id, and a box that resolves names would hand a helpdesk the ability
+  /// to enumerate patients.
+  ///
+  /// **Reading this is itself recorded.** An audit log whose readers are not
+  /// audited protects everybody except from the people holding it.
+  Future<List<AuditEvent>> auditTrail(String userId);
 }
 
 class ApiOperationsRepository implements OperationsRepository {
@@ -436,4 +594,18 @@ class ApiOperationsRepository implements OperationsRepository {
         '/v1/review/support/tickets/$id/status',
         body: {'status': status.wire},
       );
+
+  @override
+  Future<OperationsSummary> summary() async {
+    final json = await _api.get<Map<String, dynamic>>('/v1/admin/summary');
+    return OperationsSummary.fromJson(json);
+  }
+
+  @override
+  Future<List<AuditEvent>> auditTrail(String userId) async {
+    final json = await _api.get<List<dynamic>>('/v1/admin/audit/$userId');
+    return json
+        .map((e) => AuditEvent.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
 }

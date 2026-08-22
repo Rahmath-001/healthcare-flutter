@@ -178,9 +178,12 @@ class ProviderPatientsScreen extends ConsumerWidget {
         value: appointments,
         onRetry: () => ref.invalidate(providerAppointmentsProvider),
         data: (list) {
+          // Keyed by id, not by name: two patients can share a name, and
+          // merging two people's care under one heading is the worst failure
+          // a clinical list has.
           final patients = <String, Appointment>{};
           for (final a in list) {
-            patients.putIfAbsent(a.patientName, () => a);
+            patients.putIfAbsent(a.patientId, () => a);
           }
           if (patients.isEmpty) {
             return EmptyState(
@@ -205,17 +208,9 @@ class ProviderPatientsScreen extends ConsumerWidget {
                     'Last seen ${Fmt.relative(a.start)}',
                     style: theme.textTheme.bodySmall,
                   ),
-                  trailing: TextButton(
-                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'A request has been sent to ${a.patientName}. '
-                          'They decide what to share and for how long.',
-                        ),
-                      ),
-                    ),
-                    child: Text(context.l10n.providerRequestRecords),
-                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () =>
+                      context.push(Routes.providerPatient(a.patientId)),
                 ),
               );
             },

@@ -19,6 +19,7 @@ import '../../features/prescriptions/presentation/prescribe_screen.dart';
 import '../../features/prescriptions/presentation/prescriptions_screen.dart';
 import '../../features/prescriptions/presentation/refills_screen.dart';
 import '../../features/provider_home/presentation/provider_tabs.dart';
+import '../../features/provider_home/presentation/patient_timeline_screen.dart';
 import '../../features/provider_home/presentation/provider_today_screen.dart';
 import '../../features/provider_verification/presentation/provider_verification_screen.dart';
 import '../../features/providers_search/presentation/doctor_detail_screen.dart';
@@ -392,6 +393,18 @@ List<RouteBase> buildRoutes() => [
             GoRoute(
               path: Routes.providerPatients,
               builder: (_, __) => const ProviderPatientsScreen(),
+              routes: [
+                // Renders clinical history, so it is PHI like every other
+                // screen that shows any.
+                GoRoute(
+                  path: ':patientId',
+                  builder: (_, state) => ProtectedScreen(
+                    child: PatientTimelineScreen(
+                      patientId: state.pathParameters['patientId']!,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ]),
           StatefulShellBranch(routes: [

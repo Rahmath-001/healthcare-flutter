@@ -617,5 +617,11 @@
   "templatesNoneBody": "जो दवाइयाँ आप अक्सर लिखते हैं उन्हें सहेजें, फिर अगली बार एक टैप में जोड़ें।",
   "templatesDelete": "सेट हटाएँ",
   "templatesBlockedHere": "{count, plural, =1{1 दवा इस परामर्श में नहीं लिखी जा सकती} other{{count} दवाइयाँ इस परामर्श में नहीं लिखी जा सकतीं}}",
-  "@templatesBlockedHere": {"placeholders": {"count": {"type": "int"}}}
+  "@templatesBlockedHere": {"placeholders": {"count": {"type": "int"}}},
+  "timelineTitle": "मरीज़",
+  "timelineNoAccess": "अभी कोई पहुँच नहीं",
+  "timelineNoAccessBody": "इस मरीज़ के साथ आपका कोई परामर्श नहीं है, और उनके रिकॉर्ड के लिए कोई सक्रिय सहमति भी नहीं है।",
+  "timelineGrantExpired": "आप {name} के अपने रिकॉर्ड नहीं देख सकते: कोई सहमति फ़िलहाल सक्रिय नहीं है। आपके परामर्श, नोट्स और नुस्खे अब भी दिख रहे हैं।",
+  "@timelineGrantExpired": {"placeholders": {"name": {"type": "String"}}},
+  "timelineFootnote": "मरीज़ द्वारा साझा किए गए रिकॉर्ड तभी दिखते हैं जब सहमति सक्रिय हो। कोई भी रिकॉर्ड खोलना उनके एक्सेस लॉग में दर्ज होता है।"
 }

@@ -127,6 +127,7 @@ void main() {
           id: 'a',
           referenceCode: 'MD-TEST',
           doctor: DoctorFixtures.all.first,
+          patientId: 'u-patient',
           patientName: 'You',
           start: start,
           end: start.add(const Duration(minutes: 30)),

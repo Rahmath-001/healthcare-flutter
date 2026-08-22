@@ -3865,6 +3865,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 medicine cannot be prescribed on this consultation} other{{count} medicines cannot be prescribed on this consultation}}'**
   String templatesBlockedHere(int count);
+
+  /// No description provided for @timelineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Patient'**
+  String get timelineTitle;
+
+  /// No description provided for @timelineNoAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'No access right now'**
+  String get timelineNoAccess;
+
+  /// No description provided for @timelineNoAccessBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You have no consultations with this patient, and no live consent covering their records.'**
+  String get timelineNoAccessBody;
+
+  /// No description provided for @timelineGrantExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot see {name}\'s own records: no consent grant is currently active. Your consultations, notes and prescriptions are still shown.'**
+  String timelineGrantExpired(String name);
+
+  /// No description provided for @timelineFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Records shared by the patient appear only while a consent grant covers them. Opening one is recorded in their access log.'**
+  String get timelineFootnote;
 }
 
 class _AppLocalizationsDelegate

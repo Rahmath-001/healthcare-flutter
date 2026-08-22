@@ -873,5 +873,11 @@
   "templatesNoneBody": "Save the medicines you prescribe often, then add them in one tap next time.",
   "templatesDelete": "Delete set",
   "templatesBlockedHere": "{count, plural, =1{1 medicine cannot be prescribed on this consultation} other{{count} medicines cannot be prescribed on this consultation}}",
-  "@templatesBlockedHere": {"placeholders": {"count": {"type": "int"}}}
+  "@templatesBlockedHere": {"placeholders": {"count": {"type": "int"}}},
+  "timelineTitle": "Patient",
+  "timelineNoAccess": "No access right now",
+  "timelineNoAccessBody": "You have no consultations with this patient, and no live consent covering their records.",
+  "timelineGrantExpired": "You cannot see {name}'s own records: no consent grant is currently active. Your consultations, notes and prescriptions are still shown.",
+  "@timelineGrantExpired": {"placeholders": {"name": {"type": "String"}}},
+  "timelineFootnote": "Records shared by the patient appear only while a consent grant covers them. Opening one is recorded in their access log."
 }

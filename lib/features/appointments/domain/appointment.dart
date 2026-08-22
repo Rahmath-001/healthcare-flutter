@@ -138,6 +138,7 @@ class Appointment {
     required this.id,
     required this.referenceCode,
     required this.doctor,
+    required this.patientId,
     required this.patientName,
     required this.start,
     required this.end,
@@ -158,6 +159,14 @@ class Appointment {
   final String referenceCode;
 
   final Doctor doctor;
+
+  /// Who the appointment is with, as an id rather than a name.
+  ///
+  /// The provider side used to key patients by `patientName`, which two
+  /// patients can share - and merging two people's care under one heading is
+  /// the worst failure mode a clinical timeline has.
+  final String patientId;
+
   final String patientName;
   final DateTime start;
   final DateTime end;
@@ -202,6 +211,7 @@ class Appointment {
         id: json['id'] as String,
         referenceCode: json['referenceCode'] as String? ?? '',
         doctor: Doctor.fromJson(json['doctor'] as Map<String, dynamic>),
+        patientId: json['patientId'] as String? ?? '',
         patientName: json['patientName'] as String? ?? '',
         start: DateTime.parse(json['start'] as String).toLocal(),
         end: DateTime.parse(json['end'] as String).toLocal(),
@@ -229,6 +239,7 @@ class Appointment {
         id: id,
         referenceCode: referenceCode,
         doctor: doctor,
+        patientId: patientId,
         patientName: patientName,
         // The reference code deliberately survives a reschedule: it is what the
         // patient quoted to the clinic and what the confirmation email says.

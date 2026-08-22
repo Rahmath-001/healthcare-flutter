@@ -214,6 +214,7 @@ class FixtureBackend {
       id: appointmentId,
       referenceCode: _reference(),
       doctor: doctor,
+      patientId: 'u-patient',
       patientName: patientName,
       start: start,
       end: end,

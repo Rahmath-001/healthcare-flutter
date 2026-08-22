@@ -2104,4 +2104,23 @@ class AppLocalizationsHi extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get timelineTitle => 'मरीज़';
+
+  @override
+  String get timelineNoAccess => 'अभी कोई पहुँच नहीं';
+
+  @override
+  String get timelineNoAccessBody =>
+      'इस मरीज़ के साथ आपका कोई परामर्श नहीं है, और उनके रिकॉर्ड के लिए कोई सक्रिय सहमति भी नहीं है।';
+
+  @override
+  String timelineGrantExpired(String name) {
+    return 'आप $name के अपने रिकॉर्ड नहीं देख सकते: कोई सहमति फ़िलहाल सक्रिय नहीं है। आपके परामर्श, नोट्स और नुस्खे अब भी दिख रहे हैं।';
+  }
+
+  @override
+  String get timelineFootnote =>
+      'मरीज़ द्वारा साझा किए गए रिकॉर्ड तभी दिखते हैं जब सहमति सक्रिय हो। कोई भी रिकॉर्ड खोलना उनके एक्सेस लॉग में दर्ज होता है।';
 }

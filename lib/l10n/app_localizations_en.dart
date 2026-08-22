@@ -2104,4 +2104,23 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get timelineTitle => 'Patient';
+
+  @override
+  String get timelineNoAccess => 'No access right now';
+
+  @override
+  String get timelineNoAccessBody =>
+      'You have no consultations with this patient, and no live consent covering their records.';
+
+  @override
+  String timelineGrantExpired(String name) {
+    return 'You cannot see $name\'s own records: no consent grant is currently active. Your consultations, notes and prescriptions are still shown.';
+  }
+
+  @override
+  String get timelineFootnote =>
+      'Records shared by the patient appear only while a consent grant covers them. Opening one is recorded in their access log.';
 }

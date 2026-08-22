@@ -59,6 +59,10 @@ abstract final class Routes {
   static const providerRatings = '/provider/ratings';
   static const providerRefills = '/provider/refills';
 
+  /// One patient's history with this doctor.
+  static String providerPatient(String patientId) =>
+      '/provider/patients/\$patientId';
+
   /// Terminal screen for a provider who is not APPROVED. Mirrors the RBAC
   /// matrix, where an unverified provider may only read their own profile and
   /// submit credentials.

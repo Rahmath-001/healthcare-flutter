@@ -232,6 +232,66 @@ class FixtureBackend {
     return updated;
   }
 
+  /// Moves an appointment to a different slot.
+  ///
+  /// Order matters and is the whole difficulty: the new slot is taken **first**,
+  /// and the old one is only released once that has succeeded. Doing it the
+  /// other way round means a patient who loses the race to the new time has
+  /// also lost the appointment they already had — the worst possible outcome
+  /// of trying to move one. The server does the same thing inside a single
+  /// transaction; here it is ordering, because there is nothing to race with.
+  Appointment rescheduleAppointment(
+    String id, {
+    required DateTime start,
+    required DateTime end,
+  }) {
+    final existing = appointmentById(id);
+
+    if (!existing.canReschedule) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'This appointment can no longer be moved.',
+        code: 'RESCHEDULE_WINDOW_CLOSED',
+      );
+    }
+
+    final newId = slotId(existing.doctor.id, start);
+    final oldId = slotId(existing.doctor.id, existing.start);
+
+    if (newId == oldId) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'That is the time this appointment is already booked for.',
+        code: 'SAME_SLOT',
+      );
+    }
+
+    final holdExpiry = _slotLocks[newId];
+    final heldByUs = holdExpiry != null && holdExpiry.isAfter(DateTime.now());
+    if (!heldByUs && isSlotTaken(newId)) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'That time was just booked by someone else.',
+        code: 'SLOT_TAKEN',
+      );
+    }
+
+    _slotLocks[newId] = null;
+    _slotLocks.remove(oldId);
+
+    final updated = existing.copyWith(
+      start: start,
+      end: end,
+      // Deliberately CONFIRMED rather than RESCHEDULED. `RESCHEDULED` is the
+      // status of the appointment that was *left behind* — a terminal, past
+      // state. This one is a live booking at a new time, and marking it
+      // otherwise would drop it out of the upcoming list.
+      status: AppointmentStatus.confirmed,
+    );
+    _replaceAppointment(updated);
+    return updated;
+  }
+
   Appointment checkIn(String id) {
     final updated =
         appointmentById(id).copyWith(status: AppointmentStatus.checkedIn);

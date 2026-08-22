@@ -220,6 +220,24 @@
   "appointmentCancelBody": "Let the doctor know why, so the slot can be offered to someone else.",
   "appointmentCancelReason": "Reason",
   "appointmentCancelConfirm": "Cancel appointment",
+  "rescheduleTitle": "Move this appointment",
+  "rescheduleCurrent": "Currently {when}",
+  "@rescheduleCurrent": {
+    "placeholders": { "when": { "type": "String" } }
+  },
+  "rescheduleConfirm": "Confirm new time",
+  "rescheduleAction": "Reschedule",
+  "rescheduleHoldNote": "Your current time is only released once the new one is confirmed.",
+  "rescheduleNoSlots": "No free times that day",
+  "rescheduleNoSlotsBody": "Try another date.",
+  "rescheduleCurrentSlot": "{time} · now",
+  "@rescheduleCurrentSlot": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "rescheduleDone": "Appointment moved to {when}.",
+  "@rescheduleDone": {
+    "placeholders": { "when": { "type": "String" } }
+  },
   "appointmentKeepIt": "Keep it",
   "appointmentCancelled": "Appointment cancelled.",
   "appointmentFreeCancellation": "Free to cancel until {when}",

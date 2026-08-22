@@ -41,6 +41,23 @@ class ApiAppointmentRepository implements AppointmentRepository {
   }
 
   @override
+  Future<Appointment> reschedule(
+    String id, {
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      '/v1/appointments/$id/reschedule',
+      // The instant, in UTC. The server derives the slot id and the IST
+      // calendar day from it — the client never composes a slot id, because
+      // that id is the entire no-double-booking guarantee and a client that
+      // builds it can build a wrong one.
+      body: {'start': start.toUtc().toIso8601String()},
+    );
+    return Appointment.fromJson(json);
+  }
+
+  @override
   Future<Appointment> checkIn(String id) async {
     final json = await _api.post<Map<String, dynamic>>(
       '/v1/appointments/$id/check-in',

@@ -13,6 +13,19 @@ abstract class AppointmentRepository {
 
   Future<Appointment> cancel(String id, {required String reason});
 
+  /// Moves an appointment to a different slot on the same doctor.
+  ///
+  /// One call rather than cancel-then-book, and that is a correctness
+  /// requirement rather than a convenience: cancelling first returns the slot
+  /// to the pool, so a patient who then loses the race for the new time has
+  /// lost the appointment they already had. The server takes the new slot and
+  /// releases the old one in a single transaction.
+  Future<Appointment> reschedule(
+    String id, {
+    required DateTime start,
+    required DateTime end,
+  });
+
   /// Provider-side check-in, moving CONFIRMED to CHECKED_IN.
   Future<Appointment> checkIn(String id);
 }
@@ -53,6 +66,16 @@ class FixtureAppointmentRepository implements AppointmentRepository {
   Future<Appointment> cancel(String id, {required String reason}) async {
     await Future<void>.delayed(latency);
     return _backend.cancelAppointment(id, reason: reason);
+  }
+
+  @override
+  Future<Appointment> reschedule(
+    String id, {
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    await Future<void>.delayed(latency);
+    return _backend.rescheduleAppointment(id, start: start, end: end);
   }
 
   @override

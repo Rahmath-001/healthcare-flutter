@@ -442,6 +442,75 @@ void main() {
             isA<Failure>().having((f) => f.kind, 'kind', FailureKind.network)),
       );
     });
+
+    test('reschedule sends an instant, never a slot id', () async {
+      // The slot id is `<doctorId>__<startMillis>` and it is the entire
+      // no-double-booking guarantee. A client that composes it can compose a
+      // wrong one, and two clients disagreeing about the id is precisely the
+      // collision the deterministic id exists to prevent — so the wire carries
+      // the time and the server derives the id.
+      adapter.onPost(
+        '/v1/appointments/a1/reschedule',
+        (server) => server.reply(200, {
+          'id': 'a1',
+          'referenceCode': 'MD8842',
+          'doctor': {'id': 'd1', 'name': 'Dr Anjali Rao'},
+          'patientName': 'Priya Sharma',
+          'start': '2026-09-01T05:30:00.000Z',
+          'end': '2026-09-01T06:00:00.000Z',
+          'mode': 'VIDEO',
+          'status': 'CONFIRMED',
+          'paymentStatus': 'NOT_REQUIRED',
+          'feeInr': 800,
+          'hasPrescription': false,
+          'hasRating': false,
+        }),
+        data: Matchers.any,
+      );
+
+      final moved = await ApiAppointmentRepository(api).reschedule(
+        'a1',
+        start: DateTime.utc(2026, 9, 1, 5, 30),
+        end: DateTime.utc(2026, 9, 1, 6, 0),
+      );
+
+      expect(moved.id, 'a1');
+      expect(moved.start.toUtc(), DateTime.utc(2026, 9, 1, 5, 30));
+      // The reference code survives a move: it is the same appointment.
+      expect(moved.referenceCode, 'MD8842');
+      // Still upcoming. RESCHEDULED is the status of the booking that was left
+      // behind; stamping it on this one would drop it out of the patient's
+      // upcoming list the moment they moved it.
+      expect(moved.status.isUpcoming, isTrue);
+    });
+
+    test('a refused slot arrives as a conflict Failure', () async {
+      adapter.onPost(
+        '/v1/appointments/a1/reschedule',
+        (server) => server.reply(
+          409,
+          {
+            'type': 'about:blank',
+            'title': 'Conflict',
+            'status': 409,
+            'detail': 'That time was just booked by someone else.',
+            'code': 'SLOT_TAKEN',
+          },
+        ),
+        data: Matchers.any,
+      );
+
+      await expectLater(
+        ApiAppointmentRepository(api).reschedule(
+          'a1',
+          start: DateTime.utc(2026, 9, 1, 5, 30),
+          end: DateTime.utc(2026, 9, 1, 6, 0),
+        ),
+        throwsA(isA<Failure>()
+            .having((f) => f.kind, 'kind', FailureKind.conflict)
+            .having((f) => f.code, 'code', 'SLOT_TAKEN')),
+      );
+    });
   });
 
   group('BlobClient', () {

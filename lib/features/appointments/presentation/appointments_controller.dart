@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/feature_providers.dart';
+import '../../booking/presentation/booking_controller.dart';
 import '../domain/appointment.dart';
 
 final patientAppointmentsProvider =
@@ -33,6 +34,30 @@ final providerTodayProvider = FutureProvider<List<Appointment>>((ref) async {
 });
 
 /// Cancels an appointment and refreshes every list that showed it.
+/// Moves an appointment and refreshes everything that showed it at the old time.
+///
+/// The slot providers are invalidated too, and that is not housekeeping: the
+/// day the appointment left now has a slot free and the day it moved to has one
+/// fewer. A patient who reschedules and then immediately reopens the picker
+/// would otherwise be looking at a cached grid that still shows their old time
+/// as taken and their new time as available.
+Future<Appointment> rescheduleAppointment(
+  WidgetRef ref,
+  String id, {
+  required DateTime start,
+  required DateTime end,
+}) async {
+  final result = await ref
+      .read(appointmentRepositoryProvider)
+      .reschedule(id, start: start, end: end);
+  ref.invalidate(patientAppointmentsProvider);
+  ref.invalidate(providerAppointmentsProvider);
+  ref.invalidate(providerTodayProvider);
+  ref.invalidate(appointmentByIdProvider(id));
+  ref.invalidate(slotsProvider);
+  return result;
+}
+
 Future<Appointment> cancelAppointment(
   WidgetRef ref,
   String id, {

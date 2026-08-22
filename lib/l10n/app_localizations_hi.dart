@@ -520,6 +520,40 @@ class AppLocalizationsHi extends AppLocalizations {
   String get appointmentCancelConfirm => 'अपॉइंटमेंट रद्द करें';
 
   @override
+  String get rescheduleTitle => 'यह अपॉइंटमेंट बदलें';
+
+  @override
+  String rescheduleCurrent(String when) {
+    return 'अभी $when';
+  }
+
+  @override
+  String get rescheduleConfirm => 'नया समय पक्का करें';
+
+  @override
+  String get rescheduleAction => 'समय बदलें';
+
+  @override
+  String get rescheduleHoldNote =>
+      'नया समय पक्का होने के बाद ही आपका मौजूदा समय छोड़ा जाएगा।';
+
+  @override
+  String get rescheduleNoSlots => 'उस दिन कोई समय खाली नहीं';
+
+  @override
+  String get rescheduleNoSlotsBody => 'कोई और तारीख़ चुनें।';
+
+  @override
+  String rescheduleCurrentSlot(String time) {
+    return '$time · अभी';
+  }
+
+  @override
+  String rescheduleDone(String when) {
+    return 'अपॉइंटमेंट $when पर बदल दिया गया।';
+  }
+
+  @override
   String get appointmentKeepIt => 'रहने दें';
 
   @override

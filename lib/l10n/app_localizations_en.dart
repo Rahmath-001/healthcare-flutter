@@ -520,6 +520,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appointmentCancelConfirm => 'Cancel appointment';
 
   @override
+  String get rescheduleTitle => 'Move this appointment';
+
+  @override
+  String rescheduleCurrent(String when) {
+    return 'Currently $when';
+  }
+
+  @override
+  String get rescheduleConfirm => 'Confirm new time';
+
+  @override
+  String get rescheduleAction => 'Reschedule';
+
+  @override
+  String get rescheduleHoldNote =>
+      'Your current time is only released once the new one is confirmed.';
+
+  @override
+  String get rescheduleNoSlots => 'No free times that day';
+
+  @override
+  String get rescheduleNoSlotsBody => 'Try another date.';
+
+  @override
+  String rescheduleCurrentSlot(String time) {
+    return '$time · now';
+  }
+
+  @override
+  String rescheduleDone(String when) {
+    return 'Appointment moved to $when.';
+  }
+
+  @override
   String get appointmentKeepIt => 'Keep it';
 
   @override

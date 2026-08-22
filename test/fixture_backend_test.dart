@@ -3,6 +3,7 @@ import 'package:healthcare_mobile/core/error/failure.dart';
 import 'package:healthcare_mobile/core/fixtures/fixture_backend.dart';
 import 'package:healthcare_mobile/core/fixtures/provider_application.dart';
 import 'package:healthcare_mobile/features/appointments/data/appointment_repository.dart';
+import 'package:healthcare_mobile/features/appointments/domain/appointment.dart';
 import 'package:healthcare_mobile/features/availability/data/availability_repository.dart';
 import 'package:healthcare_mobile/features/booking/data/booking_repository.dart';
 import 'package:healthcare_mobile/features/consent/data/consent_repository.dart';
@@ -32,6 +33,21 @@ void main() {
 
   setUp(FixtureBackend.resetShared);
 
+  /// A future date the fixture actually opens on.
+  ///
+  /// `slotsFor` returns nothing on a Sunday — a deliberate closed day, so the
+  /// UI has a real empty state to render. Tests that reached for
+  /// "tomorrow" therefore passed six days a week and failed on Saturdays,
+  /// which is the worst kind of red build: nothing changed, and it is green
+  /// again by Monday. Skipping the closed day makes the date irrelevant.
+  DateTime openDay({int from = 1}) {
+    var date = DateTime.now().add(Duration(days: from));
+    while (date.weekday == DateTime.sunday) {
+      date = date.add(const Duration(days: 1));
+    }
+    return date;
+  }
+
   group('booking reaches the appointments list', () {
     test('a booked slot becomes one of the patient\'s appointments', () async {
       final booking = FixtureBookingRepository(latency: fast);
@@ -40,7 +56,7 @@ void main() {
       final before = await appointments.listForPatient();
       final slots = await booking.slotsFor(
         doctorId: 'd1',
-        date: DateTime.now().add(const Duration(days: 1)),
+        date: openDay(),
         mode: ConsultationMode.video,
       );
       final free = slots.firstWhere((s) => s.isAvailable);
@@ -64,7 +80,7 @@ void main() {
 
     test('a booked slot stops being offered', () async {
       final booking = FixtureBookingRepository(latency: fast);
-      final date = DateTime.now().add(const Duration(days: 1));
+      final date = openDay();
 
       final free = (await booking.slotsFor(
         doctorId: 'd1',
@@ -91,7 +107,7 @@ void main() {
     test('cancelling returns the slot to the pool', () async {
       final booking = FixtureBookingRepository(latency: fast);
       final appointments = FixtureAppointmentRepository(latency: fast);
-      final date = DateTime.now().add(const Duration(days: 1));
+      final date = openDay();
 
       final free = (await booking.slotsFor(
         doctorId: 'd2',
@@ -115,6 +131,162 @@ void main() {
       );
       // A cancellation that helps nobody else is not a cancellation.
       expect(again.firstWhere((s) => s.id == free.id).isAvailable, isTrue);
+    });
+  });
+
+  group('rescheduling moves the booking, not just the appointment', () {
+    Future<
+        ({
+          FixtureBookingRepository booking,
+          FixtureAppointmentRepository appointments,
+          Appointment booked,
+          AppointmentSlot original,
+          DateTime date
+        })> bookOne(String doctorId) async {
+      final booking = FixtureBookingRepository(latency: fast);
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final date = openDay(from: 2);
+
+      final free = (await booking.slotsFor(
+        doctorId: doctorId,
+        date: date,
+        mode: ConsultationMode.video,
+      ))
+          .where((s) => s.isAvailable)
+          .toList();
+
+      final booked = await booking.book(
+        doctor: DoctorFixtures.byId(doctorId),
+        slot: free.first,
+        mode: ConsultationMode.video,
+        patientName: 'Priya Sharma',
+      );
+
+      return (
+        booking: booking,
+        appointments: appointments,
+        booked: booked,
+        original: free.first,
+        date: date,
+      );
+    }
+
+    test('the old slot returns to the pool and the new one leaves it',
+        () async {
+      final ctx = await bookOne('d1');
+
+      final target = (await ctx.booking.slotsFor(
+        doctorId: 'd1',
+        date: ctx.date,
+        mode: ConsultationMode.video,
+      ))
+          .firstWhere((s) => s.isAvailable && s.id != ctx.original.id);
+
+      await ctx.appointments.reschedule(
+        ctx.booked.id,
+        start: target.start,
+        end: target.end,
+      );
+
+      final after = await ctx.booking.slotsFor(
+        doctorId: 'd1',
+        date: ctx.date,
+        mode: ConsultationMode.video,
+      );
+
+      // Both halves matter. Freeing the old slot without taking the new one
+      // double-books the doctor; taking the new one without freeing the old
+      // one loses a bookable slot forever.
+      expect(
+          after.firstWhere((s) => s.id == ctx.original.id).isAvailable, isTrue);
+      expect(after.firstWhere((s) => s.id == target.id).isAvailable, isFalse);
+    });
+
+    test('the appointment keeps its identity and reference code', () async {
+      final ctx = await bookOne('d2');
+
+      final target = (await ctx.booking.slotsFor(
+        doctorId: 'd2',
+        date: ctx.date,
+        mode: ConsultationMode.video,
+      ))
+          .firstWhere((s) => s.isAvailable && s.id != ctx.original.id);
+
+      final moved = await ctx.appointments.reschedule(
+        ctx.booked.id,
+        start: target.start,
+        end: target.end,
+      );
+
+      expect(moved.id, ctx.booked.id);
+      // The reference code is what the patient quoted to the clinic. A moved
+      // appointment is the same appointment.
+      expect(moved.referenceCode, ctx.booked.referenceCode);
+      expect(moved.start, target.start);
+      // Still upcoming: RESCHEDULED describes the booking that was left
+      // behind, and stamping it here would drop this one out of the list.
+      expect(moved.status.isUpcoming, isTrue);
+
+      final list = await ctx.appointments.listForPatient();
+      expect(list.where((a) => a.id == ctx.booked.id).length, 1);
+      expect(list.firstWhere((a) => a.id == ctx.booked.id).start, target.start);
+    });
+
+    test('moving onto a taken slot is refused and changes nothing', () async {
+      final ctx = await bookOne('d3');
+
+      final free = (await ctx.booking.slotsFor(
+        doctorId: 'd3',
+        date: ctx.date,
+        mode: ConsultationMode.video,
+      ))
+          .where((s) => s.isAvailable)
+          .toList();
+
+      // Someone else takes the time our patient is about to move to.
+      final contested = free.first;
+      await ctx.booking.book(
+        doctor: DoctorFixtures.byId('d3'),
+        slot: contested,
+        mode: ConsultationMode.video,
+        patientName: 'Someone Else',
+      );
+
+      await expectLater(
+        ctx.appointments.reschedule(
+          ctx.booked.id,
+          start: contested.start,
+          end: contested.end,
+        ),
+        throwsA(isA<Failure>().having((f) => f.code, 'code', 'SLOT_TAKEN')),
+      );
+
+      // The original booking survives the failure. Losing the appointment you
+      // already had is the one outcome a reschedule must never produce.
+      final still = await ctx.appointments.byId(ctx.booked.id);
+      expect(still.start, ctx.booked.start);
+      expect(still.status.isUpcoming, isTrue);
+
+      final slots = await ctx.booking.slotsFor(
+        doctorId: 'd3',
+        date: ctx.date,
+        mode: ConsultationMode.video,
+      );
+      expect(slots.firstWhere((s) => s.id == ctx.original.id).isAvailable,
+          isFalse);
+    });
+
+    test('moving to the time it already has is refused', () async {
+      final ctx = await bookOne('d1');
+
+      await expectLater(
+        ctx.appointments.reschedule(
+          ctx.booked.id,
+          start: ctx.booked.start,
+          end: ctx.booked.end,
+        ),
+        throwsA(isA<Failure>().having((f) => f.code, 'code', 'SAME_SLOT')),
+      );
     });
   });
 

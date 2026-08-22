@@ -3,7 +3,14 @@ import { Timestamp } from "firebase-admin/firestore";
 
 import { appointmentJson } from "../booking/routes";
 import { requireAuth, requireScope } from "../auth/middleware";
-import { C, db, type AppointmentDoc, type DoctorDoc } from "../db";
+import {
+  C,
+  db,
+  slotLockId,
+  type AppointmentDoc,
+  type DoctorDoc,
+  type SlotLockDoc,
+} from "../db";
 import { handler, Problem } from "../errors";
 
 /** Batch-loads the doctors referenced by a set of appointments. */
@@ -132,6 +139,129 @@ export function appointmentRoutes(secret: () => string): Router {
         tx.delete(firestore.collection(C.slotLocks).doc(lockId));
 
         return { ...a, status, cancellationReason: reason.trim() } as AppointmentDoc;
+      });
+
+      const doctorSnap = await firestore.collection(C.doctors).doc(updated.doctorId).get();
+      res.json(
+        appointmentJson(req.params.id, updated, updated.doctorId, doctorSnap.data() as DoctorDoc)
+      );
+    })
+  );
+
+  /**
+   * Moves an appointment to a different slot on the same doctor.
+   *
+   * The whole endpoint exists so this is **one transaction**. A client doing
+   * cancel-then-book releases the old slot first, and a patient who then loses
+   * the race for the new time has lost the appointment they already had. Here
+   * the new lock is taken and the old one released together, so the failure
+   * mode is "you keep your original time", which is the only acceptable one.
+   *
+   * The caller sends an instant, never a slot id. The id is
+   * `<doctorId>__<startMillis>` and it is the entire no-double-booking
+   * guarantee — a client that composes it can compose a wrong one, and two
+   * clients disagreeing about the id is exactly the collision the deterministic
+   * id exists to make impossible.
+   */
+  r.post(
+    "/:id/reschedule",
+    // Rescheduling consumes a slot, so it is gated on the scope that creates
+    // appointments rather than the one that cancels them.
+    requireScope("appointment:create"),
+    handler(async (req, res) => {
+      const { start } = req.body ?? {};
+      const startMs = typeof start === "string" ? Date.parse(start) : NaN;
+      if (!Number.isFinite(startMs)) {
+        throw Problem.validation("A new start time is required.", { start: "required" });
+      }
+      if (startMs <= Date.now()) {
+        throw Problem.validation("Pick a time in the future.", { start: "past" });
+      }
+
+      const firestore = db();
+      const apptRef = firestore.collection(C.appointments).doc(req.params.id);
+      const userId = req.auth!.sub;
+      const isProvider = req.auth!.role === "PROVIDER";
+
+      const updated = await firestore.runTransaction(async (tx) => {
+        const snap = await tx.get(apptRef);
+        if (!snap.exists) throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Appointment not found.");
+
+        const a = snap.data() as AppointmentDoc;
+        const isParticipant = isProvider ? a.doctorId === req.user!.doctorId : a.patientId === userId;
+        if (!isParticipant) {
+          // Same shape as an unknown id: telling a stranger that an
+          // appointment exists is itself a disclosure.
+          throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Appointment not found.");
+        }
+
+        const movable =
+          ["CONFIRMED", "PENDING_PAYMENT"].includes(a.status) &&
+          a.start.toMillis() > Date.now();
+        if (!movable) {
+          throw Problem.conflict("NOT_RESCHEDULABLE", "This appointment can no longer be moved.");
+        }
+
+        const oldStart = a.start.toDate();
+        const newStart = new Date(startMs);
+        const oldLockId = slotLockId(a.doctorId, oldStart);
+        const newLockId = slotLockId(a.doctorId, newStart);
+
+        if (oldLockId === newLockId) {
+          throw Problem.validation("That is the time this appointment already has.", {
+            start: "unchanged",
+          });
+        }
+
+        // The appointment keeps its duration. Deriving the end from the old
+        // one rather than trusting a client-sent value is what stops a
+        // repackaged client turning a 15-minute slot into an hour.
+        const durationMs = a.end.toMillis() - a.start.toMillis();
+        const newEnd = new Date(startMs + durationMs);
+
+        const newLockRef = firestore.collection(C.slotLocks).doc(newLockId);
+        const newLockSnap = await tx.get(newLockRef);
+
+        if (newLockSnap.exists) {
+          const lock = newLockSnap.data() as SlotLockDoc;
+          const heldByUs =
+            lock.state === "HELD" &&
+            lock.heldBy === userId &&
+            (lock.holdExpiresAt?.toMillis() ?? 0) > Date.now();
+          const lapsed =
+            lock.state === "HELD" && (lock.holdExpiresAt?.toMillis() ?? 0) <= Date.now();
+
+          if (!heldByUs && !lapsed) {
+            throw Problem.conflict("SLOT_TAKEN", "That time was just booked by someone else.");
+          }
+        }
+
+        const at = Timestamp.now();
+
+        // Take the new slot first, release the old one second. Both land in
+        // the same commit, so the ordering is about intent rather than timing
+        // — but it is the ordering the fixture mirrors, and a reader comparing
+        // the two should find the same story.
+        tx.set(newLockRef, {
+          doctorId: a.doctorId,
+          start: Timestamp.fromDate(newStart),
+          end: Timestamp.fromDate(newEnd),
+          state: "BOOKED",
+          heldBy: null,
+          holdExpiresAt: null,
+          appointmentId: req.params.id,
+        } satisfies SlotLockDoc);
+
+        tx.delete(firestore.collection(C.slotLocks).doc(oldLockId));
+
+        const patch = {
+          start: Timestamp.fromDate(newStart),
+          end: Timestamp.fromDate(newEnd),
+          updatedAt: at,
+        };
+        tx.update(apptRef, patch);
+
+        return { ...a, ...patch } as AppointmentDoc;
       });
 
       const doctorSnap = await firestore.collection(C.doctors).doc(updated.doctorId).get();

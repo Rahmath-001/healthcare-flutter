@@ -8,6 +8,7 @@ import '../../../shared/formatters.dart';
 import '../../../shared/widgets/async_view.dart';
 import '../../providers_search/domain/doctor.dart';
 import '../domain/appointment.dart';
+import 'reschedule_sheet.dart';
 import 'appointments_controller.dart';
 
 class AppointmentDetailScreen extends ConsumerWidget {
@@ -34,6 +35,28 @@ class _Body extends ConsumerWidget {
   const _Body({required this.appointment});
 
   final Appointment appointment;
+
+  static Future<void> _reschedule(
+    BuildContext context,
+    WidgetRef ref,
+    Appointment appointment,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+
+    final moved = await showRescheduleSheet(context, appointment);
+    if (!moved) return;
+
+    // Re-read rather than trusting the appointment captured above: the sheet
+    // has already refreshed the providers, and the whole point of the message
+    // is to state the *new* time.
+    final updated = await ref.read(
+      appointmentByIdProvider(appointment.id).future,
+    );
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.rescheduleDone(Fmt.dateTime(updated.start)))),
+    );
+  }
 
   Future<void> _cancel(BuildContext context, WidgetRef ref) async {
     final reason = await showModalBottomSheet<String>(
@@ -171,6 +194,21 @@ class _Body extends ConsumerWidget {
               onPressed: () => context.push('/patient/rate/${a.id}'),
               icon: const Icon(Icons.star_outline),
               label: Text(context.l10n.appointmentRate),
+            ),
+          ),
+        ],
+        // Offered above Cancel on purpose. Someone who cannot make their time
+        // usually wants a different one, not none — and a cancel button
+        // reached first is a slot returned to the pool and a consultation that
+        // never happens.
+        if (a.canReschedule) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => _reschedule(context, ref, a),
+              icon: const Icon(Icons.event_repeat_outlined),
+              label: Text(context.l10n.rescheduleAction),
             ),
           ),
         ],

@@ -191,14 +191,18 @@ class Appointment {
     String? cancellationReason,
     bool? hasRating,
     bool? hasPrescription,
+    DateTime? start,
+    DateTime? end,
   }) =>
       Appointment(
         id: id,
         referenceCode: referenceCode,
         doctor: doctor,
         patientName: patientName,
-        start: start,
-        end: end,
+        // The reference code deliberately survives a reschedule: it is what the
+        // patient quoted to the clinic and what the confirmation email says.
+        start: start ?? this.start,
+        end: end ?? this.end,
         mode: mode,
         status: status ?? this.status,
         paymentStatus: paymentStatus ?? this.paymentStatus,

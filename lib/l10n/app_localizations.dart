@@ -998,6 +998,60 @@ abstract class AppLocalizations {
   /// **'Cancel appointment'**
   String get appointmentCancelConfirm;
 
+  /// No description provided for @rescheduleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move this appointment'**
+  String get rescheduleTitle;
+
+  /// No description provided for @rescheduleCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently {when}'**
+  String rescheduleCurrent(String when);
+
+  /// No description provided for @rescheduleConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new time'**
+  String get rescheduleConfirm;
+
+  /// No description provided for @rescheduleAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reschedule'**
+  String get rescheduleAction;
+
+  /// No description provided for @rescheduleHoldNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your current time is only released once the new one is confirmed.'**
+  String get rescheduleHoldNote;
+
+  /// No description provided for @rescheduleNoSlots.
+  ///
+  /// In en, this message translates to:
+  /// **'No free times that day'**
+  String get rescheduleNoSlots;
+
+  /// No description provided for @rescheduleNoSlotsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another date.'**
+  String get rescheduleNoSlotsBody;
+
+  /// No description provided for @rescheduleCurrentSlot.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} · now'**
+  String rescheduleCurrentSlot(String time);
+
+  /// No description provided for @rescheduleDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment moved to {when}.'**
+  String rescheduleDone(String when);
+
   /// No description provided for @appointmentKeepIt.
   ///
   /// In en, this message translates to:

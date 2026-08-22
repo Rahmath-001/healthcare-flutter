@@ -524,8 +524,8 @@
       <div class="board">
         <dl><dt>Audiences</dt><dd>3<small>Patient, provider, operator</small></dd></dl>
         <dl><dt>Binaries</dt><dd>2<small><code>main.dart</code> and <code>main_admin.dart</code></small></dd></dl>
-        <dl><dt>Repositories</dt><dd>16<small>Each one a backend surface</small></dd></dl>
-        <dl><dt>Tests</dt><dd>358<small>Flutter, plus 83 on the API</small></dd></dl>
+        <dl><dt>Repositories</dt><dd>18<small>Each one a backend surface</small></dd></dl>
+        <dl><dt>Tests</dt><dd>385<small>Flutter, plus 83 on the API</small></dd></dl>
       </div>
 
       <h3>Two binaries, and why</h3>
@@ -541,7 +541,7 @@
       <p>Firebase Auth proves <strong>who you are</strong> — Google, Apple, or an India phone OTP. There is no email and password. The Firebase ID token is then exchanged for a <strong>MiDoctor session</strong>, which is what proves <strong>what you may do</strong>. They are separate objects, and the app never authorizes off Firebase.</p>
 
       <div class="note">
-        <p>Everything runs against in-memory sample data by default (<code>USE_FIXTURES=true</code>). Setting it to <code>false</code> swaps all sixteen repositories to their API-backed versions in one reviewable file, <code>lib/core/feature_providers.dart</code>.</p>
+        <p>Everything runs against in-memory sample data by default (<code>USE_FIXTURES=true</code>). Setting it to <code>false</code> swaps all eighteen repositories to their API-backed versions in one reviewable file, <code>lib/core/feature_providers.dart</code>.</p>
       </div>
     </section>
 
@@ -593,7 +593,7 @@ flutter run \
       <h3>Checks and builds</h3>
       <pre>flutter analyze --fatal-infos          # must be clean; CI enforces
 dart format --set-exit-if-changed lib test
-flutter test                           # 358 tests
+flutter test                           # 385 tests
 flutter test --tags golden             # excluded from CI (host fonts)
 flutter build appbundle                # ship the AAB, never the universal APK
 cd functions &amp;&amp; pnpm test              # 83 tests, no emulator needed</pre>
@@ -684,6 +684,10 @@ cd functions &amp;&amp; pnpm test              # 83 tests, no emulator needed</p
       <h3>Notifications</h3>
       <p>A notification centre plus per-kind toggles and quiet hours (22:00–07:00 by default, wrapping past midnight). Two kinds are <strong>mandatory</strong> and ignore both the toggle and quiet hours: an appointment that changed, and an account update. A patient must not be able to opt out of the only warning that their consultation is not happening.</p>
 
+      <h3>Signed-in devices</h3>
+      <p>Identity is Google, Apple or an OTP, so there is no password to change. Settings lists every live session, the device in your hand first, and ends any of them — or all the others at once.</p>
+      <p>It shows platform and last-seen and <strong>no location</strong>. A "signed in from Mumbai" line reads as reassuring security detail and is really a location history shown to whoever is holding an unlocked phone, including the person a patient might be hiding a consultation from. Revoking bumps <code>permissionVersion</code>, so a stolen access token dies on its next request rather than fifteen minutes later.</p>
+
       <h3>Profile, settings, privacy</h3>
       <p>Edit profile, notification settings, language, and a privacy screen carrying the DPDP rights summary, data export, and account deletion. The emergency contact you gave at onboarding appears on the profile tab with a call button — it opens the dialer with the number typed in and does not place the call.</p>
     </section>
@@ -714,6 +718,15 @@ cd functions &amp;&amp; pnpm test              # 83 tests, no emulator needed</p
       <h3>Prescribing</h3>
       <p>Drug search from the catalogue, dose, frequency, duration, instructions, diagnosis, advice, follow-up date. Drugs you may not prescribe are shown <strong>disabled with a reason</strong>, not hidden — the MoHFW telemedicine drug lists are a legal constraint, and the reason is the part a doctor needs.</p>
       <p>The client's copy of the table only decides what to grey out. The server re-resolves every item from the catalogue by id and derives follow-up status from appointment history, so a repackaged client that sends the request anyway is refused.</p>
+
+      <h3>Saved prescribing sets</h3>
+      <p>Doctors prescribe the same twenty medicines. Save a set from the composer, apply it in one tap.</p>
+      <p><strong>A set grants nothing.</strong> Applying fills the composer; issuing still runs every item through the drug lists. A set saved on a follow-up may hold a List B medicine, so applying filters to what is prescribable on <em>this</em> consultation, and the picker says how many items will be left behind before you commit. Only drug ids and doses are stored — names and classifications are read back from the catalogue every time, so a drug moved to List B starts refusing in every set containing it that same day.</p>
+      <p>Sets are private to the doctor who saved them. No sharing, no practice library: one clinician's set becoming another's default is how a prescribing habit spreads without anybody deciding it should.</p>
+
+      <h3>Patient timeline</h3>
+      <p>One patient's history with you in a single column — consultations, notes, prescriptions, and the records they shared. Composed from what you can already read rather than from a "give me everything about this patient" endpoint, which would be one authorization mistake away from being a patient-history API.</p>
+      <p>It separates <strong>your own clinical acts</strong> from <strong>the patient's records</strong>. A note you wrote does not stop being yours when a grant lapses; a scan they uploaded is visible only while consent covers it. A lapsed grant is said in a banner, never inferred from an empty list.</p>
 
       <h3>Consultation notes</h3>
       <p>Written once per appointment, once the consultation has begun. <strong>Append-only</strong>: corrected by addendum, never edited or deleted.</p>
@@ -754,6 +767,16 @@ cd functions &amp;&amp; pnpm test              # 83 tests, no emulator needed</p
               <td class="mono">support:ticket_read</td>
               <td>Queue, thread, reply, escalate, close.</td>
             </tr>
+            <tr>
+              <td>Overview</td>
+              <td>per queue</td>
+              <td>What is waiting, with how long the oldest item has waited. Sections are <strong>omitted, not zeroed</strong>, when the scope is missing — a count that reaches the client and is merely hidden has already left the building.</td>
+            </tr>
+            <tr>
+              <td>Access log</td>
+              <td class="mono">user:suspend</td>
+              <td>Every recorded read of one account's records, <strong>refusals included</strong> — a doctor repeatedly trying records they hold no grant for is the pattern a log exists to surface. Reading it is itself recorded.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -792,6 +815,8 @@ cd functions &amp;&amp; pnpm test              # 83 tests, no emulator needed</p
             <tr><td><strong>Notifications</strong></td><td>A closed set of kinds. Each decides which toggle silences it, where it leads, and whether it may arrive at 3am. Appointment changes and account updates are mandatory and bypass quiet hours.</td></tr>
             <tr><td><strong>Verification gate</strong></td><td>All documents, plus registration number, plus MFA, before submission. A rejected document counts as not provided.</td></tr>
             <tr><td><strong>Dosing</strong></td><td>The parser reads <code>1-0-1</code>, the Latin abbreviations and a few English phrases. Everything else gets <strong>no schedule at all</strong>.</td></tr>
+            <tr><td><strong>Prescribing sets</strong></td><td>A set grants nothing. Stored as drug ids and doses; classification resolved from the catalogue on every read.</td></tr>
+            <tr><td><strong>Audit</strong></td><td>The access log records denials, and reading it as an operator is itself recorded.</td></tr>
             <tr><td><strong>Dose log</strong></td><td>Self-report. Never shown to a doctor. A dose that is not due yet cannot be ticked; the whole of today can.</td></tr>
           </tbody>
         </table>

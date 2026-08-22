@@ -2123,4 +2123,70 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get timelineFootnote =>
       'Records shared by the patient appear only while a consent grant covers them. Opening one is recorded in their access log.';
+
+  @override
+  String get devicesTitle => 'Signed-in devices';
+
+  @override
+  String get devicesBody =>
+      'Every place this account is currently signed in. If you do not recognise one, sign it out.';
+
+  @override
+  String get devicesThisDevice => 'This device';
+
+  @override
+  String get devicesSignOut => 'Sign out';
+
+  @override
+  String devicesSignedInOn(String date) {
+    return 'Signed in $date';
+  }
+
+  @override
+  String devicesLastUsed(String when) {
+    return 'Last used $when';
+  }
+
+  @override
+  String devicesSignOutOneBody(String device) {
+    return 'This will end the session on $device. Signing in again there will need a fresh code.';
+  }
+
+  @override
+  String get devicesSignOutCurrentBody =>
+      'This is the device you are using. Signing it out will sign you out of the app.';
+
+  @override
+  String devicesSignOutOthers(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sign out $count other devices',
+      one: 'Sign out 1 other device',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get devicesSignOutOthersBody =>
+      'You will stay signed in here. Every other device will need to sign in again.';
+
+  @override
+  String devicesSignedOutCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count devices signed out',
+      one: '1 device signed out',
+      zero: 'Nothing to sign out',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get devicesPrivacyNote =>
+      'We do not record where you signed in from. A location history would be more use to somebody reading your phone than it is to you.';
+
+  @override
+  String get settingsDevices => 'Signed-in devices';
 }

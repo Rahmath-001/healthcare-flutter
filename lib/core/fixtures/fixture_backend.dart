@@ -19,6 +19,7 @@ import '../../features/providers_search/domain/doctor.dart';
 import '../../features/ratings/domain/rating.dart';
 import '../../features/records/domain/medical_record.dart';
 import '../../features/settings/domain/patient_profile.dart';
+import '../../features/settings/domain/signed_in_device.dart';
 import '../../features/support/domain/support_ticket.dart';
 import '../error/failure.dart';
 import 'fixture_seed.dart';
@@ -92,6 +93,13 @@ class FixtureBackend {
   /// List B starts refusing on first consultations immediately, in every
   /// template that contains it, with nothing to migrate.
   final List<_StoredTemplate> _templates = [];
+
+  /// Where this account is signed in.
+  ///
+  /// Seeded with more than one so the screen has something to do: a
+  /// device list with a single row cannot demonstrate the control it
+  /// exists for.
+  final List<SignedInDevice> _devices = [];
   NotificationPreferences _notificationPreferences =
       NotificationPreferences.defaults;
 
@@ -123,6 +131,7 @@ class FixtureBackend {
     _profile = FixtureSeed.profile();
     _checklist = FixtureSeed.checklist();
     _appointments.addAll(FixtureSeed.appointments());
+    _devices.addAll(FixtureSeed.devices());
     _records.addAll(FixtureSeed.records());
     _prescriptions.addAll(FixtureSeed.prescriptions());
     _grants.addAll(FixtureSeed.grants());
@@ -1217,6 +1226,52 @@ class FixtureBackend {
         targetId: targetId,
       ),
     );
+  }
+
+  // --- signed-in devices ----------------------------------------------------
+
+  List<SignedInDevice> signedInDevices() {
+    final sorted = [..._devices]..sort((a, b) {
+        // The device in your hand first: it is the one row a person needs to
+        // identify before deciding anything about the others.
+        if (a.isCurrent != b.isCurrent) return a.isCurrent ? -1 : 1;
+        return b.lastSeenAt.compareTo(a.lastSeenAt);
+      });
+    return List.unmodifiable(sorted);
+  }
+
+  void revokeDeviceSession(String sessionId) {
+    final match = _devices.where((d) => d.id == sessionId);
+    if (match.isEmpty) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That session has already ended.',
+        code: 'SESSION_NOT_FOUND',
+      );
+    }
+    _devices.removeWhere((d) => d.id == sessionId);
+
+    notify(
+      kind: NotificationKind.accountUpdate,
+      title: 'A device was signed out',
+      // Mandatory and quiet-hours-exempt by kind: somebody ending a session
+      // they did not start needs to hear about it now, and an attacker
+      // clearing other devices must not be able to do it silently.
+      body: 'One of your signed-in devices was signed out',
+    );
+  }
+
+  int revokeOtherDeviceSessions() {
+    final others = _devices.where((d) => !d.isCurrent).length;
+    if (others == 0) return 0;
+    _devices.removeWhere((d) => !d.isCurrent);
+
+    notify(
+      kind: NotificationKind.accountUpdate,
+      title: 'Other devices signed out',
+      body: 'Every device except this one was signed out',
+    );
+    return others;
   }
 
   // --- prescription templates ----------------------------------------------

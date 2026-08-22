@@ -30,6 +30,7 @@ import '../features/ratings/data/ratings_repository.dart';
 import '../features/records/data/api_records_repository.dart';
 import '../features/records/data/records_repository.dart';
 import '../features/settings/data/account_repository.dart';
+import '../features/settings/data/device_session_repository.dart';
 import '../features/support/data/api_support_repository.dart';
 import '../features/support/data/support_repository.dart';
 import 'files/blob_client.dart';
@@ -109,6 +110,13 @@ final recordsRepositoryProvider = Provider<RecordsRepository>((ref) {
 final accountRepositoryProvider = Provider<AccountRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixtureAccountRepository();
   return ApiAccountRepository(ref.watch(apiClientProvider));
+});
+
+/// Where this account is signed in.
+final deviceSessionRepositoryProvider =
+    Provider<DeviceSessionRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureDeviceSessionRepository();
+  return ApiDeviceSessionRepository(ref.watch(apiClientProvider));
 });
 
 final consentRepositoryProvider = Provider<ConsentRepository>((ref) {

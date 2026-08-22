@@ -2123,4 +2123,70 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get timelineFootnote =>
       'मरीज़ द्वारा साझा किए गए रिकॉर्ड तभी दिखते हैं जब सहमति सक्रिय हो। कोई भी रिकॉर्ड खोलना उनके एक्सेस लॉग में दर्ज होता है।';
+
+  @override
+  String get devicesTitle => 'साइन-इन डिवाइस';
+
+  @override
+  String get devicesBody =>
+      'वे सभी जगहें जहाँ यह खाता अभी साइन-इन है। कोई पहचान में न आए तो उसे साइन आउट करें।';
+
+  @override
+  String get devicesThisDevice => 'यही डिवाइस';
+
+  @override
+  String get devicesSignOut => 'साइन आउट';
+
+  @override
+  String devicesSignedInOn(String date) {
+    return '$date को साइन-इन किया';
+  }
+
+  @override
+  String devicesLastUsed(String when) {
+    return 'आख़िरी बार $when';
+  }
+
+  @override
+  String devicesSignOutOneBody(String device) {
+    return 'इससे $device पर सत्र समाप्त हो जाएगा। वहाँ दोबारा साइन-इन के लिए नया कोड चाहिए होगा।';
+  }
+
+  @override
+  String get devicesSignOutCurrentBody =>
+      'यह वही डिवाइस है जिसका आप उपयोग कर रहे हैं। इसे साइन आउट करने पर आप ऐप से बाहर हो जाएँगे।';
+
+  @override
+  String devicesSignOutOthers(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count अन्य डिवाइस साइन आउट करें',
+      one: '1 अन्य डिवाइस साइन आउट करें',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get devicesSignOutOthersBody =>
+      'आप यहाँ साइन-इन रहेंगे। बाकी हर डिवाइस को दोबारा साइन-इन करना होगा।';
+
+  @override
+  String devicesSignedOutCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count डिवाइस साइन आउट हुए',
+      one: '1 डिवाइस साइन आउट हुआ',
+      zero: 'साइन आउट करने को कुछ नहीं',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get devicesPrivacyNote =>
+      'हम यह दर्ज नहीं करते कि आपने कहाँ से साइन-इन किया। स्थान का इतिहास आपके फ़ोन को पढ़ने वाले के लिए आपसे ज़्यादा उपयोगी होता।';
+
+  @override
+  String get settingsDevices => 'साइन-इन डिवाइस';
 }

@@ -30,6 +30,7 @@ import '../../features/records/presentation/record_detail_screen.dart';
 import '../../features/records/presentation/record_upload_screen.dart';
 import '../../features/records/presentation/records_screen.dart';
 import '../../features/settings/presentation/edit_profile_screen.dart';
+import '../../features/settings/presentation/devices_screen.dart';
 import '../../features/settings/presentation/privacy_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/notifications/presentation/notification_settings_screen.dart';
@@ -132,6 +133,7 @@ List<RouteBase> buildRoutes() => [
       GoRoute(
           path: Routes.settings, builder: (_, __) => const SettingsScreen()),
       GoRoute(path: Routes.privacy, builder: (_, __) => const PrivacyScreen()),
+      GoRoute(path: Routes.devices, builder: (_, __) => const DevicesScreen()),
       GoRoute(
         path: Routes.editProfile,
         // Carries allergies and chronic conditions in free text — the same

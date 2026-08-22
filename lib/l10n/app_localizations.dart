@@ -3895,6 +3895,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Records shared by the patient appear only while a consent grant covers them. Opening one is recorded in their access log.'**
   String get timelineFootnote;
+
+  /// No description provided for @devicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed-in devices'**
+  String get devicesTitle;
+
+  /// No description provided for @devicesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every place this account is currently signed in. If you do not recognise one, sign it out.'**
+  String get devicesBody;
+
+  /// No description provided for @devicesThisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get devicesThisDevice;
+
+  /// No description provided for @devicesSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get devicesSignOut;
+
+  /// No description provided for @devicesSignedInOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in {date}'**
+  String devicesSignedInOn(String date);
+
+  /// No description provided for @devicesLastUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last used {when}'**
+  String devicesLastUsed(String when);
+
+  /// No description provided for @devicesSignOutOneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This will end the session on {device}. Signing in again there will need a fresh code.'**
+  String devicesSignOutOneBody(String device);
+
+  /// No description provided for @devicesSignOutCurrentBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the device you are using. Signing it out will sign you out of the app.'**
+  String get devicesSignOutCurrentBody;
+
+  /// No description provided for @devicesSignOutOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Sign out 1 other device} other{Sign out {count} other devices}}'**
+  String devicesSignOutOthers(int count);
+
+  /// No description provided for @devicesSignOutOthersBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will stay signed in here. Every other device will need to sign in again.'**
+  String get devicesSignOutOthersBody;
+
+  /// No description provided for @devicesSignedOutCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Nothing to sign out} =1{1 device signed out} other{{count} devices signed out}}'**
+  String devicesSignedOutCount(int count);
+
+  /// No description provided for @devicesPrivacyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'We do not record where you signed in from. A location history would be more use to somebody reading your phone than it is to you.'**
+  String get devicesPrivacyNote;
+
+  /// No description provided for @settingsDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed-in devices'**
+  String get settingsDevices;
 }
 
 class _AppLocalizationsDelegate

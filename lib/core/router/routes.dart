@@ -42,6 +42,7 @@ abstract final class Routes {
   static const settings = '/patient/settings';
   static const editProfile = '/patient/settings/profile';
   static const privacy = '/patient/settings/privacy';
+  static const devices = '/patient/settings/devices';
 
   static String doctorDetail(String id) => '$doctorSearch/$id';
   static String booking(String id) => '$doctorSearch/$id/book';

@@ -11,6 +11,7 @@ import '../../features/providers_search/domain/doctor.dart';
 import '../../features/ratings/domain/rating.dart';
 import '../../features/records/domain/medical_record.dart';
 import '../../features/settings/domain/patient_profile.dart';
+import '../../features/settings/domain/signed_in_device.dart';
 import '../../features/support/domain/support_ticket.dart';
 import 'provider_application.dart';
 
@@ -367,6 +368,38 @@ abstract final class FixtureSeed {
               instructions: 'One sachet on Sunday, with milk.',
             ),
           ],
+        ),
+      ];
+
+  /// Where the sample account is signed in.
+  ///
+  /// Three, deliberately: one current, one recent, and one untouched for a
+  /// month. A device list with a single row cannot show the control it exists
+  /// for, and the stale entry is the one a person is meant to look at twice.
+  static List<SignedInDevice> devices() => [
+        SignedInDevice(
+          id: 'sess-current',
+          platform: 'android',
+          appVersion: '1.0.0',
+          createdAt: at(-30, 9, 12),
+          lastSeenAt: DateTime.now(),
+          isCurrent: true,
+        ),
+        SignedInDevice(
+          id: 'sess-tablet',
+          platform: 'ios',
+          appVersion: '1.0.0',
+          createdAt: at(-12, 20, 5),
+          lastSeenAt: at(-2, 21, 40),
+          isCurrent: false,
+        ),
+        SignedInDevice(
+          id: 'sess-browser',
+          platform: 'web',
+          appVersion: '1.0.0',
+          createdAt: at(-40, 14, 0),
+          lastSeenAt: at(-31, 14, 2),
+          isCurrent: false,
         ),
       ];
 

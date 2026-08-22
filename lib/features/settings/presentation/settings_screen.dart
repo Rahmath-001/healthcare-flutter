@@ -51,6 +51,13 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push(Routes.sharing),
           ),
           ListTile(
+            leading: const Icon(Icons.devices_outlined),
+            title: Text(context.l10n.settingsDevices),
+            subtitle: const Text('See where you are signed in, and sign out'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(Routes.devices),
+          ),
+          ListTile(
             leading: const Icon(Icons.policy_outlined),
             title: Text(context.l10n.settingsPrivacy),
             subtitle: const Text('Export your data, or delete your account'),

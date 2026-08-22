@@ -8,6 +8,7 @@ import { medicationRoutes } from "./medications/routes";
 import { prescriptionTemplateRoutes } from "./prescriptions/template_routes";
 import { availabilityRoutes } from "./availability/routes";
 import { authRoutes, meRoutes } from "./auth/routes";
+import { sessionRoutes } from "./auth/session_routes";
 import { cookieModeEnabled, webOrigins } from "./auth/refresh_cookie";
 import { appointmentCreateRoutes, bookingRoutes } from "./booking/routes";
 import { consentRoutes } from "./consent/routes";
@@ -83,6 +84,9 @@ export function buildApp(deps: AppDependencies | (() => string)) {
 
   app.get("/v1/health", (_req, res) => res.json({ ok: true }));
 
+  // Before the auth router, whose own paths are literals but which
+  // owns the /v1/auth prefix.
+  app.use("/v1/auth/sessions", sessionRoutes(secret));
   app.use("/v1/auth", authRoutes(secret));
   app.use("/v1/me", meRoutes(secret));
   app.use("/v1/doctors", doctorRoutes(secret));

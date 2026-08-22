@@ -191,6 +191,8 @@ void main() {
       'AppointmentsScreen': const AppointmentsScreen(),
       'PrescriptionsScreen': const PrescriptionsScreen(),
       'MedicationsScreen': const MedicationsScreen(),
+      'PrescriptionDetailScreen':
+          const PrescriptionDetailScreen(prescriptionId: 'p3'),
     };
 
     for (final entry in screens.entries) {

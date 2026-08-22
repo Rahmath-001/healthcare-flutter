@@ -48,7 +48,7 @@ Dart SDK `>=3.3.0 <4.0.0`.
 flutter pub get
 flutter analyze --fatal-infos        # must be clean; CI enforces
 dart format --set-exit-if-changed lib test
-flutter test                         # 354 tests
+flutter test                         # 358 tests
 flutter test --tags golden           # goldens; excluded from CI (host fonts)
 flutter gen-l10n                     # auto-runs on build (generate: true)
 flutter run --dart-define=USE_FIXTURES=true
@@ -374,7 +374,14 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
   the authority of a measurement nobody took. Marks are addressed by a **derived** id
   (`<prescriptionId>#<itemIndex>#<yyyy-mm-dd>#<SLOT>`, PUT not POST) for the same reason slot
   locks are, and a dose that is not due yet cannot be ticked: a record of a tablet nobody has
-  taken is indistinguishable from a record of one they have.
+  taken is indistinguishable from a record of one they have. **The day is
+  IST on both sides** — `istDayOf` on the client, `istDay` on the server. A
+  client using the device's local day disagrees with the server for anyone off
+  Indian time: at 00:30 in Tokyo it is still the previous evening in India, so
+  the app would offer tonight's dose and the server would refuse it as not due
+  with the dose visibly on screen. A dose id also contains `#`, so it must be
+  **percent-encoded into a URL path** — raw, the fragment is dropped and every
+  request silently addresses the prescription id alone.
 - **Notifications**: a closed set of kinds, each deciding three things — which toggle
   silences it, where it leads, and whether it may arrive at 3am.
   `APPOINTMENT_CHANGED` and `ACCOUNT_UPDATE` are **mandatory**: they ignore both the toggle
@@ -742,18 +749,26 @@ retention notices must not be machine-translated. See [lib/l10n/README.md](lib/l
 `
     in the pattern silently matches nothing on the TypeScript side. Python's `io.open` with
     `encoding='utf-8'` normalises on read and restores on write, so it works on both.
-11. **Never add a scope without an endpoint behind it.** A scope that guards nothing makes
+11. **A new Firestore query usually needs a new composite index.** Equality on
+    one field plus `orderBy` or a range on *another* needs an entry in
+    [firestore.indexes.json](firestore.indexes.json); equality-only conjunctions do
+    not. Nothing fails locally — the emulator serves anything — and nothing fails
+    at build time. It fails as `FAILED_PRECONDITION` the first time a real user
+    opens the screen, which is why five of them accumulated before an audit
+    caught it. Cross-check the file against `functions/src` whenever a query
+    gains a clause.
+12. **Never add a scope without an endpoint behind it.** A scope that guards nothing makes
     the RBAC matrix read as more complete than it is. Every scope now has a route behind it
     except the credentials ones.
-12. **Crash reports must never carry PHI.** `CrashReporting` deliberately strips
+13. **Crash reports must never carry PHI.** `CrashReporting` deliberately strips
     `Failure.message` — which can quote the server's `detail` verbatim — and forwards only the
     kind and machine code. Breadcrumbs are route names, never arguments.
-13. **No clinical content in a notification title or body.** They render on a lock screen,
+14. **No clinical content in a notification title or body.** They render on a lock screen,
     mirror to a paired watch, and are read by whoever is holding the phone. "Prescription
     ready" is fine; naming the drug is a disclosure with no consent record and no way to
     withdraw it. The detail lives behind `targetId`, inside the app. There is a fixture test
     asserting the issued-prescription body names no drug.
-14. **The consent gate renders from `TelemedicineConsent`.** The same string is hashed into
+15. **The consent gate renders from `TelemedicineConsent`.** The same string is hashed into
     the consent record, so inlining the copy in the widget again would let the two drift, and
     a hash of text nobody saw is not evidence of anything. Changing the wording means bumping
     `TelemedicineConsent.version`.

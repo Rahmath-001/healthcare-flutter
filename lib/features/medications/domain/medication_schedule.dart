@@ -2,6 +2,25 @@ import 'package:meta/meta.dart';
 
 import '../../prescriptions/domain/prescription.dart';
 
+/// The calendar day in IST, as a date key.
+///
+/// The server records a dose against an **IST** day and refuses one that is
+/// not due yet. A client using the device's local day therefore disagrees with
+/// it for anyone whose phone is not on Indian time: at 00:30 in Tokyo it is
+/// still the previous evening in India, so the app would offer tonight's dose
+/// and the server would refuse it as "not due yet" — with the dose visibly on
+/// screen.
+///
+/// India has one timezone and no DST, so a fixed offset is exact. This matches
+/// the rule the booking code already follows for slots.
+DateTime istDayOf(DateTime at) {
+  final ist = at.toUtc().add(const Duration(hours: 5, minutes: 30));
+  return DateTime(ist.year, ist.month, ist.day);
+}
+
+/// Today, in IST.
+DateTime istToday() => istDayOf(DateTime.now());
+
 /// When in the day a dose falls.
 ///
 /// Four slots, because Indian dosing notation is written in three or four
@@ -302,6 +321,10 @@ class ScheduledDose {
   /// Deterministic, for the same reason slot lock ids are: two taps on a slow
   /// connection address one document instead of writing two logs for one
   /// tablet.
+  ///
+  /// **Percent-encode this before putting it in a URL.** It contains `#`,
+  /// which starts a fragment — and a fragment never leaves the client, so an
+  /// unencoded id silently truncates the request to the prescription id alone.
   static String idFor(String courseId, DateTime day, DoseSlot slot) {
     final d = '${day.year.toString().padLeft(4, '0')}-'
         '${day.month.toString().padLeft(2, '0')}-'
@@ -331,10 +354,7 @@ class ScheduledDose {
   /// that has not happened, and the record is then indistinguishable from one
   /// that did. The whole of today is open regardless of the hour, because
   /// somebody catching up at 11pm is doing the honest thing.
-  bool canMarkAt(DateTime now) {
-    final today = DateTime(now.year, now.month, now.day);
-    return !day.isAfter(today);
-  }
+  bool canMarkAt(DateTime now) => !day.isAfter(istDayOf(now));
 }
 
 /// How much of a course the patient reports having taken.

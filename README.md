@@ -123,7 +123,7 @@ token revocation on account deletion is mandatory. See the Sign-in section of
 ```bash
 flutter analyze --fatal-infos                 # must be clean
 dart format --set-exit-if-changed lib test
-flutter test                                  # 354 tests
+flutter test                                  # 358 tests
 
 cd functions
 pnpm exec tsc --noEmit

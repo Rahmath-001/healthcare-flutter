@@ -97,6 +97,16 @@ class ApiMedicationRepository implements MedicationRepository {
         .toList(growable: false);
   }
 
+  /// The dose id as a **path segment**.
+  ///
+  /// A dose id contains `#`, which in a URL starts the fragment — and a
+  /// fragment is never sent to the server. Interpolated raw, every request
+  /// here silently addresses `/v1/medications/doses/<prescriptionId>` and the
+  /// day and slot are lost on the client. Percent-encoding is what makes the
+  /// id survive the trip; Express decodes `req.params.id` on the way in.
+  static String _segment(String courseId, DateTime day, DoseSlot slot) =>
+      Uri.encodeComponent(ScheduledDose.idFor(courseId, day, slot));
+
   @override
   Future<DoseMark> mark(
     String courseId, {
@@ -108,7 +118,7 @@ class ApiMedicationRepository implements MedicationRepository {
       // PUT on a deterministic id, not POST to a collection. The id is derived
       // from course, day and slot, so a retry after a dropped response is the
       // same write rather than a second tablet in the log.
-      '/v1/medications/doses/${ScheduledDose.idFor(courseId, day, slot)}',
+      '/v1/medications/doses/${_segment(courseId, day, slot)}',
       body: {'outcome': outcome.wire},
     );
     return DoseMark.fromJson(json);
@@ -121,6 +131,6 @@ class ApiMedicationRepository implements MedicationRepository {
     required DoseSlot slot,
   }) =>
       _api.delete<Map<String, dynamic>>(
-        '/v1/medications/doses/${ScheduledDose.idFor(courseId, day, slot)}',
+        '/v1/medications/doses/${_segment(courseId, day, slot)}',
       );
 }

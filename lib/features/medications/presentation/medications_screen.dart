@@ -67,9 +67,7 @@ class _DayBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final isToday = day == today;
+    final isToday = day == istToday();
 
     void move(int days) {
       Haptics.selection();

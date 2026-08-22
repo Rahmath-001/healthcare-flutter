@@ -11,10 +11,7 @@ final medicationDayProvider = NotifierProvider<MedicationDayNotifier, DateTime>(
 
 class MedicationDayNotifier extends Notifier<DateTime> {
   @override
-  DateTime build() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
-  }
+  DateTime build() => istToday();
 
   /// Moves by whole days, clamped at today.
   ///
@@ -23,8 +20,7 @@ class MedicationDayNotifier extends Notifier<DateTime> {
   /// render tick boxes that always refuse.
   void shift(int days) {
     final next = DateTime(state.year, state.month, state.day + days);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = istToday();
     state = next.isAfter(today) ? today : next;
   }
 }
@@ -41,9 +37,27 @@ final medicationCoursesProvider =
   return MedicationCourse.fromPrescriptions(prescriptions);
 });
 
-/// The dose log, from far enough back to cover any adherence figure on screen.
+/// The dose log, reaching back far enough to cover every figure on screen.
+///
+/// Derived from the courses rather than a fixed window. A hard 90 days looks
+/// generous until somebody is on a 180-day script: the first three months
+/// would have no marks in the map, and every one of those doses would count as
+/// due-but-not-taken. The adherence figure would read as a failure the patient
+/// did not earn.
 final _doseMarksProvider = FutureProvider<Map<String, DoseMark>>((ref) async {
-  final from = DateTime.now().subtract(const Duration(days: 90));
+  final courses = await ref.watch(medicationCoursesProvider.future);
+  final today = istToday();
+
+  var earliest = today.subtract(const Duration(days: 7));
+  for (final course in courses) {
+    if (course.startedOn.isBefore(earliest)) earliest = course.startedOn;
+  }
+
+  // The server caps a listing at 400 days; asking for more would silently
+  // return a shorter range than the caller thinks it has.
+  final floor = today.subtract(const Duration(days: 400));
+  final from = earliest.isBefore(floor) ? floor : earliest;
+
   final marks = await ref.watch(medicationRepositoryProvider).marksSince(from);
   return {for (final m in marks) m.id: m};
 });

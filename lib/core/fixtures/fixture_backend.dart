@@ -1238,7 +1238,7 @@ class FixtureBackend {
     // A future dose cannot be marked. Ticking tomorrow's tablet today records
     // something that has not happened, and the record is then indistinguishable
     // from one that did.
-    if (at.isAfter(DateTime(now.year, now.month, now.day))) {
+    if (at.isAfter(istDayOf(now))) {
       throw const Failure(
         kind: FailureKind.validation,
         message: "You can't tick off a dose that isn't due yet.",

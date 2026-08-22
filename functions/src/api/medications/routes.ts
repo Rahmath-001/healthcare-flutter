@@ -234,15 +234,15 @@ export function medicationRoutes(secret: () => string): Router {
       const ref = db().collection(C.medicationDoses).doc(req.params.id);
       const snap = await ref.get();
 
-      // Silent on a miss: deleting something that is not there is the state
-      // the caller asked for, and reporting 404 differently for "never
-      // existed" and "someone else's" would leak which ids are real.
+      // One answer for all three cases: deleted, never existed, or somebody
+      // else's. Deleting something that is not there is already the state the
+      // caller asked for, and answering 404 for "exists but not yours" while
+      // answering 200 for "does not exist" is an existence oracle — it would
+      // let anyone holding a prescription id learn which of its doses have
+      // been logged.
       if (snap.exists) {
         const doc = snap.data() as MedicationDoseDoc;
-        if (doc.userId !== req.auth!.sub) {
-          throw Problem.notFound("DOSE_NOT_FOUND", "Not found.");
-        }
-        await ref.delete();
+        if (doc.userId === req.auth!.sub) await ref.delete();
       }
 
       // A body rather than a bare 204, matching every other delete in this

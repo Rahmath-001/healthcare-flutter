@@ -429,11 +429,11 @@ void main() {
       // The whole no-double-logging guarantee. A POST to a collection would
       // give the server a new id per retry, so one tablet on a flaky
       // connection becomes two rows in somebody's medication history.
-      const id = 'p3#0#2026-06-10#MORNING';
+      const id = 'p3%230%232026-06-10%23MORNING';
       adapter.onPut(
         '/v1/medications/doses/$id',
         (server) => server.reply(200, {
-          'id': id,
+          'id': 'p3#0#2026-06-10#MORNING',
           'courseId': 'p3#0',
           'day': '2026-06-10',
           'slot': 'MORNING',
@@ -452,7 +452,7 @@ void main() {
         outcome: DoseOutcome.taken,
       );
 
-      expect(mark.id, id);
+      expect(mark.id, 'p3#0#2026-06-10#MORNING');
       expect(mark.slot, DoseSlot.morning);
       expect(mark.outcome, DoseOutcome.taken);
       expect(mark.day, DateTime(2026, 6, 10));
@@ -482,10 +482,11 @@ void main() {
     });
 
     test('taking a mark back is a DELETE on the same id', () async {
-      const id = 'p3#0#2026-06-10#MORNING';
+      const id = 'p3%230%232026-06-10%23MORNING';
       adapter.onDelete(
         '/v1/medications/doses/$id',
-        (server) => server.reply(200, {'id': id, 'cleared': true}),
+        (server) => server
+            .reply(200, {'id': 'p3#0#2026-06-10#MORNING', 'cleared': true}),
       );
 
       await ApiMedicationRepository(api).clear(
@@ -493,6 +494,44 @@ void main() {
         day: DateTime(2026, 6, 10),
         slot: DoseSlot.morning,
       );
+    });
+  });
+
+  group('a dose id survives being put in a URL', () {
+    test('the whole id reaches the server, fragment and all', () async {
+      // A dose id contains `#`. Interpolated raw into a path, `#` starts the
+      // URL fragment — which is never sent — so every request silently
+      // addresses `/v1/medications/doses/p3` and the day and slot are lost on
+      // the client. It fails only against a real server: a mock adapter
+      // matches the string it was handed, so the contract tests above pass
+      // either way. This one reads the URI Dio actually builds.
+      late Uri sent;
+      final probe = Dio(BaseOptions(baseUrl: 'https://api.test'));
+      probe.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) {
+          sent = options.uri;
+          handler.reject(
+            DioException.connectionError(
+              requestOptions: options,
+              reason: 'probe',
+            ),
+            true,
+          );
+        },
+      ));
+
+      await expectLater(
+        ApiMedicationRepository(ApiClient(dio: probe)).mark(
+          'p3#0',
+          day: DateTime(2026, 6, 10),
+          slot: DoseSlot.morning,
+          outcome: DoseOutcome.taken,
+        ),
+        throwsA(isA<Failure>()),
+      );
+
+      expect(sent.fragment, isEmpty, reason: 'nothing may become a fragment');
+      expect(sent.pathSegments.last, 'p3#0#2026-06-10#MORNING');
     });
   });
 

@@ -198,8 +198,11 @@ void main() {
           slot: DoseSlot.morning,
         );
 
+    // Explicit instants, not local wall-clock times. `canMarkAt` resolves the
+    // day in IST, so a test written in the runner's local time answers
+    // differently on a UTC CI box than on a laptop in India.
     test('today and the past are open, the future is not', () {
-      final now = DateTime(2026, 6, 10, 9);
+      final now = DateTime.utc(2026, 6, 10, 9); // 14:30 IST, 10 June
       expect(dose(DateTime(2026, 6, 10)).canMarkAt(now), isTrue);
       expect(dose(DateTime(2026, 6, 9)).canMarkAt(now), isTrue);
       expect(dose(DateTime(2026, 6, 11)).canMarkAt(now), isFalse);
@@ -209,8 +212,30 @@ void main() {
       // Somebody catching up on the morning tablet at 11pm is doing the honest
       // thing, and somebody ticking tonight's at 6pm because they are going
       // out is too.
-      final late = DateTime(2026, 6, 10, 23, 30);
+      final late = DateTime.utc(2026, 6, 10, 17); // 22:30 IST, 10 June
       expect(dose(DateTime(2026, 6, 10)).canMarkAt(late), isTrue);
+    });
+
+    test("the day is India's, not the phone's", () {
+      // The server records a dose against an IST day and refuses one that is
+      // not due yet. A client on device-local time disagrees with it for
+      // anyone off Indian time: at 00:30 in Tokyo it is still the previous
+      // evening in India, and the app would offer a dose the server then
+      // rejects with it visibly on screen.
+      final tokyoJustAfterMidnight = DateTime.utc(2026, 6, 10, 15, 30);
+      expect(istDayOf(tokyoJustAfterMidnight), DateTime(2026, 6, 10));
+      expect(
+        dose(DateTime(2026, 6, 11)).canMarkAt(tokyoJustAfterMidnight),
+        isFalse,
+        reason: 'the 11th has not started in India yet',
+      );
+
+      // And the boundary itself: 18:29:59 UTC is still the 10th in India,
+      // 18:30 is the 11th.
+      expect(
+          istDayOf(DateTime.utc(2026, 6, 10, 18, 29)), DateTime(2026, 6, 10));
+      expect(
+          istDayOf(DateTime.utc(2026, 6, 10, 18, 30)), DateTime(2026, 6, 11));
     });
   });
 

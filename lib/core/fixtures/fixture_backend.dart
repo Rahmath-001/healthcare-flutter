@@ -6,6 +6,8 @@ import '../../features/availability/domain/availability.dart';
 import '../../features/booking/domain/waitlist.dart';
 import '../../features/consent/domain/consent.dart';
 import '../../features/consultation/domain/consultation_note.dart';
+import '../../features/medications/domain/dose_mark.dart';
+import '../../features/medications/domain/medication_schedule.dart';
 import '../../features/notifications/domain/notification.dart';
 import '../../features/credentials/domain/credential.dart';
 import '../../features/prescriptions/data/prescription_repository.dart';
@@ -74,6 +76,13 @@ class FixtureBackend {
   final List<RefillRequest> _refillRequests = [];
   final List<WaitlistEntry> _waitlist = [];
   final List<ConsultationNote> _notes = [];
+
+  /// The dose log, keyed by the deterministic dose id.
+  ///
+  /// A map rather than a list so that marking the same dose twice is one
+  /// entry, matching the server's PUT-on-a-derived-id contract. A list would
+  /// let a double tap log two tablets.
+  final Map<String, DoseMark> _doseMarks = {};
   NotificationPreferences _notificationPreferences =
       NotificationPreferences.defaults;
 
@@ -1198,6 +1207,112 @@ class FixtureBackend {
         targetId: targetId,
       ),
     );
+  }
+
+  // --- medications ---------------------------------------------------------
+
+  /// The patient's own account of which doses they took.
+  ///
+  /// There is no `courses()` here on purpose: a course is derived from the
+  /// prescriptions this same store already holds, so cancelling a prescription
+  /// removes its schedule with it. A separate copy is how an app ends up
+  /// reminding somebody to take a drug that was withdrawn.
+  List<DoseMark> doseMarksSince(DateTime from) {
+    final floor = DateTime(from.year, from.month, from.day);
+    final marks = _doseMarks.values
+        .where((m) => !m.day.isBefore(floor))
+        .toList(growable: false)
+      ..sort((a, b) => a.day.compareTo(b.day));
+    return List.unmodifiable(marks);
+  }
+
+  DoseMark markDose(
+    String courseId, {
+    required DateTime day,
+    required DoseSlot slot,
+    required DoseOutcome outcome,
+  }) {
+    final at = DateTime(day.year, day.month, day.day);
+    final now = DateTime.now();
+
+    // A future dose cannot be marked. Ticking tomorrow's tablet today records
+    // something that has not happened, and the record is then indistinguishable
+    // from one that did.
+    if (at.isAfter(DateTime(now.year, now.month, now.day))) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: "You can't tick off a dose that isn't due yet.",
+        code: 'DOSE_NOT_DUE',
+      );
+    }
+
+    final parts = courseId.split('#');
+    final prescriptionId = parts.first;
+    final index = parts.length > 1 ? int.tryParse(parts[1]) : null;
+    final prescription = _prescriptions.firstWhere(
+      (p) => p.id == prescriptionId,
+      orElse: () => throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That prescription no longer exists.',
+        code: 'PRESCRIPTION_NOT_FOUND',
+      ),
+    );
+    if (index == null || index < 0 || index >= prescription.items.length) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That medicine is not on this prescription.',
+        code: 'COURSE_NOT_FOUND',
+      );
+    }
+
+    // A withdrawn or replaced prescription has no doses left to take, and a
+    // log against one would attribute a tablet to an instruction that had been
+    // revoked.
+    if (prescription.status != PrescriptionStatus.issued) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'This prescription is no longer active.',
+        code: 'PRESCRIPTION_NOT_ACTIVE',
+      );
+    }
+
+    final course = MedicationCourse(
+      prescriptionId: prescription.id,
+      itemIndex: index,
+      item: prescription.items[index],
+      startedOn: DateTime(prescription.issuedAt.year,
+          prescription.issuedAt.month, prescription.issuedAt.day),
+      schedule: DoseSchedule.parse(prescription.items[index].frequency),
+      prescriberName: prescription.providerName,
+    );
+    if (!course.isActiveOn(at)) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'That day is outside this course.',
+        code: 'DOSE_OUTSIDE_COURSE',
+      );
+    }
+
+    final id = ScheduledDose.idFor(courseId, at, slot);
+    final mark = DoseMark(
+      id: id,
+      courseId: courseId,
+      day: at,
+      slot: slot,
+      outcome: outcome,
+      markedAt: now,
+    );
+    _doseMarks[id] = mark;
+    return mark;
+  }
+
+  void clearDoseMark(
+    String courseId, {
+    required DateTime day,
+    required DoseSlot slot,
+  }) {
+    final at = DateTime(day.year, day.month, day.day);
+    _doseMarks.remove(ScheduledDose.idFor(courseId, at, slot));
   }
 
   // --- ratings -------------------------------------------------------------

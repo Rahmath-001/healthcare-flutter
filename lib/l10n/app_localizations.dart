@@ -3649,6 +3649,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quick actions'**
   String get homeQuickActions;
+
+  /// No description provided for @medsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicines'**
+  String get medsTitle;
+
+  /// No description provided for @medsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get medsToday;
+
+  /// No description provided for @medsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to take'**
+  String get medsEmpty;
+
+  /// No description provided for @medsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicines prescribed at your consultations appear here, with what to take and when.'**
+  String get medsEmptyBody;
+
+  /// No description provided for @medsProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{taken} of {due} taken'**
+  String medsProgress(int taken, int due);
+
+  /// No description provided for @medsAllDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All done for today'**
+  String get medsAllDone;
+
+  /// No description provided for @medsSlotMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning'**
+  String get medsSlotMorning;
+
+  /// No description provided for @medsSlotAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Afternoon'**
+  String get medsSlotAfternoon;
+
+  /// No description provided for @medsSlotEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Evening'**
+  String get medsSlotEvening;
+
+  /// No description provided for @medsSlotNight.
+  ///
+  /// In en, this message translates to:
+  /// **'Night'**
+  String get medsSlotNight;
+
+  /// No description provided for @medsMarkTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Taken'**
+  String get medsMarkTaken;
+
+  /// No description provided for @medsMarkSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get medsMarkSkipped;
+
+  /// No description provided for @medsSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get medsSkip;
+
+  /// No description provided for @medsUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get medsUndo;
+
+  /// No description provided for @medsAsNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'When you need it'**
+  String get medsAsNeeded;
+
+  /// No description provided for @medsUnscheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow your doctor\'s instructions'**
+  String get medsUnscheduled;
+
+  /// No description provided for @medsUnscheduledBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminders are set for these. The app only schedules a dose when the instruction says exactly how many a day.'**
+  String get medsUnscheduledBody;
+
+  /// No description provided for @medsFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get medsFinished;
+
+  /// No description provided for @medsFinishedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Course ended {date}'**
+  String medsFinishedOn(String date);
+
+  /// No description provided for @medsDaysLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =0{Last day} =1{1 day left} other{{days} days left}}'**
+  String medsDaysLeft(int days);
+
+  /// No description provided for @medsPrescribedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescribed by {name}'**
+  String medsPrescribedBy(String name);
+
+  /// No description provided for @medsAdherence.
+  ///
+  /// In en, this message translates to:
+  /// **'{taken} of {due} doses ticked off'**
+  String medsAdherence(int taken, int due);
+
+  /// No description provided for @medsSelfReported.
+  ///
+  /// In en, this message translates to:
+  /// **'This is what you have ticked off yourself. It is not a medical record and your doctor does not see it.'**
+  String get medsSelfReported;
+
+  /// No description provided for @medsTimesAreOurs.
+  ///
+  /// In en, this message translates to:
+  /// **'Times are the app\'s suggestion. Your doctor set how many doses a day, not the hour.'**
+  String get medsTimesAreOurs;
+
+  /// No description provided for @medsPreviousDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous day'**
+  String get medsPreviousDay;
+
+  /// No description provided for @medsNextDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Next day'**
+  String get medsNextDay;
+
+  /// No description provided for @homeQuickMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'My medicines'**
+  String get homeQuickMedicines;
 }
 
 class _AppLocalizationsDelegate

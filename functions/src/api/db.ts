@@ -41,6 +41,7 @@ export const C = {
   refillRequests: "refillRequests",
   waitlist: "waitlist",
   consultationNotes: "consultationNotes",
+  medicationDoses: "medicationDoses",
 } as const;
 
 export type NotificationKind =
@@ -590,6 +591,29 @@ export interface ConsultationDoc {
   consentTextHash?: string | null;
   consentLocale?: string | null;
   messages?: ChatMessageDoc[];
+}
+
+/**
+ * One dose the patient says they took, or skipped.
+ *
+ * The only thing the medication feature stores. There is deliberately no
+ * schedule here: a course is derived from the prescription, so cancelling one
+ * takes its schedule with it, and a second copy is how an app ends up
+ * reminding somebody to take a drug that was withdrawn.
+ *
+ * The document id is derived — `<prescriptionId>#<itemIndex>#<yyyy-mm-dd>#
+ * <SLOT>` — for the same reason `slotLocks` ids are: a retried PUT after a
+ * dropped response is the same write, not a second tablet in the log.
+ */
+export interface MedicationDoseDoc {
+  userId: string;
+  prescriptionId: string;
+  itemIndex: number;
+  /** `YYYY-MM-DD` in IST — the day the dose was *due*, not the day it was ticked. */
+  day: string;
+  slot: "MORNING" | "AFTERNOON" | "EVENING" | "NIGHT";
+  outcome: "TAKEN" | "SKIPPED";
+  markedAt: Timestamp;
 }
 
 export interface PrescriptionItemDoc {

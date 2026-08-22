@@ -1966,4 +1966,106 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeQuickActions => 'Quick actions';
+
+  @override
+  String get medsTitle => 'Medicines';
+
+  @override
+  String get medsToday => 'Today';
+
+  @override
+  String get medsEmpty => 'Nothing to take';
+
+  @override
+  String get medsEmptyBody =>
+      'Medicines prescribed at your consultations appear here, with what to take and when.';
+
+  @override
+  String medsProgress(int taken, int due) {
+    return '$taken of $due taken';
+  }
+
+  @override
+  String get medsAllDone => 'All done for today';
+
+  @override
+  String get medsSlotMorning => 'Morning';
+
+  @override
+  String get medsSlotAfternoon => 'Afternoon';
+
+  @override
+  String get medsSlotEvening => 'Evening';
+
+  @override
+  String get medsSlotNight => 'Night';
+
+  @override
+  String get medsMarkTaken => 'Taken';
+
+  @override
+  String get medsMarkSkipped => 'Skipped';
+
+  @override
+  String get medsSkip => 'Skip';
+
+  @override
+  String get medsUndo => 'Undo';
+
+  @override
+  String get medsAsNeeded => 'When you need it';
+
+  @override
+  String get medsUnscheduled => 'Follow your doctor\'s instructions';
+
+  @override
+  String get medsUnscheduledBody =>
+      'No reminders are set for these. The app only schedules a dose when the instruction says exactly how many a day.';
+
+  @override
+  String get medsFinished => 'Finished';
+
+  @override
+  String medsFinishedOn(String date) {
+    return 'Course ended $date';
+  }
+
+  @override
+  String medsDaysLeft(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days left',
+      one: '1 day left',
+      zero: 'Last day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medsPrescribedBy(String name) {
+    return 'Prescribed by $name';
+  }
+
+  @override
+  String medsAdherence(int taken, int due) {
+    return '$taken of $due doses ticked off';
+  }
+
+  @override
+  String get medsSelfReported =>
+      'This is what you have ticked off yourself. It is not a medical record and your doctor does not see it.';
+
+  @override
+  String get medsTimesAreOurs =>
+      'Times are the app\'s suggestion. Your doctor set how many doses a day, not the hour.';
+
+  @override
+  String get medsPreviousDay => 'Previous day';
+
+  @override
+  String get medsNextDay => 'Next day';
+
+  @override
+  String get homeQuickMedicines => 'My medicines';
 }

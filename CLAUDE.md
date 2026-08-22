@@ -6,10 +6,11 @@ Package name: `healthcare_mobile`. Product name: **MiDoctor**. Repo root is a Fl
 `functions/` is the **MiDoctor API** — a TypeScript Express app on Cloud Functions, plus the
 Twilio carrier check. See [functions/README.md](functions/README.md).
 
-**Backend status: every surface built.** `USE_FIXTURES=false` swaps all fourteen
+**Backend status: every surface built.** `USE_FIXTURES=false` swaps all sixteen
 repositories to API-backed implementations — auth/session, patient profile, doctors, booking,
-appointments, consent, records (with real object storage), prescriptions, credentials,
-availability, ratings, support, notifications and consultation. See
+appointments, consent, records (with real object storage), prescriptions, medications,
+credentials, availability, ratings, support, notifications, consultation notes and
+consultation. See
 [lib/core/feature_providers.dart](lib/core/feature_providers.dart).
 
 The fixtures are not scaffolding to delete, and they are no longer per-repository. Every one
@@ -47,7 +48,7 @@ Dart SDK `>=3.3.0 <4.0.0`.
 flutter pub get
 flutter analyze --fatal-infos        # must be clean; CI enforces
 dart format --set-exit-if-changed lib test
-flutter test                         # 267 tests
+flutter test                         # 354 tests
 flutter test --tags golden           # goldens; excluded from CI (host fonts)
 flutter gen-l10n                     # auto-runs on build (generate: true)
 flutter run --dart-define=USE_FIXTURES=true
@@ -221,7 +222,7 @@ the system font up, and this audience turns it up.
 [lib/core/providers.dart](lib/core/providers.dart) — config, Dio, ApiClient, secure store,
 device id, session. [lib/core/service_providers.dart](lib/core/service_providers.dart) —
 Firebase Auth + connectivity. [lib/core/feature_providers.dart](lib/core/feature_providers.dart) —
-all fourteen repository bindings. Tests override any of these via `ProviderScope(overrides:)`.
+all fifteen repository bindings. Tests override any of these via `ProviderScope(overrides:)`.
 
 ### Network
 
@@ -300,14 +301,14 @@ impossible to render a provider tab in the patient shell.
 
 | Shell | Branches |
 | --- | --- |
-| Patient | Home (+ doctor search → detail → book), Appointments (+ detail), Records (+ upload, prescriptions + detail), Profile |
+| Patient | Home (+ doctor search → detail → book), Appointments (+ detail), Records (+ upload, prescriptions + detail, medicines), Profile |
 | Provider | Today, Schedule (availability), Patients, Profile |
 
 Pushed over the shell: booking-confirmed, sharing, settings/privacy/edit-profile, support,
 consultation, rate, provider verification/credentials/mfa, prescribe.
 
-Screens holding PHI are wrapped in `ProtectedScreen` (records, prescriptions, sharing,
-consultation, appointment detail, prescribe, edit profile) — Android `FLAG_SECURE`, iOS
+Screens holding PHI are wrapped in `ProtectedScreen` (records, prescriptions, medicines,
+sharing, consultation, appointment detail, prescribe, edit profile) — Android `FLAG_SECURE`, iOS
 blur-on-resign, no-op on web. **Adding a screen that renders PHI means adding it here.**
 
 The whole app sits inside [`InactivityTimeout`](lib/core/security/inactivity_timeout.dart),
@@ -319,7 +320,7 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 
 ---
 
-## Features (14 repositories = 14 backend surfaces)
+## Features (16 repositories = 16 backend surfaces)
 
 | Feature | Repository contract | Key screens |
 | --- | --- | --- |
@@ -330,6 +331,8 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 | records | `RecordsRepository` — `listOwn`, `listGranted(patientId)`, `upload`, `delete` | records list (filtered), record upload (camera/gallery/doc) |
 | consent | `ConsentRepository` — `grants`, `pendingRequests`, `accessLog`, `grant`, `revoke`, `approveRequest`, `denyRequest` | sharing screen (grants / requests / access log tabs) |
 | prescriptions | `PrescriptionRepository` — `listForPatient`, `byId`, `searchDrugs`, `issue` | prescriptions list, prescription detail, prescribe (provider) |
+| medications | `MedicationRepository` — `marksSince`, `mark`, `clear` (the dose log only; courses are derived from prescriptions) | medicines (today's doses by time of day) |
+| settings | `AccountRepository` — patient profile read/update, erasure | edit profile, privacy, onboarding |
 | credentials | `CredentialsRepository` — `checklist`, `uploadDocument`, `verifyIdentityWithDigiLocker`, `setRegistrationNumber`, `beginMfaEnrolment`, `confirmMfaEnrolment`, `submitForReview` | credentials checklist, MFA (TOTP) enrolment |
 | availability | `AvailabilityRepository` — `rules`, `exceptions`, `addRule`, `deleteRule`, `toggleRule`, `blockDay`, `deleteException` | availability editor (provider Schedule tab) |
 | ratings | `RatingsRepository` — `listOwn`, `submit`, `edit` | rate appointment |
@@ -357,6 +360,21 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
   promised these existed — see `TelemedicineConsent.points` — and its exact wording is hashed
   into the consent record, so until this shipped the app was attesting to something it could
   not do.
+- **Dosing instructions are parsed, and the parser refuses.** `DoseSchedule.parse`
+  understands positional notation (`1-0-1`), the Latin abbreviations and a handful of English
+  phrases. **Everything else gets no schedule at all** and renders as the doctor's own words
+  with no reminders — which is what a paper prescription does. The rule that earns this: a
+  guess is an app telling somebody to take a drug at a frequency nobody wrote down, with the
+  prescription on screen as apparent authority for it. Non-daily intervals are refused
+  *before* the phrase table, because "once weekly" contains "once", and 60,000 IU of vitamin
+  D every morning instead of every Sunday is an overdose the app would have invented.
+- **A dose log is self-report, never a clinical record.** It is the patient's own tally, no
+  endpoint shows it to a doctor, and every surface that renders it says so. It is also shown
+  as a count ("11 of 14 doses ticked off") rather than a percentage, because "79%" acquires
+  the authority of a measurement nobody took. Marks are addressed by a **derived** id
+  (`<prescriptionId>#<itemIndex>#<yyyy-mm-dd>#<SLOT>`, PUT not POST) for the same reason slot
+  locks are, and a dose that is not due yet cannot be ticked: a record of a tablet nobody has
+  taken is indistinguishable from a record of one they have.
 - **Notifications**: a closed set of kinds, each deciding three things — which toggle
   silences it, where it leads, and whether it may arrive at 3am.
   `APPOINTMENT_CHANGED` and `ACCOUNT_UPDATE` are **mandatory**: they ignore both the toggle
@@ -399,6 +417,7 @@ The cross-feature consequences now hold:
 | Block a day | That day's slot grid genuinely empties |
 | Submit credentials | An application appears in the operator console's review queue |
 | Move an appointment | The old slot returns to the pool, the new one leaves it, and the reference code survives |
+| Tick off a dose | It sticks on the prescription as "11 of 14 ticked off"; ticking it twice logs one tablet, and tomorrow's refuses |
 | Anything notable | A notification is filed — and turning that kind off means it is never filed at all, not merely hidden |
 
 It enforces the real rules rather than accepting anything: slot exclusivity by the same
@@ -613,6 +632,7 @@ legacy by directory only.
 | `golden/screens_golden_test.dart` | layout regressions in light, dark and Hindi, tagged `golden` and excluded from CI. **Home is deliberately not goldened** — its hero card renders a live countdown, so the picture changes with the wall clock and the test would train people to regenerate without reading |
 | `integration_test/` | end-to-end journeys on a device: `flutter test integration_test` |
 | `domain_rules_test.dart` | drug lists, consent expiry, cancellation, join window, holds, verification gate, ratings |
+| `medication_schedule_test.dart` | the dosing parser (including every interval it refuses), course windows, adherence arithmetic, and the dose log's derived ids |
 | `fr_coverage_test.dart` | traceability against the FR spec (`docs/*.docx`) |
 | `repository_behaviour_test.dart` | fixture repository semantics |
 | `problem_json_test.dart` | transport + RFC 9457 → `Failure` mapping |
@@ -647,7 +667,7 @@ a broken inactivity timer, a `FLAG_SECURE` that never re-enables, a pin that is 
 a clipboard that never clears. None of them throw, none of them look wrong on screen, and
 two of the four were already broken when they were written.
 
-The API has its own suite: `cd functions && pnpm test` (vitest, 77 tests, no emulator
+The API has its own suite: `cd functions && pnpm test` (vitest, 83 tests, no emulator
 needed), covering the RBAC scope matrix, the IST/slot-id arithmetic, content inspection
 (magic bytes, EXIF stripping) and TOTP against the RFC 6238 vectors. The Firestore transactions — double-booking and refresh
 rotation — remain uncovered; they need the emulator.

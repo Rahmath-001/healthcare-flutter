@@ -19,6 +19,7 @@ import '../features/credentials/data/api_credentials_repository.dart';
 import '../features/credentials/data/credentials_repository.dart';
 import '../features/prescriptions/data/api_prescription_repository.dart';
 import '../features/prescriptions/data/cached_prescription_repository.dart';
+import '../features/medications/data/medication_repository.dart';
 import '../features/prescriptions/data/prescription_repository.dart';
 import '../features/providers_search/data/api_doctor_repository.dart';
 import '../features/providers_search/data/doctor_repository.dart';
@@ -139,6 +140,18 @@ final _livePrescriptionRepositoryProvider =
     Provider<PrescriptionRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixturePrescriptionRepository();
   return ApiPrescriptionRepository(ref.watch(apiClientProvider));
+});
+
+/// The dose log.
+///
+/// Not cached offline, unlike prescriptions. The list of medicines is worth
+/// holding on the device because a patient at a pharmacy counter needs it; the
+/// record of which tablets they ticked is a write-heavy log with no value
+/// without a connection, and queueing marks locally would mean reconciling two
+/// versions of what somebody claims to have taken.
+final medicationRepositoryProvider = Provider<MedicationRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) return FixtureMedicationRepository();
+  return ApiMedicationRepository(ref.watch(apiClientProvider));
 });
 
 final credentialsRepositoryProvider = Provider<CredentialsRepository>((ref) {

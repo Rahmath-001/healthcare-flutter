@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthcare_mobile/features/appointments/presentation/appointments_screen.dart';
+import 'package:healthcare_mobile/features/medications/presentation/medications_screen.dart';
 import 'package:healthcare_mobile/features/prescriptions/presentation/prescriptions_screen.dart';
 import 'package:healthcare_mobile/features/records/presentation/records_screen.dart';
 import 'package:healthcare_mobile/features/support/presentation/support_screen.dart';
@@ -113,6 +114,30 @@ void main() {
     });
   });
 
+  group('MedicationsScreen', () {
+    testWidgets('groups the day by time of day', (tester) async {
+      await pumpScreen(tester, const MedicationsScreen());
+      await settleFixtures(tester);
+
+      // The seeded running course is 1-0-0 and 1-0-1, so the day has a morning
+      // and a night and deliberately no afternoon.
+      expect(find.text('Morning'), findsOneWidget);
+      expect(find.text('Night'), findsOneWidget);
+      expect(find.text('Afternoon'), findsNothing);
+      expect(find.textContaining('Amlodipine'), findsWidgets);
+    });
+
+    testWidgets('a weekly medicine gets no reminder times', (tester) async {
+      // The vitamin D in the seed is "Once weekly". It has to appear — it is
+      // prescribed — under the doctor's own words, and never inside a slot.
+      await pumpScreen(tester, const MedicationsScreen());
+      await settleFixtures(tester);
+
+      expect(find.textContaining('Cholecalciferol'), findsWidgets);
+      expect(find.text('Once weekly'), findsOneWidget);
+    });
+  });
+
   group('SupportScreen', () {
     testWidgets('shows the seeded ticket thread', (tester) async {
       await pumpScreen(tester, const SupportScreen());
@@ -165,6 +190,7 @@ void main() {
       'RecordsScreen': const RecordsScreen(),
       'AppointmentsScreen': const AppointmentsScreen(),
       'PrescriptionsScreen': const PrescriptionsScreen(),
+      'MedicationsScreen': const MedicationsScreen(),
     };
 
     for (final entry in screens.entries) {

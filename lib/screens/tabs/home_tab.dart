@@ -546,6 +546,14 @@ class _QuickActionsGrid extends StatelessWidget {
         replaceStack: true,
       ),
       _QuickActionData(
+        icon: Icons.medication_outlined,
+        label: l10n.homeQuickMedicines,
+        tone: tones.warning,
+        container: tones.warningContainer,
+        route: Routes.medications,
+        replaceStack: true,
+      ),
+      _QuickActionData(
         icon: Icons.shield_outlined,
         label: l10n.homeQuickSharing,
         tone: Theme.of(context).colorScheme.primary,
@@ -555,8 +563,8 @@ class _QuickActionsGrid extends StatelessWidget {
       _QuickActionData(
         icon: Icons.support_agent_outlined,
         label: l10n.homeQuickSupport,
-        tone: tones.warning,
-        container: tones.warningContainer,
+        tone: tones.neutral,
+        container: tones.neutralContainer,
         route: Routes.supportTickets,
       ),
     ];

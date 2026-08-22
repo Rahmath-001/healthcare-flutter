@@ -9,6 +9,8 @@ import 'package:healthcare_mobile/core/network/api_client.dart';
 import 'package:healthcare_mobile/features/appointments/data/api_appointment_repository.dart';
 import 'package:healthcare_mobile/features/availability/data/api_availability_repository.dart';
 import 'package:healthcare_mobile/features/availability/domain/availability.dart';
+import 'package:healthcare_mobile/features/medications/data/medication_repository.dart';
+import 'package:healthcare_mobile/features/medications/domain/medication_schedule.dart';
 import 'package:healthcare_mobile/features/prescriptions/data/api_prescription_repository.dart';
 import 'package:healthcare_mobile/features/prescriptions/domain/prescription.dart';
 import 'package:healthcare_mobile/features/providers_search/data/api_doctor_repository.dart';
@@ -419,6 +421,78 @@ void main() {
       final drugs = await ApiPrescriptionRepository(api).searchDrugs('some');
       expect(drugs.single.telemedicineList, TelemedicineDrugList.prohibited);
       expect(drugs.single.isPrescribableOn(isFollowUp: true), isFalse);
+    });
+  });
+
+  group('ApiMedicationRepository', () {
+    test('a mark is a PUT on a derived id, not a POST', () async {
+      // The whole no-double-logging guarantee. A POST to a collection would
+      // give the server a new id per retry, so one tablet on a flaky
+      // connection becomes two rows in somebody's medication history.
+      const id = 'p3#0#2026-06-10#MORNING';
+      adapter.onPut(
+        '/v1/medications/doses/$id',
+        (server) => server.reply(200, {
+          'id': id,
+          'courseId': 'p3#0',
+          'day': '2026-06-10',
+          'slot': 'MORNING',
+          'outcome': 'TAKEN',
+          'markedAt': '2026-06-10T03:32:00.000Z',
+        }),
+        // Only the outcome. The day and the slot are already in the id, and
+        // the timestamp comes from the server's clock.
+        data: {'outcome': 'TAKEN'},
+      );
+
+      final mark = await ApiMedicationRepository(api).mark(
+        'p3#0',
+        day: DateTime(2026, 6, 10),
+        slot: DoseSlot.morning,
+        outcome: DoseOutcome.taken,
+      );
+
+      expect(mark.id, id);
+      expect(mark.slot, DoseSlot.morning);
+      expect(mark.outcome, DoseOutcome.taken);
+      expect(mark.day, DateTime(2026, 6, 10));
+    });
+
+    test('the log is fetched from a bounded start date', () async {
+      adapter.onGet(
+        '/v1/medications/doses',
+        (server) => server.reply(200, [
+          {
+            'id': 'p3#1#2026-06-09#NIGHT',
+            'courseId': 'p3#1',
+            'day': '2026-06-09',
+            'slot': 'NIGHT',
+            'outcome': 'SKIPPED',
+            'markedAt': '2026-06-09T17:02:00.000Z',
+          }
+        ]),
+        queryParameters: {'from': '2026-06-01'},
+      );
+
+      final marks =
+          await ApiMedicationRepository(api).marksSince(DateTime(2026, 6, 1));
+
+      expect(marks.single.courseId, 'p3#1');
+      expect(marks.single.outcome, DoseOutcome.skipped);
+    });
+
+    test('taking a mark back is a DELETE on the same id', () async {
+      const id = 'p3#0#2026-06-10#MORNING';
+      adapter.onDelete(
+        '/v1/medications/doses/$id',
+        (server) => server.reply(200, {'id': id, 'cleared': true}),
+      );
+
+      await ApiMedicationRepository(api).clear(
+        'p3#0',
+        day: DateTime(2026, 6, 10),
+        slot: DoseSlot.morning,
+      );
     });
   });
 

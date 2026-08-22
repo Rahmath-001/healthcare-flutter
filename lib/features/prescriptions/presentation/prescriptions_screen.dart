@@ -16,6 +16,8 @@ import '../../../shared/haptics.dart';
 import '../../../shared/widgets/async_view.dart';
 import '../../../shared/widgets/offline_copy_banner.dart';
 import '../data/prescription_pdf.dart';
+import '../../../core/theme/app_palette.dart';
+import '../../medications/presentation/medications_controller.dart';
 import '../domain/prescription.dart';
 import '../domain/refill_request.dart';
 import 'refills_screen.dart';
@@ -313,6 +315,7 @@ class _Detail extends StatelessWidget {
                       if (p.items[i].instructions != null)
                         Text(p.items[i].instructions!,
                             style: theme.textTheme.bodySmall),
+                      _AdherenceLine(courseId: '${p.id}#$i'),
                     ],
                   ),
                   isThreeLine: true,
@@ -541,6 +544,40 @@ class _RepeatSheetState extends ConsumerState<_RepeatSheet> {
                   : Text(l10n.refillSend),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// What the patient has ticked off for this medicine, if anything.
+///
+/// Renders nothing at all until a dose is actually due, because a course
+/// issued this morning has no adherence to report and "0 of 0" reads as a
+/// failure. It is also worded as a count rather than a percentage: "11 of 14
+/// doses ticked off" is plainly somebody's tally, where "79%" acquires the
+/// authority of a measurement it has not earned — nobody watched these
+/// tablets go down.
+class _AdherenceLine extends ConsumerWidget {
+  const _AdherenceLine({required this.courseId});
+
+  final String courseId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final adherence = ref.watch(courseAdherenceProvider(courseId)).value;
+    if (adherence == null || adherence.due == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    final tones = context.tones;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Text(
+        context.l10n.medsAdherence(adherence.taken, adherence.due),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: adherence.missed > 0 ? tones.warning : tones.success,
         ),
       ),
     );

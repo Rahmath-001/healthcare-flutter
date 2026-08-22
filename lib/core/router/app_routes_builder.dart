@@ -14,6 +14,7 @@ import '../../features/consultation/presentation/consultation_note_screen.dart';
 import '../../features/consultation/presentation/consultation_screen.dart';
 import '../../features/credentials/presentation/credentials_screen.dart';
 import '../../features/mfa/presentation/mfa_enrolment_screen.dart';
+import '../../features/medications/presentation/medications_screen.dart';
 import '../../features/prescriptions/presentation/prescribe_screen.dart';
 import '../../features/prescriptions/presentation/prescriptions_screen.dart';
 import '../../features/prescriptions/presentation/refills_screen.dart';
@@ -314,6 +315,13 @@ List<RouteBase> buildRoutes() => [
                   ),
                 ),
               ],
+            ),
+            // Renders drug names, so it is PHI and wrapped like every other
+            // screen that shows any.
+            GoRoute(
+              path: Routes.medications,
+              builder: (_, __) =>
+                  const ProtectedScreen(child: MedicationsScreen()),
             ),
             GoRoute(
               path: Routes.prescriptions,

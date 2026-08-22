@@ -1966,4 +1966,106 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get homeQuickActions => 'त्वरित कार्य';
+
+  @override
+  String get medsTitle => 'दवाइयाँ';
+
+  @override
+  String get medsToday => 'आज';
+
+  @override
+  String get medsEmpty => 'लेने के लिए कुछ नहीं';
+
+  @override
+  String get medsEmptyBody =>
+      'आपके परामर्श में दी गई दवाइयाँ यहाँ दिखेंगी — क्या लेना है और कब।';
+
+  @override
+  String medsProgress(int taken, int due) {
+    return '$due में से $taken ली गईं';
+  }
+
+  @override
+  String get medsAllDone => 'आज के लिए सब पूरा';
+
+  @override
+  String get medsSlotMorning => 'सुबह';
+
+  @override
+  String get medsSlotAfternoon => 'दोपहर';
+
+  @override
+  String get medsSlotEvening => 'शाम';
+
+  @override
+  String get medsSlotNight => 'रात';
+
+  @override
+  String get medsMarkTaken => 'ली गई';
+
+  @override
+  String get medsMarkSkipped => 'छोड़ी गई';
+
+  @override
+  String get medsSkip => 'छोड़ें';
+
+  @override
+  String get medsUndo => 'पहले जैसा करें';
+
+  @override
+  String get medsAsNeeded => 'जब ज़रूरत हो';
+
+  @override
+  String get medsUnscheduled => 'डॉक्टर के निर्देश के अनुसार लें';
+
+  @override
+  String get medsUnscheduledBody =>
+      'इनके लिए कोई याद-दिलावा तय नहीं है। ऐप तभी समय तय करता है जब निर्देश में दिन में कितनी खुराक हैं यह साफ़ लिखा हो।';
+
+  @override
+  String get medsFinished => 'पूरा हुआ';
+
+  @override
+  String medsFinishedOn(String date) {
+    return 'कोर्स $date को समाप्त हुआ';
+  }
+
+  @override
+  String medsDaysLeft(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days दिन बाकी',
+      one: '1 दिन बाकी',
+      zero: 'आख़िरी दिन',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medsPrescribedBy(String name) {
+    return '$name द्वारा लिखी गई';
+  }
+
+  @override
+  String medsAdherence(int taken, int due) {
+    return '$due में से $taken खुराक दर्ज';
+  }
+
+  @override
+  String get medsSelfReported =>
+      'यह वही है जो आपने खुद दर्ज किया है। यह मेडिकल रिकॉर्ड नहीं है और आपके डॉक्टर को नहीं दिखता।';
+
+  @override
+  String get medsTimesAreOurs =>
+      'समय ऐप का सुझाव है। आपके डॉक्टर ने दिन में कितनी खुराक तय की, घंटा नहीं।';
+
+  @override
+  String get medsPreviousDay => 'पिछला दिन';
+
+  @override
+  String get medsNextDay => 'अगला दिन';
+
+  @override
+  String get homeQuickMedicines => 'मेरी दवाइयाँ';
 }

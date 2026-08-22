@@ -308,6 +308,61 @@ abstract final class FixtureSeed {
             ),
           ],
         ),
+        // A course that is still running, so the medicines screen has
+        // something to take today. The other two have finished, and a sample
+        // dataset where every prescription is over demos the empty state
+        // rather than the feature.
+        Prescription(
+          id: 'p3',
+          verificationCode: 'RX-2C7Q1H',
+          providerName: 'Dr Rajesh Kumar',
+          providerQualification: 'MBBS, MD (General Medicine)',
+          providerRegistrationNumber: 'KMC-41902',
+          patientName: 'Priya Sharma',
+          patientAge: '32',
+          patientGender: 'Female',
+          issuedAt: at(-2, 9, 15),
+          status: PrescriptionStatus.issued,
+          diagnosis: 'Hypertension, type 2 diabetes — ongoing management',
+          advice: 'Check blood pressure weekly and bring the readings to your '
+              'next review. Reduce added salt.',
+          appointmentReference: 'MD-2B6V8X',
+          items: const [
+            PrescriptionItem(
+              drugName: 'Amlodipine',
+              genericName: 'Amlodipine besylate',
+              strength: '5 mg',
+              form: 'Tablet',
+              frequency: '1-0-0',
+              durationDays: 30,
+              instructions: 'Take in the morning.',
+            ),
+            PrescriptionItem(
+              drugName: 'Metformin',
+              genericName: 'Metformin hydrochloride',
+              strength: '500 mg',
+              form: 'Tablet',
+              frequency: '1-0-1',
+              durationDays: 30,
+              instructions: 'After food.',
+            ),
+            // Deliberately weekly. The schedule parser refuses every interval
+            // that is not daily, so this one renders under "follow your
+            // doctor's instructions" with the doctor's own words and no
+            // reminders — which is the behaviour worth demonstrating, because
+            // 60,000 IU taken every morning instead of every Sunday is an
+            // overdose the app would have invented.
+            PrescriptionItem(
+              drugName: 'Cholecalciferol',
+              genericName: 'Vitamin D3',
+              strength: '60000 IU',
+              form: 'Sachet',
+              frequency: 'Once weekly',
+              durationDays: 28,
+              instructions: 'One sachet on Sunday, with milk.',
+            ),
+          ],
+        ),
       ];
 
   // --- consent -------------------------------------------------------------

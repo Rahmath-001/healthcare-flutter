@@ -37,6 +37,7 @@ src/
     ratings/routes.ts      submit, edit, moderate
     support/routes.ts      tickets and replies
     prescriptions/         issue, drug search, MoHFW drug-list enforcement
+    medications/routes.ts  the dose log — self-report only, stores no schedule
     consultations/         consent capture, 100ms join tokens, chat
     storage.ts             signed URLs, quarantine/clean prefixes
     content_inspection.ts  magic bytes, EXIF stripping
@@ -105,6 +106,8 @@ part of the attack surface and easy to miss when reading the table below.
 | GET | `/v1/prescriptions/:id/pdf` | patient or issuing doctor — signed link to the write-once PDF, with its SHA-256 |
 | POST | `/v1/prescriptions` | `prescription:write` |
 | **GET** | **`/v1/rx/:code`** | **none — a pharmacist holds no token** |
+| GET | `/v1/medications/doses?from=` | `prescription:read_own` — your own dose log, bounded to 400 days |
+| PUT/DELETE | `/v1/medications/doses/:id` | `prescription:read_own` — id is derived, so a retry is the same write |
 | GET | `/v1/consultations/:id` | participant |
 | POST | `/v1/consultations/:id/{consent,join-token,audio,messages,end}` | participant |
 | GET | `/v1/credentials` | `credentials:submit` |

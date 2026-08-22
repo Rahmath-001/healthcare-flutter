@@ -493,6 +493,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'This doctor has no free slots that day. Try another date.';
 
   @override
+  String get waitlistJoin => 'Tell me when a slot opens';
+
+  @override
+  String get waitlistJoined => 'You\'re on the list.';
+
+  @override
+  String get waitlistLeave => 'Leave the list';
+
+  @override
+  String get waitlistOn => 'You\'re on the waiting list';
+
+  @override
+  String get waitlistNote =>
+      'We will tell everyone waiting at the same time. A slot is not held for you — it is first come, first served.';
+
+  @override
+  String get waitlistAnyDay => 'Any day';
+
+  @override
+  String waitlistForDay(String date) {
+    return 'For $date';
+  }
+
+  @override
   String get bookingReason => 'Reason for visit';
 
   @override

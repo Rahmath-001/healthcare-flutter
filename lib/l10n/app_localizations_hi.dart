@@ -495,6 +495,30 @@ class AppLocalizationsHi extends AppLocalizations {
       'उस दिन इस डॉक्टर के पास खाली समय नहीं है। कोई और तारीख़ चुनें।';
 
   @override
+  String get waitlistJoin => 'समय खाली होने पर बताएँ';
+
+  @override
+  String get waitlistJoined => 'आप सूची में शामिल हैं।';
+
+  @override
+  String get waitlistLeave => 'सूची से हटें';
+
+  @override
+  String get waitlistOn => 'आप प्रतीक्षा सूची में हैं';
+
+  @override
+  String get waitlistNote =>
+      'हम प्रतीक्षा कर रहे सभी लोगों को एक साथ बताएँगे। समय आपके लिए रोका नहीं जाता — जो पहले आएगा, उसे मिलेगा।';
+
+  @override
+  String get waitlistAnyDay => 'कोई भी दिन';
+
+  @override
+  String waitlistForDay(String date) {
+    return '$date के लिए';
+  }
+
+  @override
   String get bookingReason => 'आने का कारण';
 
   @override

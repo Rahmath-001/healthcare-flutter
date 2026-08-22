@@ -9,6 +9,7 @@ import { authRoutes, meRoutes } from "./auth/routes";
 import { cookieModeEnabled, webOrigins } from "./auth/refresh_cookie";
 import { appointmentCreateRoutes, bookingRoutes } from "./booking/routes";
 import { consentRoutes } from "./consent/routes";
+import { waitlistRoutes } from "./booking/waitlist_routes";
 import { consultationRoutes } from "./consultations/routes";
 import { credentialRoutes } from "./credentials/routes";
 import { doctorRoutes } from "./doctors/routes";
@@ -92,6 +93,7 @@ export function buildApp(deps: AppDependencies | (() => string)) {
   app.use("/v1/credentials", credentialRoutes(secret));
   app.use("/v1/ratings", ratingRoutes(secret));
   app.use("/v1/notifications", notificationRoutes(secret));
+  app.use("/v1/waitlist", waitlistRoutes(secret));
   app.use("/v1/support/tickets", supportRoutes(secret));
   app.use("/v1/prescriptions", prescriptionRoutes(secret));
   // Unauthenticated: a pharmacist verifying a QR code holds no token.

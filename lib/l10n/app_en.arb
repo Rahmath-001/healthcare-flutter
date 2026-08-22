@@ -199,6 +199,16 @@
   "bookingChooseTime": "Choose a time",
   "bookingNoSlots": "No times available",
   "bookingNoSlotsBody": "This doctor has no free slots that day. Try another date.",
+  "waitlistJoin": "Tell me when a slot opens",
+  "waitlistJoined": "You're on the list.",
+  "waitlistLeave": "Leave the list",
+  "waitlistOn": "You're on the waiting list",
+  "waitlistNote": "We will tell everyone waiting at the same time. A slot is not held for you — it is first come, first served.",
+  "waitlistAnyDay": "Any day",
+  "waitlistForDay": "For {date}",
+  "@waitlistForDay": {
+    "placeholders": { "date": { "type": "String" } }
+  },
   "bookingReason": "Reason for visit",
   "bookingReasonHint": "e.g. Fever for three days",
   "bookingHoldExpiresIn": "Slot held for {countdown}",

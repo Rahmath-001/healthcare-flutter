@@ -3,6 +3,7 @@ import 'dart:math';
 
 import '../../features/appointments/domain/appointment.dart';
 import '../../features/availability/domain/availability.dart';
+import '../../features/booking/domain/waitlist.dart';
 import '../../features/consent/domain/consent.dart';
 import '../../features/notifications/domain/notification.dart';
 import '../../features/credentials/domain/credential.dart';
@@ -70,6 +71,7 @@ class FixtureBackend {
   final List<ProviderApplicationRecord> _applications = [];
   final List<AppNotification> _notifications = [];
   final List<RefillRequest> _refillRequests = [];
+  final List<WaitlistEntry> _waitlist = [];
   NotificationPreferences _notificationPreferences =
       NotificationPreferences.defaults;
 
@@ -261,6 +263,15 @@ class FixtureBackend {
     // useful to the next patient rather than merely to this one.
     _slotLocks.remove(slotId(existing.doctor.id, existing.start));
 
+    // The slot is back in the pool, so anybody waiting for it should hear.
+    // This is the entire point of a cancellation being useful to someone other
+    // than the person cancelling.
+    announceFreeSlot(
+      doctorId: existing.doctor.id,
+      start: existing.start,
+      mode: existing.mode,
+    );
+
     notify(
       kind: NotificationKind.appointmentChanged,
       title: 'Appointment cancelled',
@@ -317,6 +328,13 @@ class FixtureBackend {
 
     _slotLocks[newId] = null;
     _slotLocks.remove(oldId);
+
+    // Moving away frees the old time just as surely as cancelling does.
+    announceFreeSlot(
+      doctorId: existing.doctor.id,
+      start: existing.start,
+      mode: existing.mode,
+    );
 
     final updated = existing.copyWith(
       start: start,
@@ -636,6 +654,115 @@ class FixtureBackend {
     );
 
     return prescription;
+  }
+
+  // --- waitlist ------------------------------------------------------------
+
+  List<WaitlistEntry> waitlist() {
+    final sorted = [..._waitlist]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return List.unmodifiable(sorted);
+  }
+
+  WaitlistEntry joinWaitlist({
+    required Doctor doctor,
+    required ConsultationMode mode,
+    DateTime? preferredDate,
+  }) {
+    final duplicate = _waitlist.any((e) =>
+        e.isActive &&
+        e.doctorId == doctor.id &&
+        e.mode == mode &&
+        _sameDayOrBothNull(e.preferredDate, preferredDate));
+    if (duplicate) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'You are already on the list for this doctor.',
+        code: 'ALREADY_WAITING',
+      );
+    }
+
+    final entry = WaitlistEntry(
+      id: 'wl-${_nextId()}',
+      doctorId: doctor.id,
+      doctorName: doctor.name,
+      mode: mode,
+      createdAt: DateTime.now(),
+      status: WaitlistStatus.waiting,
+      preferredDate: preferredDate,
+    );
+    _waitlist.insert(0, entry);
+    return entry;
+  }
+
+  WaitlistEntry leaveWaitlist(String id) {
+    final index = _waitlist.indexWhere((e) => e.id == id);
+    if (index < 0) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That waitlist entry no longer exists.',
+        code: 'WAITLIST_NOT_FOUND',
+      );
+    }
+    final updated = _waitlist[index].copyWith(status: WaitlistStatus.cancelled);
+    _waitlist[index] = updated;
+    return updated;
+  }
+
+  /// Tells everyone waiting that a slot opened.
+  ///
+  /// Called wherever a slot returns to the pool — a cancellation, or a
+  /// reschedule moving away from it. Notifying **everyone** matching rather
+  /// than holding the slot for the first in line is deliberate: a held slot
+  /// sits empty while that person is asleep or no longer interested, which is
+  /// exactly the waste the cancellation was supposed to recover. The
+  /// notification says it is first come, first served.
+  ///
+  /// Each entry is marked notified, which is terminal. An entry that stayed
+  /// active would ping the same person on every cancellation for the rest of
+  /// the month, and that is where people turn notifications off — which on this
+  /// app also silences their appointment reminders.
+  int announceFreeSlot({
+    required String doctorId,
+    required DateTime start,
+    required ConsultationMode mode,
+  }) {
+    final now = DateTime.now();
+    var told = 0;
+
+    for (var i = 0; i < _waitlist.length; i++) {
+      final entry = _waitlist[i];
+      if (!entry.matches(
+        doctorId: doctorId,
+        start: start,
+        mode: mode,
+        now: now,
+      )) {
+        continue;
+      }
+
+      _waitlist[i] = entry.copyWith(
+        status: WaitlistStatus.notified,
+        notifiedAt: now,
+      );
+      told++;
+
+      notify(
+        kind: NotificationKind.appointmentReminder,
+        title: 'A slot opened',
+        body: '${entry.doctorName} · ${_shortWhen(start)} · first come, '
+            'first served',
+        targetId: entry.doctorId,
+      );
+    }
+
+    return told;
+  }
+
+  static bool _sameDayOrBothNull(DateTime? a, DateTime? b) {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   // --- refill requests -----------------------------------------------------

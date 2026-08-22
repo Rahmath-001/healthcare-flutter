@@ -7,6 +7,7 @@ import 'package:healthcare_mobile/features/appointments/data/appointment_reposit
 import 'package:healthcare_mobile/features/appointments/domain/appointment.dart';
 import 'package:healthcare_mobile/features/availability/data/availability_repository.dart';
 import 'package:healthcare_mobile/features/booking/data/booking_repository.dart';
+import 'package:healthcare_mobile/features/booking/domain/waitlist.dart';
 import 'package:healthcare_mobile/features/consent/data/consent_repository.dart';
 import 'package:healthcare_mobile/features/consent/domain/consent.dart';
 import 'package:healthcare_mobile/features/notifications/data/notification_repository.dart';
@@ -135,6 +136,239 @@ void main() {
       );
       // A cancellation that helps nobody else is not a cancellation.
       expect(again.firstWhere((s) => s.id == free.id).isAvailable, isTrue);
+    });
+  });
+
+  group('a cancellation reaches the waiting list', () {
+    test('joining, then a cancellation, tells the waiting patient', () async {
+      // The consequence the feature exists for: a cancelled slot is only
+      // useful if somebody other than the canceller hears about it.
+      final booking = FixtureBookingRepository(latency: fast);
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notifications = FixtureNotificationRepository(latency: fast);
+      final date = openDay();
+
+      final free = (await booking.slotsFor(
+        doctorId: 'd1',
+        date: date,
+        mode: ConsultationMode.video,
+      ))
+          .firstWhere((s) => s.isAvailable);
+
+      final booked = await booking.book(
+        doctor: DoctorFixtures.byId('d1'),
+        slot: free,
+        mode: ConsultationMode.video,
+        patientName: 'Priya Sharma',
+      );
+
+      final entry = await booking.joinWaitlist(
+        doctor: DoctorFixtures.byId('d1'),
+        mode: ConsultationMode.video,
+        preferredDate: date,
+      );
+      expect(entry.isActive, isTrue);
+
+      final before = (await notifications.list()).length;
+      await appointments.cancel(booked.id, reason: 'Plans changed');
+
+      expect((await notifications.list()).length, greaterThan(before));
+
+      // The entry is spent. One that stayed active would ping this person on
+      // every cancellation for the rest of the month.
+      final after =
+          (await booking.waitlist()).firstWhere((e) => e.id == entry.id);
+      expect(after.status, WaitlistStatus.notified);
+      expect(after.isActive, isFalse);
+      expect(after.notifiedAt, isNotNull);
+    });
+
+    test('rescheduling away frees the old slot for the list too', () async {
+      final booking = FixtureBookingRepository(latency: fast);
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final date = openDay();
+
+      final free = (await booking.slotsFor(
+        doctorId: 'd2',
+        date: date,
+        mode: ConsultationMode.video,
+      ))
+          .where((s) => s.isAvailable)
+          .toList();
+
+      final booked = await booking.book(
+        doctor: DoctorFixtures.byId('d2'),
+        slot: free.first,
+        mode: ConsultationMode.video,
+        patientName: 'Priya Sharma',
+      );
+
+      final entry = await booking.joinWaitlist(
+        doctor: DoctorFixtures.byId('d2'),
+        mode: ConsultationMode.video,
+        preferredDate: date,
+      );
+
+      await appointments.reschedule(
+        booked.id,
+        start: free[1].start,
+        end: free[1].end,
+      );
+
+      final after =
+          (await booking.waitlist()).firstWhere((e) => e.id == entry.id);
+      expect(after.status, WaitlistStatus.notified);
+    });
+
+    test('a different doctor or mode is a different list', () async {
+      final booking = FixtureBookingRepository(latency: fast);
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final date = openDay();
+
+      final free = (await booking.slotsFor(
+        doctorId: 'd1',
+        date: date,
+        mode: ConsultationMode.video,
+      ))
+          .firstWhere((s) => s.isAvailable);
+      final booked = await booking.book(
+        doctor: DoctorFixtures.byId('d1'),
+        slot: free,
+        mode: ConsultationMode.video,
+        patientName: 'Priya Sharma',
+      );
+
+      // Waiting on a different doctor entirely.
+      final other = await booking.joinWaitlist(
+        doctor: DoctorFixtures.byId('d3'),
+        mode: ConsultationMode.video,
+      );
+      // ...and on the right doctor but the wrong consultation type.
+      final wrongMode = await booking.joinWaitlist(
+        doctor: DoctorFixtures.byId('d1'),
+        mode: ConsultationMode.inPerson,
+      );
+
+      await appointments.cancel(booked.id, reason: 'Plans changed');
+
+      final list = await booking.waitlist();
+      expect(list.firstWhere((e) => e.id == other.id).isActive, isTrue);
+      expect(list.firstWhere((e) => e.id == wrongMode.id).isActive, isTrue);
+    });
+
+    test('an entry for another day is not woken', () async {
+      final booking = FixtureBookingRepository(latency: fast);
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final date = openDay();
+
+      final free = (await booking.slotsFor(
+        doctorId: 'd1',
+        date: date,
+        mode: ConsultationMode.video,
+      ))
+          .firstWhere((s) => s.isAvailable);
+      final booked = await booking.book(
+        doctor: DoctorFixtures.byId('d1'),
+        slot: free,
+        mode: ConsultationMode.video,
+        patientName: 'Priya Sharma',
+      );
+
+      final otherDay = await booking.joinWaitlist(
+        doctor: DoctorFixtures.byId('d1'),
+        mode: ConsultationMode.video,
+        preferredDate: openDay(from: 9),
+      );
+
+      await appointments.cancel(booked.id, reason: 'Plans changed');
+
+      expect(
+        (await booking.waitlist())
+            .firstWhere((e) => e.id == otherDay.id)
+            .isActive,
+        isTrue,
+      );
+    });
+
+    test('an "any day" entry takes the first thing going', () async {
+      final booking = FixtureBookingRepository(latency: fast);
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final date = openDay();
+
+      final free = (await booking.slotsFor(
+        doctorId: 'd1',
+        date: date,
+        mode: ConsultationMode.video,
+      ))
+          .firstWhere((s) => s.isAvailable);
+      final booked = await booking.book(
+        doctor: DoctorFixtures.byId('d1'),
+        slot: free,
+        mode: ConsultationMode.video,
+        patientName: 'Priya Sharma',
+      );
+
+      final anyDay = await booking.joinWaitlist(
+        doctor: DoctorFixtures.byId('d1'),
+        mode: ConsultationMode.video,
+      );
+
+      await appointments.cancel(booked.id, reason: 'Plans changed');
+
+      expect(
+        (await booking.waitlist()).firstWhere((e) => e.id == anyDay.id).status,
+        WaitlistStatus.notified,
+      );
+    });
+
+    test('joining the same list twice is refused', () async {
+      final booking = FixtureBookingRepository(latency: fast);
+      await booking.joinWaitlist(
+        doctor: DoctorFixtures.byId('d1'),
+        mode: ConsultationMode.video,
+      );
+
+      await expectLater(
+        booking.joinWaitlist(
+          doctor: DoctorFixtures.byId('d1'),
+          mode: ConsultationMode.video,
+        ),
+        throwsA(
+            isA<Failure>().having((f) => f.code, 'code', 'ALREADY_WAITING')),
+      );
+    });
+
+    test('leaving stops the notification', () async {
+      final booking = FixtureBookingRepository(latency: fast);
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final date = openDay();
+
+      final free = (await booking.slotsFor(
+        doctorId: 'd1',
+        date: date,
+        mode: ConsultationMode.video,
+      ))
+          .firstWhere((s) => s.isAvailable);
+      final booked = await booking.book(
+        doctor: DoctorFixtures.byId('d1'),
+        slot: free,
+        mode: ConsultationMode.video,
+        patientName: 'Priya Sharma',
+      );
+
+      final entry = await booking.joinWaitlist(
+        doctor: DoctorFixtures.byId('d1'),
+        mode: ConsultationMode.video,
+        preferredDate: date,
+      );
+      await booking.leaveWaitlist(entry.id);
+
+      await appointments.cancel(booked.id, reason: 'Plans changed');
+
+      final after =
+          (await booking.waitlist()).firstWhere((e) => e.id == entry.id);
+      expect(after.status, WaitlistStatus.cancelled,
+          reason: 'a cancelled entry must not be flipped to notified');
     });
   });
 

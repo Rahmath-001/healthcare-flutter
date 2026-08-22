@@ -17,6 +17,7 @@ import { handler, Problem } from "../errors";
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 import { istWhen, notify } from "../notifications/send";
+import { announceFreeSlot } from "../booking/waitlist_routes";
 
 /** Batch-loads the doctors referenced by a set of appointments. */
 async function doctorsFor(appointments: AppointmentDoc[]): Promise<Map<string, DoctorDoc>> {
@@ -148,6 +149,15 @@ export function appointmentRoutes(secret: () => string): Router {
 
       const doctorSnap = await firestore.collection(C.doctors).doc(updated.doctorId).get();
 
+      // The slot is back in the pool, so anybody waiting for it should hear.
+      // This is what makes a cancellation useful to someone other than the
+      // person cancelling.
+      await announceFreeSlot({
+        doctorId: updated.doctorId,
+        start: updated.start.toDate(),
+        mode: updated.mode,
+      });
+
       // Only when the *provider* cancelled. A patient who just tapped cancel
       // does not need to be told; sending it anyway is how an app teaches
       // people that its notifications are noise.
@@ -202,7 +212,7 @@ export function appointmentRoutes(secret: () => string): Router {
       const userId = req.auth!.sub;
       const isProvider = req.auth!.role === "PROVIDER";
 
-      const updated = await firestore.runTransaction(async (tx) => {
+      const result = await firestore.runTransaction(async (tx) => {
         const snap = await tx.get(apptRef);
         if (!snap.exists) throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Appointment not found.");
 
@@ -280,10 +290,25 @@ export function appointmentRoutes(secret: () => string): Router {
         };
         tx.update(apptRef, patch);
 
-        return { ...a, ...patch } as AppointmentDoc;
+        // The freed slot is the *old* start, and it is only knowable inside
+        // the transaction — `patch` has already overwritten it on the way out.
+        return {
+          appointment: { ...a, ...patch } as AppointmentDoc,
+          freedSlotStart: oldStart,
+        };
       });
 
+      const updated = result.appointment;
+      const freedSlotStart = result.freedSlotStart;
+
       const doctorSnap = await firestore.collection(C.doctors).doc(updated.doctorId).get();
+
+      // Moving away frees the old time just as surely as cancelling does.
+      await announceFreeSlot({
+        doctorId: updated.doctorId,
+        start: freedSlotStart,
+        mode: updated.mode,
+      });
 
       // Mandatory kind, and unconditional. Even when the patient moved it
       // themselves, this is the receipt — and when the provider moved it, it

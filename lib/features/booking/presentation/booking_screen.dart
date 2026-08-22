@@ -15,6 +15,7 @@ import '../../providers_search/domain/doctor.dart';
 import '../../providers_search/presentation/doctor_search_controller.dart';
 import '../data/booking_repository.dart';
 import 'booking_controller.dart';
+import 'waitlist_button.dart';
 
 class BookingScreen extends ConsumerWidget {
   const BookingScreen({super.key, required this.doctorId});
@@ -137,6 +138,7 @@ class _BookingBodyState extends ConsumerState<_BookingBody> {
                   mode: state.mode,
                 ),
                 selected: state.selectedSlot,
+                doctor: widget.doctor,
               ),
               const SizedBox(height: 20),
               // The reason for visit is a symptom list. See
@@ -274,10 +276,18 @@ class _DateStrip extends StatelessWidget {
 }
 
 class _SlotGrid extends ConsumerWidget {
-  const _SlotGrid({required this.query, required this.selected});
+  const _SlotGrid({
+    required this.query,
+    required this.selected,
+    required this.doctor,
+  });
 
   final SlotQuery query;
   final AppointmentSlot? selected;
+
+  /// Needed only for the waitlist offer, which is the one thing on this widget
+  /// that is about the doctor rather than about the day.
+  final Doctor doctor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -294,10 +304,23 @@ class _SlotGrid extends ConsumerWidget {
         if (list.isEmpty) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            child: EmptyState(
-              icon: Icons.event_busy_outlined,
-              title: context.l10n.bookingNoSlotsOnDay,
-              message: 'Try another date.',
+            child: Column(
+              children: [
+                EmptyState(
+                  icon: Icons.event_busy_outlined,
+                  title: context.l10n.bookingNoSlotsOnDay,
+                  message: 'Try another date.',
+                ),
+                const SizedBox(height: 8),
+                // Offered where the disappointment happens. Someone who has
+                // just found no free times is the only person who wants this,
+                // and they want it now rather than from a menu.
+                WaitlistButton(
+                  doctor: doctor,
+                  mode: query.mode,
+                  preferredDate: query.date,
+                ),
+              ],
             ),
           );
         }

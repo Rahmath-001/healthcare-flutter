@@ -1,4 +1,5 @@
 import '../../appointments/domain/appointment.dart';
+import '../domain/waitlist.dart';
 import '../../../core/network/api_client.dart';
 import '../../providers_search/domain/doctor.dart';
 import 'booking_repository.dart';
@@ -33,6 +34,43 @@ class ApiBookingRepository implements BookingRepository {
     return (json['items'] as List<dynamic>)
         .map((s) => AppointmentSlot.fromJson(s as Map<String, dynamic>))
         .toList();
+  }
+
+  @override
+  Future<List<WaitlistEntry>> waitlist() async {
+    final json = await _api.get<List<dynamic>>('/v1/waitlist');
+    return json
+        .map((e) => WaitlistEntry.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<WaitlistEntry> joinWaitlist({
+    required Doctor doctor,
+    required ConsultationMode mode,
+    DateTime? preferredDate,
+  }) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      '/v1/waitlist',
+      // The doctor's name is snapshotted server-side from the directory, so
+      // only the id is sent — a client cannot enter itself on a list under a
+      // name of its choosing.
+      body: {
+        'doctorId': doctor.id,
+        'mode': mode.wire,
+        if (preferredDate != null)
+          'preferredDate': '${preferredDate.year.toString().padLeft(4, '0')}-'
+              '${preferredDate.month.toString().padLeft(2, '0')}-'
+              '${preferredDate.day.toString().padLeft(2, '0')}',
+      },
+    );
+    return WaitlistEntry.fromJson(json);
+  }
+
+  @override
+  Future<WaitlistEntry> leaveWaitlist(String id) async {
+    final json = await _api.delete<Map<String, dynamic>>('/v1/waitlist/$id');
+    return WaitlistEntry.fromJson(json);
   }
 
   @override

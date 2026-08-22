@@ -956,6 +956,48 @@ abstract class AppLocalizations {
   /// **'This doctor has no free slots that day. Try another date.'**
   String get bookingNoSlotsBody;
 
+  /// No description provided for @waitlistJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell me when a slot opens'**
+  String get waitlistJoin;
+
+  /// No description provided for @waitlistJoined.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re on the list.'**
+  String get waitlistJoined;
+
+  /// No description provided for @waitlistLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave the list'**
+  String get waitlistLeave;
+
+  /// No description provided for @waitlistOn.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re on the waiting list'**
+  String get waitlistOn;
+
+  /// No description provided for @waitlistNote.
+  ///
+  /// In en, this message translates to:
+  /// **'We will tell everyone waiting at the same time. A slot is not held for you — it is first come, first served.'**
+  String get waitlistNote;
+
+  /// No description provided for @waitlistAnyDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Any day'**
+  String get waitlistAnyDay;
+
+  /// No description provided for @waitlistForDay.
+  ///
+  /// In en, this message translates to:
+  /// **'For {date}'**
+  String waitlistForDay(String date);
+
   /// No description provided for @bookingReason.
   ///
   /// In en, this message translates to:

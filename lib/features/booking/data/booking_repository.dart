@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../../../core/fixtures/fixture_backend.dart';
 import '../../appointments/domain/appointment.dart';
+import '../domain/waitlist.dart';
 import '../../providers_search/domain/doctor.dart';
 
 /// Whether a booking must be paid for before it is confirmed.
@@ -24,6 +25,22 @@ abstract class BookingRepository {
     required DateTime date,
     required ConsultationMode mode,
   });
+
+  /// The caller's waitlist entries.
+  Future<List<WaitlistEntry>> waitlist();
+
+  /// Asks to be told when this doctor frees up.
+  ///
+  /// Being told is **not** a reservation. Holding a freed slot for whoever is
+  /// first on a list means it sits empty while they are asleep or no longer
+  /// interested — exactly the waste the cancellation was meant to recover.
+  Future<WaitlistEntry> joinWaitlist({
+    required Doctor doctor,
+    required ConsultationMode mode,
+    DateTime? preferredDate,
+  });
+
+  Future<WaitlistEntry> leaveWaitlist(String id);
 
   /// Reserves a slot for ten minutes while the patient confirms.
   Future<SlotHold> hold(String slotId);
@@ -54,6 +71,33 @@ class FixtureBookingRepository implements BookingRepository {
   /// way the server derives them from availability rules — so a slot that was
   /// booked, held or blocked disappears from the grid without anything having
   /// to remember to remove it.
+  @override
+  @override
+  Future<List<WaitlistEntry>> waitlist() async {
+    await Future<void>.delayed(latency);
+    return _backend.waitlist();
+  }
+
+  @override
+  Future<WaitlistEntry> joinWaitlist({
+    required Doctor doctor,
+    required ConsultationMode mode,
+    DateTime? preferredDate,
+  }) async {
+    await Future<void>.delayed(latency);
+    return _backend.joinWaitlist(
+      doctor: doctor,
+      mode: mode,
+      preferredDate: preferredDate,
+    );
+  }
+
+  @override
+  Future<WaitlistEntry> leaveWaitlist(String id) async {
+    await Future<void>.delayed(latency);
+    return _backend.leaveWaitlist(id);
+  }
+
   @override
   Future<List<AppointmentSlot>> slotsFor({
     required String doctorId,

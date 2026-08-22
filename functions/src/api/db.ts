@@ -39,6 +39,7 @@ export const C = {
   notificationPreferences: "notificationPreferences",
   devices: "devices",
   refillRequests: "refillRequests",
+  waitlist: "waitlist",
 } as const;
 
 export type NotificationKind =
@@ -643,6 +644,27 @@ export interface PrescriptionDoc {
   /** SHA-256 of the stored bytes, so a copy can be checked against the record. */
   pdfSha256?: string | null;
   pdfStoredAt?: Timestamp | null;
+}
+
+export type WaitlistStatus = "WAITING" | "NOTIFIED" | "EXPIRED" | "CANCELLED";
+
+/**
+ * A patient asking to be told when a doctor frees up.
+ *
+ * `NOTIFIED` is terminal by design: an entry that stayed active would ping the
+ * same person on every cancellation for the rest of the month.
+ */
+export interface WaitlistEntryDoc {
+  patientId: string;
+  doctorId: string;
+  /** Snapshot from the directory, never accepted from the client. */
+  doctorName: string;
+  mode: string;
+  /** `YYYY-MM-DD` in IST, or null for "any day". */
+  preferredDate?: string | null;
+  createdAt: Timestamp;
+  status: WaitlistStatus;
+  notifiedAt?: Timestamp | null;
 }
 
 export type RefillStatus = "PENDING" | "APPROVED" | "DECLINED" | "CANCELLED";

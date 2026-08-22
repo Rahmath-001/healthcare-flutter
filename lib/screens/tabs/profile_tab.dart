@@ -8,6 +8,7 @@ import '../../core/router/routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../features/settings/presentation/account_controller.dart';
+import '../../features/settings/presentation/emergency_contact_card.dart';
 import '../../l10n/l10n.dart';
 import '../../shared/widgets/app_motion.dart';
 import '../../shared/widgets/async_view.dart';
@@ -71,15 +72,20 @@ class ProfileTab extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: Insets.lg),
+          // Asked for at onboarding and, until now, read back nowhere.
+          // Collecting a next of kin with no path to reach them implies a
+          // capability the app did not have.
+          const FadeSlideIn(index: 2, child: EmergencyContactCard()),
           const SizedBox(height: Insets.xl),
 
           FadeSlideIn(
-            index: 2,
+            index: 3,
             child: SectionHeader(title: l10n.settingsAccount),
           ),
           const SizedBox(height: Insets.sm),
           FadeSlideIn(
-            index: 3,
+            index: 4,
             child: _MenuCard(
               items: [
                 _MenuItem(
@@ -103,7 +109,7 @@ class ProfileTab extends ConsumerWidget {
           const SizedBox(height: Insets.lg),
 
           FadeSlideIn(
-            index: 4,
+            index: 5,
             child: _MenuCard(
               items: [
                 _MenuItem(
@@ -122,7 +128,7 @@ class ProfileTab extends ConsumerWidget {
           const SizedBox(height: Insets.lg),
 
           FadeSlideIn(
-            index: 5,
+            index: 6,
             child: _SignOutTile(
               onConfirmed: () =>
                   ref.read(sessionControllerProvider.notifier).signOut(),

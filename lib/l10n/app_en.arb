@@ -412,6 +412,12 @@
   "prescriptionAdvice": "Advice",
   "prescriptionMedicines": "Medicines",
   "prescriptionFollowUp": "Follow up on {date}",
+  "followUpBook": "Book the follow-up",
+  "followUpDue": "Your doctor asked to see you again",
+  "followUpOverdue": "This follow-up was due {when}",
+  "@followUpOverdue": {
+    "placeholders": { "when": { "type": "String" } }
+  },
   "@prescriptionFollowUp": {
     "placeholders": {
       "date": {
@@ -546,6 +552,8 @@
   "editProfileConditions": "Ongoing conditions",
   "editProfileConditionsHint": "e.g. Type 2 diabetes, hypertension",
   "editProfileEmergencyContact": "Emergency contact",
+  "emergencyCall": "Call",
+  "emergencyCallFailed": "Could not open the dialer on this device.",
   "editProfileContactName": "Name",
   "editProfilePhone": "Phone number",
   "editProfileSaveChanges": "Save changes",

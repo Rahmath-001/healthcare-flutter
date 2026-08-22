@@ -982,6 +982,17 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get followUpBook => 'फ़ॉलो-अप बुक करें';
+
+  @override
+  String get followUpDue => 'आपके डॉक्टर ने दोबारा दिखाने को कहा है';
+
+  @override
+  String followUpOverdue(String when) {
+    return 'यह फ़ॉलो-अप $when होना था';
+  }
+
+  @override
   String get prescriptionVerificationCode => 'सत्यापन कोड';
 
   @override
@@ -1247,6 +1258,12 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get editProfileEmergencyContact => 'आपातकालीन संपर्क';
+
+  @override
+  String get emergencyCall => 'कॉल करें';
+
+  @override
+  String get emergencyCallFailed => 'इस डिवाइस पर डायलर नहीं खुल सका।';
 
   @override
   String get editProfileContactName => 'नाम';

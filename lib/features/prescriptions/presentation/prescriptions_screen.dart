@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/router/routes.dart';
 import '../../../core/storage/clinical_cache.dart';
 import '../../../core/feature_providers.dart';
 import '../../../core/files/blob_client.dart';
@@ -355,6 +356,59 @@ class _Detail extends StatelessWidget {
             ),
           ),
         ),
+        // The follow-up the doctor asked for.
+        //
+        // `followUpDate` was written on every prescription and read by nothing
+        // — a doctor saying "come back in two weeks" produced a field the
+        // patient never saw. Surfaced above the repeat button on purpose:
+        // somebody due a review should be booking one, not asking for another
+        // course of the same medicine.
+        if (p.followUpDate != null) ...[
+          const SizedBox(height: 20),
+          Card(
+            color: theme.colorScheme.primaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.followUpDue,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    // Says "was due" once the date has passed rather than
+                    // presenting an overdue review as an upcoming plan.
+                    p.followUpDate!.isBefore(DateTime.now())
+                        ? context.l10n
+                            .followUpOverdue(Fmt.relative(p.followUpDate!))
+                        : context.l10n
+                            .prescriptionFollowUp(Fmt.date(p.followUpDate!)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      // Straight to search rather than to this doctor's page:
+                      // a follow-up is usually with the same clinician, but
+                      // insisting on it would strand anyone whose doctor has
+                      // since stopped practising or gone on leave.
+                      onPressed: () => context.go(Routes.doctorSearch),
+                      child: Text(context.l10n.followUpBook),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
         // Offered only on a live prescription. A cancelled or superseded one
         // was withdrawn or replaced by a clinician, and a button to repeat it
         // would invite a patient to reinstate a decision somebody made.

@@ -1832,6 +1832,24 @@ abstract class AppLocalizations {
   /// **'Follow up on {date}'**
   String prescriptionFollowUp(String date);
 
+  /// No description provided for @followUpBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Book the follow-up'**
+  String get followUpBook;
+
+  /// No description provided for @followUpDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Your doctor asked to see you again'**
+  String get followUpDue;
+
+  /// No description provided for @followUpOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'This follow-up was due {when}'**
+  String followUpOverdue(String when);
+
   /// No description provided for @prescriptionVerificationCode.
   ///
   /// In en, this message translates to:
@@ -2317,6 +2335,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Emergency contact'**
   String get editProfileEmergencyContact;
+
+  /// No description provided for @emergencyCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Call'**
+  String get emergencyCall;
+
+  /// No description provided for @emergencyCallFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the dialer on this device.'**
+  String get emergencyCallFailed;
 
   /// No description provided for @editProfileContactName.
   ///

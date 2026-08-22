@@ -981,6 +981,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get followUpBook => 'Book the follow-up';
+
+  @override
+  String get followUpDue => 'Your doctor asked to see you again';
+
+  @override
+  String followUpOverdue(String when) {
+    return 'This follow-up was due $when';
+  }
+
+  @override
   String get prescriptionVerificationCode => 'Verification code';
 
   @override
@@ -1246,6 +1257,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editProfileEmergencyContact => 'Emergency contact';
+
+  @override
+  String get emergencyCall => 'Call';
+
+  @override
+  String get emergencyCallFailed => 'Could not open the dialer on this device.';
 
   @override
   String get editProfileContactName => 'Name';

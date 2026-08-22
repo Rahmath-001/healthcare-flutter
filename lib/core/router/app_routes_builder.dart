@@ -10,6 +10,7 @@ import '../../features/blocked/presentation/blocked_screen.dart';
 import '../../features/booking/presentation/booking_confirmed_screen.dart';
 import '../../features/booking/presentation/booking_screen.dart';
 import '../../features/consent/presentation/sharing_screen.dart';
+import '../../features/consultation/presentation/consultation_note_screen.dart';
 import '../../features/consultation/presentation/consultation_screen.dart';
 import '../../features/credentials/presentation/credentials_screen.dart';
 import '../../features/mfa/presentation/mfa_enrolment_screen.dart';
@@ -135,6 +136,17 @@ List<RouteBase> buildRoutes() => [
         // class of data as a record, and previously the only PHI screen with
         // no screenshot protection at all.
         builder: (_, __) => const ProtectedScreen(child: EditProfileScreen()),
+      ),
+      GoRoute(
+        // Outside both shells: one document, read by the patient and appended
+        // to by the doctor who wrote it. Two routes would mean two renderings
+        // of the same clinical text.
+        path: '/consultation-note/:id',
+        builder: (_, state) => ProtectedScreen(
+          child: ConsultationNoteScreen(
+            appointmentId: state.pathParameters['id']!,
+          ),
+        ),
       ),
       GoRoute(
         path: Routes.refills,

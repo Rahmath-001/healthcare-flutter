@@ -1856,6 +1856,84 @@ abstract class AppLocalizations {
   /// **'Consultation'**
   String get consultationTitle;
 
+  /// No description provided for @noteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation notes'**
+  String get noteTitle;
+
+  /// No description provided for @noteWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Write consultation notes'**
+  String get noteWrite;
+
+  /// No description provided for @noteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What you found, what you advised, what happens next'**
+  String get noteHint;
+
+  /// No description provided for @noteSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save notes'**
+  String get noteSave;
+
+  /// No description provided for @noteSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes saved to the patient record.'**
+  String get noteSaved;
+
+  /// No description provided for @noteImmutable.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes cannot be edited once saved. Corrections are added as an addendum, with their own timestamp.'**
+  String get noteImmutable;
+
+  /// No description provided for @noteNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes yet'**
+  String get noteNone;
+
+  /// No description provided for @noteNoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your doctor has not written up this consultation.'**
+  String get noteNoneBody;
+
+  /// No description provided for @noteAddendum.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an addendum'**
+  String get noteAddendum;
+
+  /// No description provided for @noteAddendumSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save addendum'**
+  String get noteAddendumSave;
+
+  /// No description provided for @noteAddendumSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Addendum added.'**
+  String get noteAddendumSaved;
+
+  /// No description provided for @noteAddendumLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Addendum'**
+  String get noteAddendumLabel;
+
+  /// No description provided for @noteWrittenBy.
+  ///
+  /// In en, this message translates to:
+  /// **'{doctor} · Reg. {registration}'**
+  String noteWrittenBy(String doctor, String registration);
+
   /// LEGAL COPY. Heading of the telemedicine consent gate, shown before a consultation connects. Required by the MoHFW Telemedicine Practice Guidelines. Any translation must be reviewed by a qualified legal translator before release.
   ///
   /// In en, this message translates to:

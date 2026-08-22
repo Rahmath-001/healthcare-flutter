@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/router/routes.dart';
 import '../../../l10n/l10n.dart';
 import '../../../shared/formatters.dart';
 import '../../../shared/widgets/async_view.dart';
@@ -180,6 +181,20 @@ class _Body extends ConsumerWidget {
               label: Text(context.l10n.actionJoin),
             ),
           ),
+        // Offered once the consultation has happened. Before that there is
+        // nothing to write up, and a link to an empty note invites a doctor to
+        // record an event that has not occurred.
+        if (a.status.isPast || a.status == AppointmentStatus.inProgress) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => context.push(Routes.consultationNote(a.id)),
+              icon: const Icon(Icons.notes_outlined),
+              label: Text(context.l10n.noteTitle),
+            ),
+          ),
+        ],
         if (a.hasPrescription) ...[
           const SizedBox(height: 12),
           SizedBox(

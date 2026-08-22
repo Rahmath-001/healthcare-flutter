@@ -431,6 +431,22 @@
     }
   },
   "consultationTitle": "Consultation",
+  "noteTitle": "Consultation notes",
+  "noteWrite": "Write consultation notes",
+  "noteHint": "What you found, what you advised, what happens next",
+  "noteSave": "Save notes",
+  "noteSaved": "Notes saved to the patient record.",
+  "noteImmutable": "Notes cannot be edited once saved. Corrections are added as an addendum, with their own timestamp.",
+  "noteNone": "No notes yet",
+  "noteNoneBody": "Your doctor has not written up this consultation.",
+  "noteAddendum": "Add an addendum",
+  "noteAddendumSave": "Save addendum",
+  "noteAddendumSaved": "Addendum added.",
+  "noteAddendumLabel": "Addendum",
+  "noteWrittenBy": "{doctor} · Reg. {registration}",
+  "@noteWrittenBy": {
+    "placeholders": { "doctor": { "type": "String" }, "registration": { "type": "String" } }
+  },
   "consentTelemedicineTitle": "Before you begin",
   "@consentTelemedicineTitle": {
     "description": "LEGAL COPY. Heading of the telemedicine consent gate, shown before a consultation connects. Required by the MoHFW Telemedicine Practice Guidelines. Any translation must be reviewed by a qualified legal translator before release."

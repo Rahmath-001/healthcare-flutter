@@ -996,6 +996,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get consultationTitle => 'Consultation';
 
   @override
+  String get noteTitle => 'Consultation notes';
+
+  @override
+  String get noteWrite => 'Write consultation notes';
+
+  @override
+  String get noteHint => 'What you found, what you advised, what happens next';
+
+  @override
+  String get noteSave => 'Save notes';
+
+  @override
+  String get noteSaved => 'Notes saved to the patient record.';
+
+  @override
+  String get noteImmutable =>
+      'Notes cannot be edited once saved. Corrections are added as an addendum, with their own timestamp.';
+
+  @override
+  String get noteNone => 'No notes yet';
+
+  @override
+  String get noteNoneBody =>
+      'Your doctor has not written up this consultation.';
+
+  @override
+  String get noteAddendum => 'Add an addendum';
+
+  @override
+  String get noteAddendumSave => 'Save addendum';
+
+  @override
+  String get noteAddendumSaved => 'Addendum added.';
+
+  @override
+  String get noteAddendumLabel => 'Addendum';
+
+  @override
+  String noteWrittenBy(String doctor, String registration) {
+    return '$doctor · Reg. $registration';
+  }
+
+  @override
   String get consentTelemedicineTitle => 'Before you begin';
 
   @override

@@ -997,6 +997,48 @@ class AppLocalizationsHi extends AppLocalizations {
   String get consultationTitle => 'परामर्श';
 
   @override
+  String get noteTitle => 'परामर्श नोट्स';
+
+  @override
+  String get noteWrite => 'परामर्श नोट्स लिखें';
+
+  @override
+  String get noteHint => 'आपने क्या पाया, क्या सलाह दी, आगे क्या करना है';
+
+  @override
+  String get noteSave => 'नोट्स सहेजें';
+
+  @override
+  String get noteSaved => 'नोट्स मरीज़ के रिकॉर्ड में सहेजे गए।';
+
+  @override
+  String get noteImmutable =>
+      'सहेजने के बाद नोट्स बदले नहीं जा सकते। सुधार अलग टिप्पणी के रूप में, अपने समय के साथ जुड़ते हैं।';
+
+  @override
+  String get noteNone => 'अभी कोई नोट नहीं';
+
+  @override
+  String get noteNoneBody => 'आपके डॉक्टर ने इस परामर्श का विवरण नहीं लिखा है।';
+
+  @override
+  String get noteAddendum => 'अतिरिक्त टिप्पणी जोड़ें';
+
+  @override
+  String get noteAddendumSave => 'टिप्पणी सहेजें';
+
+  @override
+  String get noteAddendumSaved => 'टिप्पणी जोड़ दी गई।';
+
+  @override
+  String get noteAddendumLabel => 'अतिरिक्त टिप्पणी';
+
+  @override
+  String noteWrittenBy(String doctor, String registration) {
+    return '$doctor · पंजीकरण $registration';
+  }
+
+  @override
   String get consentTelemedicineTitle => 'Before you begin';
 
   @override

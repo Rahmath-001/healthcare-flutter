@@ -334,6 +334,7 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 | availability | `AvailabilityRepository` — `rules`, `exceptions`, `addRule`, `deleteRule`, `toggleRule`, `blockDay`, `deleteException` | availability editor (provider Schedule tab) |
 | ratings | `RatingsRepository` — `listOwn`, `submit`, `edit` | rate appointment |
 | support | `SupportRepository` — `listOwn`, `create`, `reply` | support tickets |
+| consultation notes | `ConsultationNoteRepository` — `forAppointment`, `write`, `addAddendum` | consultation note (one screen, both sides) |
 | notifications | `NotificationRepository` — `list`, `markRead`, `markAllRead`, `preferences`, `updatePreferences`, `registerDevice`, `unregisterDevice` + `PushService` (FCM) | notification centre, notification settings (per-kind toggles + quiet hours) |
 | consultation | `ConsultationRepository` — `byId`, `captureConsent`, `join`, `end`, `switchToAudio`, `sendMessage`, `networkQuality` + `TelehealthProvider` (media) | consultation screen: consent gate → waiting room → live call → chat, audio fallback |
 
@@ -349,6 +350,13 @@ says nothing is the reason `test/inactivity_timeout_test.dart` exists.
 - **Consultation join window**: opens 15 min before start, closes 30 min after scheduled
   end; in-person is never joinable.
 - **Ratings**: one per completed appointment, editable 14 days, moderated before publish.
+- **Consultation notes are append-only.** Written once per appointment, corrected by
+  addendum, never edited or deleted. A clinical note is evidence of what a clinician thought
+  at a point in time, and the occasions one most needs changing are exactly the ones where
+  somebody has an interest in the earlier version disappearing. The consent text already
+  promised these existed — see `TelemedicineConsent.points` — and its exact wording is hashed
+  into the consent record, so until this shipped the app was attesting to something it could
+  not do.
 - **Notifications**: a closed set of kinds, each deciding three things — which toggle
   silences it, where it leads, and whether it may arrive at 3am.
   `APPOINTMENT_CHANGED` and `ACCOUNT_UPDATE` are **mandatory**: they ignore both the toggle

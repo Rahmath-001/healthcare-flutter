@@ -10,6 +10,7 @@ import 'package:healthcare_mobile/features/booking/data/booking_repository.dart'
 import 'package:healthcare_mobile/features/booking/domain/waitlist.dart';
 import 'package:healthcare_mobile/features/consent/data/consent_repository.dart';
 import 'package:healthcare_mobile/features/consent/domain/consent.dart';
+import 'package:healthcare_mobile/features/consultation/data/consultation_note_repository.dart';
 import 'package:healthcare_mobile/features/notifications/data/notification_repository.dart';
 import 'package:healthcare_mobile/features/notifications/domain/notification.dart';
 import 'package:healthcare_mobile/features/credentials/data/credentials_repository.dart';
@@ -136,6 +137,133 @@ void main() {
       );
       // A cancellation that helps nobody else is not a cancellation.
       expect(again.firstWhere((s) => s.id == free.id).isAvailable, isTrue);
+    });
+  });
+
+  group('the doctor writes up the consultation', () {
+    Future<Appointment> completed(
+      FixtureAppointmentRepository appointments,
+    ) async =>
+        (await appointments.listForPatient())
+            .firstWhere((a) => a.status.isPast);
+
+    test('a note reaches the patient, and says who signed it', () async {
+      // The consent every patient agrees to says the doctor's notes are kept
+      // as part of their record. Until this existed, that statement was false
+      // — and its exact wording is hashed into the consent record.
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notes = FixtureConsultationNoteRepository(latency: fast);
+      final appointment = await completed(appointments);
+
+      expect(await notes.forAppointment(appointment.id), isNull);
+
+      final note = await notes.write(
+        appointment.id,
+        body: 'Reviewed symptoms. Advised rest and fluids.',
+      );
+
+      expect(note.body, 'Reviewed symptoms. Advised rest and fluids.');
+      expect(note.authorName, isNotEmpty);
+      // On the note for the same reason it is on a prescription: it is what
+      // makes this a clinical record rather than a message from somebody.
+      expect(note.authorRegistrationNumber, isNotEmpty);
+      expect(note.hasAddenda, isFalse);
+
+      final readBack = await notes.forAppointment(appointment.id);
+      expect(readBack!.id, note.id);
+    });
+
+    test('a note cannot be written twice, only appended to', () async {
+      // Editing a clinical note silently rewrites the past, and the occasions
+      // one most needs changing are exactly the ones where somebody has an
+      // interest in the earlier version disappearing.
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notes = FixtureConsultationNoteRepository(latency: fast);
+      final appointment = await completed(appointments);
+
+      await notes.write(appointment.id, body: 'Initial impression.');
+
+      await expectLater(
+        notes.write(appointment.id, body: 'Actually, something else.'),
+        throwsA(isA<Failure>().having((f) => f.code, 'code', 'NOTE_EXISTS')),
+      );
+    });
+
+    test('an addendum is added without touching the original', () async {
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notes = FixtureConsultationNoteRepository(latency: fast);
+      final appointment = await completed(appointments);
+
+      final note = await notes.write(appointment.id, body: 'Initial view.');
+      final amended = await notes.addAddendum(
+        note.id,
+        body: 'Lab result since received; treatment unchanged.',
+      );
+
+      expect(amended.body, 'Initial view.', reason: 'the original is fixed');
+      expect(amended.addenda.length, 1);
+      expect(amended.addenda.single.body, contains('Lab result'));
+      expect(amended.addenda.single.writtenAt, isNotNull);
+      // The "last updated" label follows the addendum, not the original.
+      expect(amended.lastUpdatedAt, amended.addenda.single.writtenAt);
+    });
+
+    test('addenda accumulate in order', () async {
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notes = FixtureConsultationNoteRepository(latency: fast);
+      final appointment = await completed(appointments);
+
+      final note = await notes.write(appointment.id, body: 'First.');
+      await notes.addAddendum(note.id, body: 'Second.');
+      final third = await notes.addAddendum(note.id, body: 'Third.');
+
+      expect(third.addenda.map((a) => a.body), ['Second.', 'Third.']);
+    });
+
+    test('a consultation that has not begun cannot be written up', () async {
+      // A note against a booking nobody has attended is a record of an event
+      // that has not happened.
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notes = FixtureConsultationNoteRepository(latency: fast);
+      final upcoming = (await appointments.listForPatient())
+          .firstWhere((a) => a.status == AppointmentStatus.confirmed);
+
+      await expectLater(
+        notes.write(upcoming.id, body: 'Seen and treated.'),
+        throwsA(isA<Failure>()
+            .having((f) => f.code, 'code', 'CONSULTATION_NOT_STARTED')),
+      );
+    });
+
+    test('an empty note is refused', () async {
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notes = FixtureConsultationNoteRepository(latency: fast);
+      final appointment = await completed(appointments);
+
+      await expectLater(
+        notes.write(appointment.id, body: '   '),
+        throwsA(isA<Failure>().having((f) => f.code, 'code', 'NOTE_EMPTY')),
+      );
+    });
+
+    test('the patient is told, without any clinical detail', () async {
+      // The notification lands on a lock screen. It says a note exists; the
+      // note itself stays behind authentication.
+      final appointments = FixtureAppointmentRepository(latency: fast);
+      final notes = FixtureConsultationNoteRepository(latency: fast);
+      final notifications = FixtureNotificationRepository(latency: fast);
+      final appointment = await completed(appointments);
+
+      await notes.write(
+        appointment.id,
+        body: 'Suspected hypertension. Start amlodipine.',
+      );
+
+      final told = (await notifications.list())
+          .firstWhere((n) => n.kind == NotificationKind.recordReady);
+      expect(told.body, isNot(contains('amlodipine')));
+      expect(told.body, isNot(contains('hypertension')));
+      expect(told.targetId, appointment.id);
     });
   });
 

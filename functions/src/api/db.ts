@@ -40,6 +40,7 @@ export const C = {
   devices: "devices",
   refillRequests: "refillRequests",
   waitlist: "waitlist",
+  consultationNotes: "consultationNotes",
 } as const;
 
 export type NotificationKind =
@@ -644,6 +645,32 @@ export interface PrescriptionDoc {
   /** SHA-256 of the stored bytes, so a copy can be checked against the record. */
   pdfSha256?: string | null;
   pdfStoredAt?: Timestamp | null;
+}
+
+/**
+ * A doctor's clinical note on a consultation.
+ *
+ * Append-only. `body` is fixed at the moment of writing and `addenda` grows;
+ * there is no update path for either, because a clinical note is evidence of
+ * what a clinician thought at a point in time and the occasions one most needs
+ * changing are exactly the ones where somebody has an interest in the earlier
+ * version disappearing.
+ *
+ * The consent every patient agrees to before a video call states that the
+ * doctor's notes are kept as part of their medical record. That text is
+ * SHA-256'd into the consent record, so it is an attestation — and until this
+ * collection existed it was attesting to something the product could not do.
+ */
+export interface ConsultationNoteDoc {
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  /** Snapshots, so the note reads as signed after a profile edit. */
+  authorName: string;
+  authorRegistrationNumber: string;
+  writtenAt: Timestamp;
+  body: string;
+  addenda: { body: string; authorName: string; writtenAt: Timestamp }[];
 }
 
 export type WaitlistStatus = "WAITING" | "NOTIFIED" | "EXPIRED" | "CANCELLED";

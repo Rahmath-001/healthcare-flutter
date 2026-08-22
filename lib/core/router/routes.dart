@@ -31,6 +31,10 @@ abstract final class Routes {
   static const recordUpload = '/patient/records/upload';
   static const prescriptions = '/patient/prescriptions';
   static const refills = '/patient/refills';
+
+  /// The doctor's write-up of one consultation. Same screen both sides.
+  static String consultationNote(String appointmentId) =>
+      '/consultation-note/$appointmentId';
   static const supportTickets = '/patient/support';
   static const notifications = '/patient/notifications';
   static const notificationSettings = '/patient/notifications/settings';

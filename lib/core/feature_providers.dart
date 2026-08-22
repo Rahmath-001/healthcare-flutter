@@ -12,6 +12,7 @@ import '../features/consent/data/api_consent_repository.dart';
 import '../features/consent/data/consent_repository.dart';
 import '../features/consultation/data/api_consultation_repository.dart';
 import '../features/consultation/data/consultation_repository.dart';
+import '../features/consultation/data/consultation_note_repository.dart';
 import '../features/consultation/data/hms_telehealth_provider.dart';
 import '../features/consultation/data/telehealth_provider.dart';
 import '../features/credentials/data/api_credentials_repository.dart';
@@ -167,6 +168,19 @@ final ratingsRepositoryProvider = Provider<RatingsRepository>((ref) {
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixtureNotificationRepository();
   return ApiNotificationRepository(ref.watch(apiClientProvider));
+});
+
+/// The doctor's clinical note on a consultation.
+///
+/// Its own repository rather than part of records: a record is a file a patient
+/// uploaded and a scanner cleared; a note is text a clinician authored, with a
+/// different author, a different authorization rule and an append-only life.
+final consultationNoteRepositoryProvider =
+    Provider<ConsultationNoteRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) {
+    return FixtureConsultationNoteRepository();
+  }
+  return ApiConsultationNoteRepository(ref.watch(apiClientProvider));
 });
 
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {

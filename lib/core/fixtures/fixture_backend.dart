@@ -5,6 +5,7 @@ import '../../features/appointments/domain/appointment.dart';
 import '../../features/availability/domain/availability.dart';
 import '../../features/booking/domain/waitlist.dart';
 import '../../features/consent/domain/consent.dart';
+import '../../features/consultation/domain/consultation_note.dart';
 import '../../features/notifications/domain/notification.dart';
 import '../../features/credentials/domain/credential.dart';
 import '../../features/prescriptions/data/prescription_repository.dart';
@@ -72,6 +73,7 @@ class FixtureBackend {
   final List<AppNotification> _notifications = [];
   final List<RefillRequest> _refillRequests = [];
   final List<WaitlistEntry> _waitlist = [];
+  final List<ConsultationNote> _notes = [];
   NotificationPreferences _notificationPreferences =
       NotificationPreferences.defaults;
 
@@ -654,6 +656,142 @@ class FixtureBackend {
     );
 
     return prescription;
+  }
+
+  // --- consultation notes --------------------------------------------------
+
+  List<ConsultationNote> consultationNotes() {
+    final sorted = [..._notes]
+      ..sort((a, b) => b.writtenAt.compareTo(a.writtenAt));
+    return List.unmodifiable(sorted);
+  }
+
+  ConsultationNote? noteForAppointment(String appointmentId) {
+    for (final n in _notes) {
+      if (n.appointmentId == appointmentId) return n;
+    }
+    return null;
+  }
+
+  /// Writes the doctor's note for a consultation.
+  ///
+  /// One per appointment, and it cannot be rewritten. A clinical note is
+  /// evidence of what a clinician thought at a point in time; editing one
+  /// silently rewrites the past, and the occasions a note most needs changing
+  /// are exactly the ones where somebody has an interest in the earlier version
+  /// disappearing. Corrections go in as addenda.
+  ConsultationNote writeConsultationNote(
+    String appointmentId, {
+    required String body,
+    required String authorName,
+    required String authorRegistrationNumber,
+  }) {
+    final appointment = appointmentById(appointmentId);
+
+    // A note belongs to a consultation that happened. Writing one against a
+    // booking nobody has attended yet would be a record of an event that has
+    // not occurred.
+    final happened = appointment.status == AppointmentStatus.completed ||
+        appointment.status == AppointmentStatus.inProgress ||
+        appointment.status == AppointmentStatus.checkedIn;
+    if (!happened) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'A note can only be written once the consultation has begun.',
+        code: 'CONSULTATION_NOT_STARTED',
+      );
+    }
+
+    if (noteForAppointment(appointmentId) != null) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'This consultation already has a note. Add an addendum.',
+        code: 'NOTE_EXISTS',
+      );
+    }
+
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Write the note before saving it.',
+        code: 'NOTE_EMPTY',
+      );
+    }
+    if (trimmed.length > ConsultationNote.maxBodyLength) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'That note is too long.',
+        code: 'NOTE_TOO_LONG',
+      );
+    }
+
+    final note = ConsultationNote(
+      id: 'note-${_nextId()}',
+      appointmentId: appointmentId,
+      authorName: authorName,
+      authorRegistrationNumber: authorRegistrationNumber,
+      writtenAt: DateTime.now(),
+      body: trimmed,
+    );
+    _notes.insert(0, note);
+
+    // The patient is told there is something new in their record. The body is
+    // clinical and stays behind authentication; the notification says only
+    // that it exists.
+    notify(
+      kind: NotificationKind.recordReady,
+      title: 'Consultation notes added',
+      body: '$authorName has written up your consultation',
+      targetId: appointmentId,
+    );
+
+    return note;
+  }
+
+  /// Appends a correction. Never replaces anything.
+  ConsultationNote addNoteAddendum(
+    String noteId, {
+    required String body,
+    required String authorName,
+  }) {
+    final index = _notes.indexWhere((n) => n.id == noteId);
+    if (index < 0) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That note no longer exists.',
+        code: 'NOTE_NOT_FOUND',
+      );
+    }
+
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Write the addendum before saving it.',
+        code: 'NOTE_EMPTY',
+      );
+    }
+    if (trimmed.length > ConsultationNote.maxAddendumLength) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'That addendum is too long.',
+        code: 'NOTE_TOO_LONG',
+      );
+    }
+
+    final updated = _notes[index].copyWith(
+      addenda: [
+        ..._notes[index].addenda,
+        NoteAddendum(
+          body: trimmed,
+          authorName: authorName,
+          writtenAt: DateTime.now(),
+        ),
+      ],
+    );
+    _notes[index] = updated;
+    return updated;
   }
 
   // --- waitlist ------------------------------------------------------------

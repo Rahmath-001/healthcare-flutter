@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import { appointmentJson } from "../booking/routes";
 import { requireAuth, requireScope } from "../auth/middleware";
@@ -9,6 +9,7 @@ import {
   slotLockId,
   type AppointmentDoc,
   type DoctorDoc,
+  type ConsultationNoteDoc,
   type SlotLockDoc,
 } from "../db";
 import { handler, Problem } from "../errors";
@@ -32,6 +33,110 @@ async function doctorsFor(appointments: AppointmentDoc[]): Promise<Map<string, D
     if (s.exists) out.set(s.id, s.data() as DoctorDoc);
   });
   return out;
+}
+
+
+const MAX_NOTE_BODY = 4000;
+const MAX_ADDENDUM = 2000;
+
+function noteJson(id: string, n: ConsultationNoteDoc) {
+  return {
+    id,
+    appointmentId: n.appointmentId,
+    authorName: n.authorName,
+    authorRegistrationNumber: n.authorRegistrationNumber,
+    writtenAt: n.writtenAt.toDate().toISOString(),
+    body: n.body,
+    addenda: (n.addenda ?? []).map((a) => ({
+      body: a.body,
+      authorName: a.authorName,
+      writtenAt: a.writtenAt.toDate().toISOString(),
+    })),
+  };
+}
+
+async function loadNote(appointmentId: string) {
+  const snap = await db()
+    .collection(C.consultationNotes)
+    .where("appointmentId", "==", appointmentId)
+    .limit(1)
+    .get();
+  if (snap.empty) return { note: null, id: null };
+  return { note: snap.docs[0].data() as ConsultationNoteDoc, id: snap.docs[0].id };
+}
+
+/**
+ * Confirms the caller is on this appointment.
+ *
+ * Used before reporting that no note exists, so the absence of one cannot be
+ * used to probe which appointment ids are real.
+ */
+async function assertParticipant(
+  req: { auth?: { sub: string; role: string }; user?: { doctorId?: string | null } },
+  appointmentId: string
+): Promise<void> {
+  const snap = await db().collection(C.appointments).doc(appointmentId).get();
+  if (!snap.exists) throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Not found.");
+  const a = snap.data() as AppointmentDoc;
+  const ok =
+    req.auth!.role === "PROVIDER"
+      ? a.doctorId === req.user!.doctorId
+      : a.patientId === req.auth!.sub;
+  if (!ok) throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Not found.");
+}
+
+/** `POST /v1/notes/:id/addendum` — appends a correction, never replaces. */
+export function noteRoutes(secret: () => string): Router {
+  const r = Router();
+  r.use(requireAuth(secret));
+
+  r.post(
+    "/:id/addendum",
+    requireScope("prescription:write"),
+    handler(async (req, res) => {
+      const doctorId = req.user!.doctorId;
+      if (!doctorId) throw Problem.forbidden("NOT_A_PROVIDER", "Not a provider.");
+
+      const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+      if (!body) {
+        throw Problem.validation("Write the addendum before saving it.", {
+          body: "required",
+        });
+      }
+      if (body.length > MAX_ADDENDUM) {
+        throw Problem.validation("That addendum is too long.", { body: "too_long" });
+      }
+
+      const ref = db().collection(C.consultationNotes).doc(req.params.id);
+      const snap = await ref.get();
+      if (!snap.exists) throw Problem.notFound("NOTE_NOT_FOUND", "Not found.");
+
+      const note = snap.data() as ConsultationNoteDoc;
+      if (note.doctorId !== doctorId) {
+        throw Problem.notFound("NOTE_NOT_FOUND", "Not found.");
+      }
+
+      const doctorSnap = await db().collection(C.doctors).doc(doctorId).get();
+      const addendum = {
+        body,
+        authorName: (doctorSnap.data() as DoctorDoc | undefined)?.name ?? "",
+        writtenAt: Timestamp.now(),
+      };
+
+      // arrayUnion, so two addenda written at once cannot overwrite each
+      // other the way a read-modify-write of the whole array would.
+      await ref.update({ addenda: FieldValue.arrayUnion(addendum) });
+
+      res.json(
+        noteJson(req.params.id, {
+          ...note,
+          addenda: [...(note.addenda ?? []), addendum],
+        })
+      );
+    })
+  );
+
+  return r;
 }
 
 export function appointmentRoutes(secret: () => string): Router {
@@ -406,6 +511,112 @@ export function appointmentRoutes(secret: () => string): Router {
         isCheckedIn: mine.status === "CHECKED_IN",
         averageConsultationMinutes: slotMinutes > 0 ? slotMinutes : 15,
       });
+    })
+  );
+
+  /**
+   * The doctor's clinical note for a consultation.
+   *
+   * Readable by both sides — it is the patient's record, and the consent they
+   * signed says it is kept as part of it. Returns `{}` rather than a 404 when
+   * none has been written: "not written yet" is an ordinary state of a
+   * consultation, not an error the client has to interpret.
+   */
+  r.get(
+    "/:id/note",
+    handler(async (req, res) => {
+      const { note, id } = await loadNote(req.params.id);
+      if (!note) {
+        // Still checks the caller is a participant before saying so, or the
+        // absence of a note becomes a way to probe which ids exist.
+        await assertParticipant(req, req.params.id);
+        res.json({});
+        return;
+      }
+
+      const isProvider = req.auth!.role === "PROVIDER";
+      const permitted = isProvider
+        ? note.doctorId === req.user!.doctorId
+        : note.patientId === req.auth!.sub;
+      if (!permitted) throw Problem.notFound("NOTE_NOT_FOUND", "Not found.");
+
+      res.json(noteJson(id!, note));
+    })
+  );
+
+  /**
+   * Writes the note. One per appointment, and it cannot be rewritten.
+   *
+   * Author, registration number and timestamp all come from the session and
+   * the clock. A note is a signed clinical document, and every part of the
+   * signature a client could supply is a part it could forge.
+   */
+  r.post(
+    "/:id/note",
+    requireScope("prescription:write"),
+    handler(async (req, res) => {
+      const doctorId = req.user!.doctorId;
+      if (!doctorId) throw Problem.forbidden("NOT_A_PROVIDER", "Not a provider.");
+
+      const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+      if (!body) {
+        throw Problem.validation("Write the note before saving it.", { body: "required" });
+      }
+      if (body.length > MAX_NOTE_BODY) {
+        throw Problem.validation("That note is too long.", { body: "too_long" });
+      }
+
+      const snap = await db().collection(C.appointments).doc(req.params.id).get();
+      if (!snap.exists) throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Not found.");
+      const appointment = snap.data() as AppointmentDoc;
+
+      if (appointment.doctorId !== doctorId) {
+        throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Not found.");
+      }
+      if (!["COMPLETED", "IN_PROGRESS", "CHECKED_IN"].includes(appointment.status)) {
+        // A note against a booking nobody has attended is a record of an event
+        // that has not happened.
+        throw Problem.conflict(
+          "CONSULTATION_NOT_STARTED",
+          "A note can only be written once the consultation has begun."
+        );
+      }
+
+      const existing = await db()
+        .collection(C.consultationNotes)
+        .where("appointmentId", "==", req.params.id)
+        .limit(1)
+        .get();
+      if (!existing.empty) {
+        throw Problem.conflict("NOTE_EXISTS", "This consultation already has a note.");
+      }
+
+      const doctorSnap = await db().collection(C.doctors).doc(doctorId).get();
+      const doctor = doctorSnap.data() as DoctorDoc | undefined;
+
+      const doc: ConsultationNoteDoc = {
+        appointmentId: req.params.id,
+        patientId: appointment.patientId,
+        doctorId,
+        authorName: doctor?.name ?? "",
+        authorRegistrationNumber: doctor?.registrationNumber ?? "",
+        writtenAt: Timestamp.now(),
+        body,
+        addenda: [],
+      };
+
+      const ref = await db().collection(C.consultationNotes).add(doc);
+
+      await notify({
+        userId: appointment.patientId,
+        kind: "RECORD_READY",
+        title: "Consultation notes added",
+        // No clinical content: this lands on a lock screen.
+        body: `${doc.authorName} has written up your consultation`,
+        targetId: req.params.id,
+      });
+
+      res.status(201).json(noteJson(ref.id, doc));
     })
   );
 

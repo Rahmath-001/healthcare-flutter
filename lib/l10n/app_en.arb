@@ -863,5 +863,15 @@
   "medsTimesAreOurs": "Times are the app's suggestion. Your doctor set how many doses a day, not the hour.",
   "medsPreviousDay": "Previous day",
   "medsNextDay": "Next day",
-  "homeQuickMedicines": "My medicines"
+  "homeQuickMedicines": "My medicines",
+  "templatesTitle": "Saved sets",
+  "templatesSave": "Save as set",
+  "templatesSaved": "Saved",
+  "templatesName": "Name",
+  "templatesNameHint": "e.g. Chest infection, adults",
+  "templatesNone": "No saved sets yet",
+  "templatesNoneBody": "Save the medicines you prescribe often, then add them in one tap next time.",
+  "templatesDelete": "Delete set",
+  "templatesBlockedHere": "{count, plural, =1{1 medicine cannot be prescribed on this consultation} other{{count} medicines cannot be prescribed on this consultation}}",
+  "@templatesBlockedHere": {"placeholders": {"count": {"type": "int"}}}
 }

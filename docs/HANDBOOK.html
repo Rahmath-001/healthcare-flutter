@@ -1,0 +1,1128 @@
+<title>MiDoctor Handbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ---------- tokens: the app's own ramp, not an invented one ---------- */
+  :root {
+    --ground:       #FFFFFF;
+    --raised:       #F0F5F5;
+    --sunken:       #F6FAFA;
+    --ink:          #10191A;
+    --ink-2:        #41514F;
+    --ink-3:        #6B7B7B;
+    --rule:         #D5DFDF;
+    --rule-strong:  #BCCBCB;
+    --accent:       #0A5D61;
+    --accent-loud:  #0E8388;
+    --accent-soft:  #E6F4F4;
+    --ok:   #186E48;  --ok-bg:   #DCF2E7;
+    --warn: #8A5200;  --warn-bg: #FCEFD9;
+    --bad:  #B3261E;  --bad-bg:  #FBE3E1;
+    --info: #2A5B8C;  --info-bg: #E2ECF7;
+    --code-bg: #F0F5F5;
+    --shadow: 0 1px 2px rgba(16, 25, 26, .06), 0 8px 24px rgba(16, 25, 26, .05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #10181A;
+      --raised:      #182122;
+      --sunken:      #0A0F10;
+      --ink:         #E4EDED;
+      --ink-2:       #B2C1C1;
+      --ink-3:       #8A9A9A;
+      --rule:        #3A4647;
+      --rule-strong: #4E5C5D;
+      --accent:      #63BCBF;
+      --accent-loud: #97D2D4;
+      --accent-soft: #14282A;
+      --ok:   #6EDCA6;  --ok-bg:   #11331F;
+      --warn: #F3BE5C;  --warn-bg: #3A2A0A;
+      --bad:  #FF897D;  --bad-bg:  #3F1512;
+      --info: #9CC4EC;  --info-bg: #14273A;
+      --code-bg: #0A0F10;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #10181A;
+    --raised:      #182122;
+    --sunken:      #0A0F10;
+    --ink:         #E4EDED;
+    --ink-2:       #B2C1C1;
+    --ink-3:       #8A9A9A;
+    --rule:        #3A4647;
+    --rule-strong: #4E5C5D;
+    --accent:      #63BCBF;
+    --accent-loud: #97D2D4;
+    --accent-soft: #14282A;
+    --ok:   #6EDCA6;  --ok-bg:   #11331F;
+    --warn: #F3BE5C;  --warn-bg: #3A2A0A;
+    --bad:  #FF897D;  --bad-bg:  #3F1512;
+    --info: #9CC4EC;  --info-bg: #14273A;
+    --code-bg: #0A0F10;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  /* ---------- base ---------- */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { color: var(--accent-loud); }
+  :focus-visible { outline: 2px solid var(--accent-loud); outline-offset: 3px; border-radius: 2px; }
+
+  code, kbd, pre, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  code:not(pre code) {
+    background: var(--code-bg);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: .08em .34em;
+    font-size: .855em;
+  }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  /* ---------- shell ---------- */
+  .shell {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    gap: 56px;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 32px 120px;
+  }
+
+  /* ---------- sidebar ---------- */
+  .rail {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 40px 0 48px;
+    scrollbar-width: thin;
+  }
+
+  .mark {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    margin-bottom: 4px;
+  }
+  .mark b {
+    font-family: Newsreader, Georgia, serif;
+    font-size: 25px;
+    font-weight: 600;
+    letter-spacing: -.012em;
+  }
+  .mark span {
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .mark-sub {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin: 0 0 26px;
+    line-height: 1.45;
+  }
+
+  .rail nav { border-top: 1px solid var(--rule); padding-top: 18px; }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  .rail a {
+    display: flex;
+    gap: 10px;
+    padding: 5px 10px 5px 9px;
+    border-left: 2px solid transparent;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-size: 13.5px;
+    line-height: 1.4;
+    border-radius: 0 4px 4px 0;
+  }
+  .rail a .n {
+    color: var(--ink-3);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    padding-top: 1px;
+  }
+  .rail a:hover { background: var(--raised); color: var(--ink); }
+  .rail a[aria-current="true"] {
+    border-left-color: var(--accent-loud);
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 500;
+  }
+  .rail a[aria-current="true"] .n { color: var(--accent); }
+
+  /* ---------- content ---------- */
+  main { padding-top: 40px; max-width: 68ch; }
+
+  .lede {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 30px;
+    margin-bottom: 8px;
+  }
+  .lede h1 {
+    font-family: Newsreader, Georgia, serif;
+    font-size: clamp(38px, 6vw, 54px);
+    font-weight: 500;
+    line-height: 1.06;
+    letter-spacing: -.022em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .lede p {
+    font-size: 18.5px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 14px;
+    text-wrap: pretty;
+  }
+  .lede p:last-child { margin-bottom: 0; }
+
+  section { padding-top: 60px; scroll-margin-top: 24px; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  h2 {
+    font-family: Newsreader, Georgia, serif;
+    font-size: 31px;
+    font-weight: 500;
+    line-height: 1.16;
+    letter-spacing: -.016em;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 16.5px;
+    font-weight: 600;
+    letter-spacing: -.004em;
+    margin: 34px 0 10px;
+    text-wrap: balance;
+  }
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-2);
+    margin: 24px 0 8px;
+  }
+
+  p { margin: 0 0 15px; text-wrap: pretty; }
+  main ul, main ol { margin: 0 0 15px; padding-left: 20px; }
+  main li { margin-bottom: 7px; }
+  main li::marker { color: var(--ink-3); }
+
+  strong { font-weight: 600; }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; margin: 0 0 18px; border-radius: 8px; border: 1px solid var(--rule); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    background: var(--raised);
+    font-weight: 600;
+    font-size: 11.5px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.mono, td .path { font-family: "IBM Plex Mono", monospace; font-size: 12.7px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- chips ---------- */
+  .chip {
+    display: inline-block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .chip.ok   { background: var(--ok-bg);   color: var(--ok); }
+  .chip.warn { background: var(--warn-bg); color: var(--warn); }
+  .chip.bad  { background: var(--bad-bg);  color: var(--bad); }
+  .chip.info { background: var(--info-bg); color: var(--info); }
+
+  /* ---------- callouts ---------- */
+  .note {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent-loud);
+    background: var(--sunken);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 17px;
+    margin: 0 0 18px;
+    font-size: 14.5px;
+  }
+  .note p:last-child { margin-bottom: 0; }
+  .note.warn { border-left-color: var(--warn); }
+  .note.bad  { border-left-color: var(--bad); }
+  .note h4 { margin-top: 0; }
+
+  /* ---------- status board ---------- */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .board > dl { background: var(--ground); padding: 15px 16px; margin: 0; }
+  .board dt {
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-family: "IBM Plex Mono", monospace;
+    margin-bottom: 5px;
+  }
+  .board dd {
+    margin: 0;
+    font-family: Newsreader, Georgia, serif;
+    font-size: 25px;
+    font-weight: 500;
+    letter-spacing: -.01em;
+    line-height: 1.15;
+  }
+  .board small { display: block; font-family: "IBM Plex Sans", sans-serif; font-size: 12.5px; color: var(--ink-3); line-height: 1.4; margin-top: 3px; }
+
+  /* ---------- steps ---------- */
+  ol.steps { list-style: none; padding: 0; counter-reset: s; display: flex; flex-direction: column; gap: 16px; }
+  ol.steps > li {
+    counter-increment: s;
+    position: relative;
+    padding-left: 40px;
+    margin: 0;
+  }
+  ol.steps > li::before {
+    content: counter(s);
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--rule-strong);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 500;
+    display: grid;
+    place-items: center;
+  }
+  ol.steps h4 { margin: 0 0 4px; font-size: 15px; color: var(--ink); }
+  ol.steps p { margin-bottom: 8px; font-size: 14.5px; }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+
+
+  /* ---------- print / PDF ----------
+     The screen layout is a sticky sidebar beside one column, which on paper
+     would leave a rail of dead ink down every page. Print gets a different
+     shape: the contents become a front section, the column runs full width,
+     and the palette is pinned light regardless of the reader's theme, because
+     a dark page prints as a solid block of toner. */
+  @page {
+    size: A4;
+    margin: 16mm 15mm 18mm;
+  }
+
+  @media print {
+    :root {
+      --ground:       #FFFFFF;
+      --raised:       #F2F6F6;
+      --sunken:       #F8FBFB;
+      --ink:          #10191A;
+      --ink-2:        #3A4A48;
+      --ink-3:        #5F6F6F;
+      --rule:         #C7D4D4;
+      --rule-strong:  #AABABA;
+      --accent:       #0A5D61;
+      --accent-loud:  #0E8388;
+      --accent-soft:  #E6F4F4;
+      --code-bg:      #F2F6F6;
+      --shadow: none;
+    }
+
+    /* Keep the chip and table fills — they carry meaning, not decoration. */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    body { font-size: 10.5pt; line-height: 1.5; }
+
+    .shell {
+      display: block;
+      max-width: none;
+      padding: 0;
+    }
+
+    .rail {
+      position: static;
+      max-height: none;
+      overflow: visible;
+      padding: 0 0 8mm;
+      break-after: page;
+    }
+    .rail .mark b { font-size: 30pt; }
+    .rail .mark-sub { font-size: 11pt; max-width: 60ch; }
+    .rail nav { padding-top: 6mm; }
+    .rail ol { gap: 2px; }
+    .rail a {
+      color: var(--ink);
+      border-left: none;
+      padding: 3px 0;
+      font-size: 11pt;
+      background: none;
+    }
+    .rail a[aria-current="true"] {
+      background: none;
+      color: var(--ink);
+      font-weight: 400;
+    }
+    .rail a[aria-current="true"] .n { color: var(--ink-3); }
+
+    main { padding-top: 0; max-width: none; }
+
+    .lede h1 { font-size: 30pt; }
+    .lede p { font-size: 12pt; }
+
+    /* A heading stranded at the foot of a page is the commonest print defect. */
+    section { padding-top: 9mm; break-before: auto; }
+    h2, h3, h4 { break-after: avoid; break-inside: avoid; }
+    h2 { font-size: 18pt; }
+    h3 { font-size: 12pt; }
+
+    p, li { orphans: 3; widows: 3; }
+
+    pre, .note, .board, ol.steps > li { break-inside: avoid; }
+    .scroll { overflow-x: visible; break-inside: auto; }
+    table { font-size: 9pt; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+    td, th { padding: 6px 9px; }
+
+    /* Long paths and wire values have to wrap rather than run off the sheet. */
+    td.mono, td .path, code { word-break: break-word; overflow-wrap: anywhere; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+
+    a { text-decoration: none; color: var(--ink); }
+    .rail a, footer a { color: var(--ink); }
+
+    footer { break-inside: avoid; }
+  }
+
+  /* ---------- narrow ---------- */
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; gap: 0; padding: 0 20px 80px; }
+    .rail { position: static; max-height: none; padding: 32px 0 8px; }
+    .rail ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0; }
+    main { padding-top: 28px; }
+  }
+</style>
+
+<div class="shell">
+
+  <aside class="rail">
+    <div class="mark"><b>MiDoctor</b> <span>Handbook</span></div>
+    <p class="mark-sub">Patient app, provider app and operator console — what they do and how to run them.</p>
+    <nav aria-label="Contents">
+      <ol>
+        <li><a href="#orientation"><span class="n">01</span> What this is</a></li>
+        <li><a href="#running"><span class="n">02</span> Running it</a></li>
+        <li><a href="#walkthrough"><span class="n">03</span> A first walkthrough</a></li>
+        <li><a href="#patient"><span class="n">04</span> The patient app</a></li>
+        <li><a href="#provider"><span class="n">05</span> The provider app</a></li>
+        <li><a href="#console"><span class="n">06</span> The operator console</a></li>
+        <li><a href="#rules"><span class="n">07</span> Rules it enforces</a></li>
+        <li><a href="#architecture"><span class="n">08</span> How it is built</a></li>
+        <li><a href="#api"><span class="n">09</span> The API</a></li>
+        <li><a href="#security"><span class="n">10</span> Security &amp; privacy</a></li>
+        <li><a href="#testing"><span class="n">11</span> Testing</a></li>
+        <li><a href="#gaps"><span class="n">12</span> What is not finished</a></li>
+        <li><a href="#reference"><span class="n">13</span> Reference tables</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+
+    <header class="lede">
+      <h1>MiDoctor</h1>
+      <p>An Indian telemedicine product: patients find a doctor, book a slot, hold the consultation over video, and keep the prescription and records that come out of it. Doctors work the other side of the same screens. Supervisors and support staff work in a separate web console.</p>
+      <p>Three clients, two binaries. This handbook covers what each one does, how to run it, the rules it enforces, and the parts that are honestly not finished.</p>
+    </header>
+
+    <!-- ================================================== 01 -->
+    <section id="orientation">
+      <p class="eyebrow">01 · Platform</p>
+      <h2>What this is</h2>
+
+      <p>The repository root is a Flutter app. <code>functions/</code> is the MiDoctor API — a TypeScript Express app on Cloud Functions, plus a Twilio carrier check, a storage trigger and three scheduled sweeps.</p>
+
+      <div class="board">
+        <dl><dt>Audiences</dt><dd>3<small>Patient, provider, operator</small></dd></dl>
+        <dl><dt>Binaries</dt><dd>2<small><code>main.dart</code> and <code>main_admin.dart</code></small></dd></dl>
+        <dl><dt>Repositories</dt><dd>16<small>Each one a backend surface</small></dd></dl>
+        <dl><dt>Tests</dt><dd>358<small>Flutter, plus 83 on the API</small></dd></dl>
+      </div>
+
+      <h3>Two binaries, and why</h3>
+      <p>Patient and provider share <code>lib/main.dart</code>. Which one you get is decided by your <em>server session</em>, not by a setting — and the two live in separate <code>StatefulShellRoute</code> trees, so it is structurally impossible to render a provider tab inside the patient shell.</p>
+      <p>Supervisors, admins and support staff use the operator console at <code>lib/main_admin.dart</code>. It is a separate entry point for three reasons worth keeping:</p>
+      <ul>
+        <li>Nothing under <code>lib/admin/</code> is reachable from <code>lib/main.dart</code>, so approval logic and reviewer copy are never compiled into the APK that ships to the doctors being reviewed. A CI job fails if that stops being true.</li>
+        <li>Reviewing a degree certificate on a phone is not a thing anyone should do. Modelling it as "another tab" invites exactly that.</li>
+        <li>It can sit behind a VPN or an IdP without any of that touching the app.</li>
+      </ul>
+
+      <h3>Identity versus authority</h3>
+      <p>Firebase Auth proves <strong>who you are</strong> — Google, Apple, or an India phone OTP. There is no email and password. The Firebase ID token is then exchanged for a <strong>MiDoctor session</strong>, which is what proves <strong>what you may do</strong>. They are separate objects, and the app never authorizes off Firebase.</p>
+
+      <div class="note">
+        <p>Everything runs against in-memory sample data by default (<code>USE_FIXTURES=true</code>). Setting it to <code>false</code> swaps all sixteen repositories to their API-backed versions in one reviewable file, <code>lib/core/feature_providers.dart</code>.</p>
+      </div>
+    </section>
+
+    <!-- ================================================== 02 -->
+    <section id="running">
+      <p class="eyebrow">02 · Platform</p>
+      <h2>Running it</h2>
+
+      <p>Dart SDK <code>&gt;=3.3.0 &lt;4.0.0</code>. The API uses <strong>pnpm</strong>, not npm — <code>npm install</code> fails on pnpm's <code>node_modules</code> layout.</p>
+
+      <h3>The app</h3>
+      <pre>flutter pub get
+flutter run --dart-define=USE_FIXTURES=true     # sample data, no backend
+flutter run -d chrome                            # web, same flags</pre>
+
+      <h3>The operator console</h3>
+      <pre>flutter run -d chrome -t lib/main_admin.dart
+flutter build web -t lib/main_admin.dart --output build/admin</pre>
+
+      <h3>Against a real backend</h3>
+      <pre>cd functions &amp;&amp; pnpm install
+firebase emulators:start --only functions,firestore
+
+flutter run \
+  --dart-define=USE_FIXTURES=false \
+  --dart-define=API_BASE_URL=http://10.0.2.2:5001/&lt;project&gt;/asia-south1/api</pre>
+      <p>The Firestore emulator needs <strong>JDK 21 or newer</strong>; the functions emulator alone does not. Secrets go in a gitignored <code>functions/.secret.local</code>.</p>
+
+      <h3>Build-time configuration</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Key</th><th>Values</th><th>Default</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">ENV</td><td class="mono">dev · staging · prod</td><td class="mono">dev</td></tr>
+            <tr><td class="mono">API_BASE_URL</td><td>any URL</td><td class="mono">http://10.0.2.2:8080</td></tr>
+            <tr><td class="mono">USE_FIXTURES</td><td class="mono">true · false</td><td class="mono">true</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Credentials you will need to supply</h3>
+      <p><code>lib/firebase_options.dart</code> and <code>android/app/google-services.json</code> are gitignored. Regenerate them with <code>flutterfire configure</code>, or copy the credential-free stubs from <code>tool/ci/</code> for a build that compiles without a Firebase project.</p>
+
+      <div class="note warn">
+        <h4>Google Sign-In on web</h4>
+        <p>It reads neither <code>firebase_options.dart</code> nor <code>google-services.json</code>. It needs the Web OAuth client id in a <code>&lt;meta name="google-signin-client_id"&gt;</code> tag in <code>web/index.html</code>, where it sits commented out with instructions. Without it, sign-in fails at runtime with no useful error.</p>
+      </div>
+
+      <h3>Checks and builds</h3>
+      <pre>flutter analyze --fatal-infos          # must be clean; CI enforces
+dart format --set-exit-if-changed lib test
+flutter test                           # 358 tests
+flutter test --tags golden             # excluded from CI (host fonts)
+flutter build appbundle                # ship the AAB, never the universal APK
+cd functions &amp;&amp; pnpm test              # 83 tests, no emulator needed</pre>
+    </section>
+
+    <!-- ================================================== 03 -->
+    <section id="walkthrough">
+      <p class="eyebrow">03 · Getting started</p>
+      <h2>A first walkthrough</h2>
+
+      <p>Sample data has no identity provider behind it, so both apps offer an explicit sample sign-in. Without it the mock data was unreachable — the app opened on a sign-in screen it could not get past.</p>
+
+      <ol class="steps">
+        <li>
+          <h4>Start the app and pick a persona</h4>
+          <p>On the sign-in screen, <strong>Explore with sample data</strong> signs you in as Priya Sharma, a patient who already has appointments, records and prescriptions. Below the divider, <strong>Explore as an approved doctor</strong> and <strong>Explore as a doctor awaiting verification</strong> reach the other half of the binary — otherwise unreachable, because signing up as a doctor needs Firebase and the approval that opens the provider shell is an operator decision taken in a different process.</p>
+        </li>
+        <li>
+          <h4>Book something, and watch it land</h4>
+          <p>Home → find a doctor → pick a slot. The booking appears in <strong>Appointments</strong>, and that slot stops being offered to anyone else. Cancel it and the slot returns to the pool.</p>
+        </li>
+        <li>
+          <h4>Upload a record</h4>
+          <p>Records → upload. It is unreadable for about three seconds while it "scans", then clears. The quarantine state is real, not skipped — that is what the server does with an uploaded file before anything may open it.</p>
+        </li>
+        <li>
+          <h4>Grant a doctor access, then take it back</h4>
+          <p>Sharing → grant. The doctor's view opens to exactly what the grant covers. Revoke it and the view closes. Every grant has a mandatory finite expiry; there is no "until I revoke".</p>
+        </li>
+        <li>
+          <h4>Cross the shell</h4>
+          <p>Sign out, come back as the approved doctor, and issue a prescription from a completed consultation. Sign back in as the patient: it is in their list, and the appointment stops saying "none".</p>
+        </li>
+        <li>
+          <h4>Open the console</h4>
+          <p><code>flutter run -d chrome -t lib/main_admin.dart</code>, then <strong>Open with sample data</strong>. Submit credentials as the pending doctor and the application shows up in the review queue. Rate a consultation as the patient and it appears in the moderation queue.</p>
+        </li>
+      </ol>
+
+      <div class="note">
+        <h4>Why the sample data behaves like this</h4>
+        <p>Every fixture reads and writes <strong>one</strong> in-memory store, <code>FixtureBackend</code>. They used to be independent, and the product did not work even though every screen demoed correctly: booking returned an appointment the appointments list had never heard of, an uploaded record stayed "checking…" forever, and a prescription written by a doctor never reached the patient.</p>
+        <p>It also enforces the real rules rather than accepting anything — slot exclusivity by the same deterministic id the server uses, the 180-day consent ceiling, the 14-day rating window, the MoHFW drug lists. A fixture that accepted what the server rejects would teach the UI a rule that does not hold.</p>
+      </div>
+
+      <h3>What sample data will not pretend to do</h3>
+      <p>In the console, opening a credential document, suspending an account and assigning a role all refuse with a clear message. There is no file store behind the fixture, and a console that reports "account suspended" when nothing was suspended is the most dangerous kind of mock.</p>
+    </section>
+
+    <!-- ================================================== 04 -->
+    <section id="patient">
+      <p class="eyebrow">04 · Patient app</p>
+      <h2>The patient app</h2>
+
+      <p>Four tabs — Home, Appointments, Records, Profile — with everything else pushed over them.</p>
+
+      <h3>Signing in</h3>
+      <p>Three methods, all of which prove identity only: <strong>phone OTP</strong> (India, with a carrier and VoIP check first, so an internet calling number is rejected before an OTP is spent on it), <strong>Google</strong>, and <strong>Apple</strong> on iOS and macOS. Whatever succeeds, the Firebase ID token is exchanged for a MiDoctor session.</p>
+      <p>A new patient then completes onboarding — name, date of birth, blood group, allergies, conditions, emergency contact — before the shell opens.</p>
+
+      <h3>Home</h3>
+      <p>The next appointment as a hero card with a live countdown, and a grid of quick actions: <strong>Records</strong>, <strong>Prescriptions</strong>, <strong>My medicines</strong>, <strong>Who can see my records</strong>, <strong>Support</strong>.</p>
+
+      <h3>Finding and booking a doctor</h3>
+      <p>Search with a debounced field and a filter sheet — specialty, city, consultation mode, fee, rating. The detail page carries qualifications, the NMC registration number, languages, fee and published ratings.</p>
+      <p>Booking is a date strip plus a slot grid. Picking a slot takes a <strong>hold</strong> with a visible countdown; the hold lapses and the slot returns to the pool if you do not finish. If nothing is free, you can join a <strong>waitlist</strong> — and when a slot opens, the notification says so on a first-come, first-served basis.</p>
+
+      <h3>Appointments</h3>
+      <p>Upcoming and past. The detail screen offers cancel, reschedule, check-in, join, the prescription if one was issued, the doctor's consultation note, and rating once it is over.</p>
+      <p><strong>Rescheduling is one call, never cancel-then-book.</strong> The server takes the new slot lock and releases the old one in a single transaction, so the worst outcome is that you keep your original time. The reference code survives — a moved appointment is the same appointment.</p>
+      <p>Where a queue exists, the appointment shows your <strong>position</strong> — derived from counts the server returns, never from anyone else's appointment details.</p>
+
+      <h3>The consultation</h3>
+      <p>Four stages on one screen: a <strong>consent gate</strong>, a waiting room, the live call, and chat. If the connection degrades you can drop to audio without leaving.</p>
+      <p>The consent gate renders its text from <code>TelemedicineConsent</code>, and the exact wording and version are sent to the server, which stores a SHA-256 of it. That is why the copy must not be machine-translated and why changing the wording means bumping the version — a hash of text nobody saw is not evidence of anything.</p>
+      <div class="note bad">
+        <p><strong>Video does not work on web.</strong> The 100ms SDK ships Android and iOS only. On web the app binds an unsupported provider that fails as an ordinary error telling you to join from your phone, rather than throwing a plugin exception mid-call.</p>
+      </div>
+
+      <h3>Prescriptions and medicines</h3>
+      <p>Prescriptions list and detail, with the PDF — fetched from the server's write-once copy, falling back to a locally rendered one when offline, which says so. A prescription is a legal document: the doctor's details are snapshots taken at issue time, so it renders exactly as issued even after they edit their profile.</p>
+      <p>You can request a <strong>repeat</strong>; the doctor must give a real reason to decline, from a closed set plus a mandatory note. If a follow-up date was set, it is shown above the repeat button — somebody due a review should be booking one, not reordering the same course.</p>
+      <p><strong>My medicines</strong> turns those prescriptions into a day: what to take this morning, this afternoon, this evening, tonight. Tick a dose off, or skip it, or take the mark back. Adherence appears on the prescription as a count — "11 of 14 doses ticked off" — never a percentage, because a percentage borrows the authority of a measurement nobody took.</p>
+
+      <h3>Records and sharing</h3>
+      <p>Upload from camera, gallery or a document picker. The file is unreadable until it has been scanned. Sharing has three tabs — active grants, pending requests from doctors, and the access log. <strong>The log records denials too.</strong></p>
+
+      <h3>Notifications</h3>
+      <p>A notification centre plus per-kind toggles and quiet hours (22:00–07:00 by default, wrapping past midnight). Two kinds are <strong>mandatory</strong> and ignore both the toggle and quiet hours: an appointment that changed, and an account update. A patient must not be able to opt out of the only warning that their consultation is not happening.</p>
+
+      <h3>Profile, settings, privacy</h3>
+      <p>Edit profile, notification settings, language, and a privacy screen carrying the DPDP rights summary, data export, and account deletion. The emergency contact you gave at onboarding appears on the profile tab with a call button — it opens the dialer with the number typed in and does not place the call.</p>
+    </section>
+
+    <!-- ================================================== 05 -->
+    <section id="provider">
+      <p class="eyebrow">05 · Provider app</p>
+      <h2>The provider app</h2>
+
+      <p>Four tabs — Today, Schedule, Patients, Profile — but only for an <strong>approved</strong> doctor. Every other verification status is pinned to the verification screen.</p>
+
+      <h3>Getting approved</h3>
+      <p>The checklist wants all documents present, a registration number, and MFA enrolled before it will let you submit for review. <strong>A rejected document counts as not provided.</strong> Identity is DigiLocker only — there is deliberately no Aadhaar credential kind.</p>
+      <p>MFA is TOTP. The seed and the recovery codes expire off the clipboard after 60 seconds, and a later copy by the user is left alone.</p>
+
+      <h3>Today</h3>
+      <p>The day's list, with check-in and join, and whatever needs attention: new consent requests, refill requests waiting on a decision.</p>
+
+      <h3>Schedule</h3>
+      <p>Weekly availability rules, plus exceptions. Block a day and that day's slot grid genuinely empties for every patient.</p>
+      <div class="note">
+        <p>Availability is anchored to <strong>IST (+05:30)</strong>, never to server or caller local time. Cloud Functions runs in UTC, so building slots from a local date shifts every doctor's hours by five and a half hours in production while looking correct on an Indian dev machine. India has one timezone and no DST, so a fixed offset is exact.</p>
+      </div>
+
+      <h3>Patients</h3>
+      <p>Only patients who have granted access, and only what the grant covers. Records opened here are logged against the grant.</p>
+
+      <h3>Prescribing</h3>
+      <p>Drug search from the catalogue, dose, frequency, duration, instructions, diagnosis, advice, follow-up date. Drugs you may not prescribe are shown <strong>disabled with a reason</strong>, not hidden — the MoHFW telemedicine drug lists are a legal constraint, and the reason is the part a doctor needs.</p>
+      <p>The client's copy of the table only decides what to grey out. The server re-resolves every item from the catalogue by id and derives follow-up status from appointment history, so a repackaged client that sends the request anyway is refused.</p>
+
+      <h3>Consultation notes</h3>
+      <p>Written once per appointment, once the consultation has begun. <strong>Append-only</strong>: corrected by addendum, never edited or deleted.</p>
+      <p>A clinical note is evidence of what a clinician thought at a point in time, and the occasions one most needs changing are exactly the ones where somebody has an interest in the earlier version disappearing. The author, their registration number and the timestamp all come from the session and the clock — every part of the signature a client could supply is a part it could forge.</p>
+
+      <h3>Ratings</h3>
+      <p>Your published ratings, and a reply. Ratings are moderated before they publish.</p>
+    </section>
+
+    <!-- ================================================== 06 -->
+    <section id="console">
+      <p class="eyebrow">06 · Operator console</p>
+      <h2>The operator console</h2>
+
+      <p>A web app for supervisors, admins and support staff. It reuses <code>lib/core</code> entirely — the same HTTP client, auth interceptor, single-flight refresh and error mapping — because the authorization story is identical and having two of those is how they drift. Only the shell, routing and screens differ.</p>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Screen</th><th>Scope</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Verification queue → applicant</td>
+              <td class="mono">provider:review<br>provider:approve</td>
+              <td>Read each credential document in-page, accept or reject it with a structured reason, then approve — which composes the public directory listing — or reject the application.</td>
+            </tr>
+            <tr>
+              <td>Accounts</td>
+              <td class="mono">user:suspend<br>user:set_role</td>
+              <td>Look up by id, suspend or deactivate with a recorded reason, reactivate, assign a role.</td>
+            </tr>
+            <tr>
+              <td>Ratings</td>
+              <td class="mono">provider:review</td>
+              <td>Publish, hide or remove. This queue is a direct lever on which doctors search surfaces.</td>
+            </tr>
+            <tr>
+              <td>Support</td>
+              <td class="mono">support:ticket_read</td>
+              <td>Queue, thread, reply, escalate, close.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Two deliberate absences</h3>
+      <p>There is <strong>no user search</strong>. An operator acting on an account already has its id, and a search box hands a helpdesk the ability to enumerate patients by name.</p>
+      <p>There is <strong>no patient-context panel</strong> on a support ticket. Support staff hold no consent grant, and a "recent appointments" sidebar is the fastest way to turn a helpdesk into an unlogged route into someone's medical history.</p>
+
+      <h3>Notes</h3>
+      <ul>
+        <li>The first admin is created with <code>pnpm grant-role</code>. Nothing in the API can mint one.</li>
+        <li>Deployed as its own Firebase Hosting target, separate from the app's, with <code>X-Frame-Options: DENY</code> and a no-referrer policy.</li>
+        <li>English only, deliberately. It is internal staff tooling, and translating a review queue nobody outside the company sees buys nothing.</li>
+        <li><code>resolveAdminRedirect</code> is pure and unit-tested exactly like the mobile one, and deliberately <em>not</em> shared with it — one function serving both would mean a single edit could let a patient into the review queue.</li>
+      </ul>
+    </section>
+
+    <!-- ================================================== 07 -->
+    <section id="rules">
+      <p class="eyebrow">07 · Platform</p>
+      <h2>Rules it enforces</h2>
+
+      <p>These live in the domain layer and are tested directly. They are not UI conventions, and re-implementing them in a screen is how they drift.</p>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Area</th><th>Rule</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Drug lists</strong></td><td>MoHFW telemedicine lists. OTC and List A are prescribable on a first consult; <strong>List B is refill-only</strong> and blocked unless it is a follow-up; prohibited never. Enforced server-side; the client copy only greys things out.</td></tr>
+            <tr><td><strong>Consent</strong></td><td>Every grant has a mandatory finite expiry, ceiling 180 days. There is no "until I revoke". Revoke is one tap. The access log records denials.</td></tr>
+            <tr><td><strong>Cancellation</strong></td><td>Only while upcoming. Free-cancellation window 24h — a placeholder with no business authority behind it.</td></tr>
+            <tr><td><strong>Join window</strong></td><td>Opens 15 minutes before the start, closes 30 minutes after the scheduled end. In-person is never joinable.</td></tr>
+            <tr><td><strong>Ratings</strong></td><td>One per completed appointment, editable for 14 days, moderated before publish.</td></tr>
+            <tr><td><strong>Consultation notes</strong></td><td>Append-only. One per appointment, only once the consultation has begun, corrected by addendum.</td></tr>
+            <tr><td><strong>Rescheduling</strong></td><td>One call, never cancel-then-book. Status stays confirmed; the reference code survives.</td></tr>
+            <tr><td><strong>Notifications</strong></td><td>A closed set of kinds. Each decides which toggle silences it, where it leads, and whether it may arrive at 3am. Appointment changes and account updates are mandatory and bypass quiet hours.</td></tr>
+            <tr><td><strong>Verification gate</strong></td><td>All documents, plus registration number, plus MFA, before submission. A rejected document counts as not provided.</td></tr>
+            <tr><td><strong>Dosing</strong></td><td>The parser reads <code>1-0-1</code>, the Latin abbreviations and a few English phrases. Everything else gets <strong>no schedule at all</strong>.</td></tr>
+            <tr><td><strong>Dose log</strong></td><td>Self-report. Never shown to a doctor. A dose that is not due yet cannot be ticked; the whole of today can.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note warn">
+        <h4>Why the dosing parser refuses</h4>
+        <p><code>frequency</code> is free text a doctor typed. Guessing at the rest would be an app telling somebody to take a drug at a frequency nobody wrote down, with the prescription on screen as apparent authority for it.</p>
+        <p>Concretely: "Once weekly" contains "once", so a phrase table consulted first schedules 60,000 IU of vitamin D <em>every morning</em> instead of every Sunday. Non-daily intervals are therefore refused before the phrase table runs. An unparsed frequency renders as the doctor's own words with no reminders — which is exactly what a paper prescription does.</p>
+      </div>
+
+      <h3>Notification content</h3>
+      <p>Neither the title nor the body may carry clinical content. They render on a lock screen, mirror to a paired watch, and are read by whoever is holding the phone. "Prescription ready" is fine; naming the drug is a disclosure with no consent record and no way to withdraw it. The detail lives behind the tap, inside the app, behind authentication.</p>
+    </section>
+
+    <!-- ================================================== 08 -->
+    <section id="architecture">
+      <p class="eyebrow">08 · Engineering</p>
+      <h2>How it is built</h2>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Concern</th><th>Choice</th></tr></thead>
+          <tbody>
+            <tr><td>State</td><td><code>flutter_riverpod</code> ^3.4 — no codegen; <code>riverpod_generator</code> is unusable on this Flutter version, so providers are written by hand</td></tr>
+            <tr><td>Routing</td><td><code>go_router</code> ^17.5, hand-written paths</td></tr>
+            <tr><td>HTTP</td><td><code>dio</code> ^5.11 behind an <code>ApiClient</code> wrapper</td></tr>
+            <tr><td>Identity</td><td>Firebase Auth — Google, Apple, India phone OTP</td></tr>
+            <tr><td>Authorization</td><td>MiDoctor server session, its own JWT</td></tr>
+            <tr><td>Secure storage</td><td><code>flutter_secure_storage</code> ^11 — iOS Keychain, Android KeyStore</td></tr>
+            <tr><td>Telehealth</td><td><code>hmssdk_flutter</code> (100ms) behind a <code>TelehealthProvider</code> seam</td></tr>
+            <tr><td>Localisation</td><td>ARB — ~490 keys in English, ~474 in Hindi</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Three layers per feature</h3>
+      <pre>lib/features/&lt;feature&gt;/
+  domain/        immutable models, enums, business rules. No Flutter, no Dio.
+  data/          abstract Repository + Fixture… + Api…
+  presentation/  providers/controllers + ConsumerWidget screens</pre>
+      <p>Nothing above <code>ApiClient</code> knows about Dio or HTTP status codes. Errors are always a <code>Failure</code> with a coarse kind and a machine code. Screens are views: mutations go through a controller or a top-level function beside the provider, which invalidates what it affected.</p>
+
+      <h3>Session and roles</h3>
+      <p>The session carries the user id, session id, access token, role, account status, provider status, scopes and a permission version. The <strong>access token is memory-only</strong> and never written to disk. The <strong>refresh token lives in secure storage only</strong> and is rotated on every refresh. The device id is a random per-install string, deliberately not a hardware id (DPDP Act).</p>
+
+      <h4>Redirect precedence</h4>
+      <p>The order matters, and <code>resolveRedirect</code> is a pure function covered by 21 unit tests:</p>
+      <ol>
+        <li>Session still loading → splash</li>
+        <li>No session → auth</li>
+        <li>Account not usable → blocked</li>
+        <li>Role has no mobile UI → blocked</li>
+        <li>Patient without onboarding → onboarding</li>
+        <li>Provider not approved → verification</li>
+        <li>Cross-shell containment — a patient can never land on a provider route, or the reverse</li>
+      </ol>
+
+      <h3>Network</h3>
+      <ul>
+        <li><strong><code>ProblemJson</code></strong> parses RFC 9457 <code>application/problem+json</code> into a <code>Failure</code>, honouring <code>Retry-After</code> and <code>x-request-id</code>.</li>
+        <li><strong><code>AuthInterceptor</code></strong> injects the bearer token, and on a 401 <em>or</em> a body carrying <code>TOKEN_STALE</code> refreshes once and replays through a bare Dio that has no interceptors and therefore cannot recurse.</li>
+        <li><strong><code>RefreshCoordinator</code></strong> makes refresh single-flight. With rotating refresh tokens and reuse detection, a parallel second refresh looks like theft and revokes the whole session family.</li>
+      </ul>
+
+      <h3>Design system</h3>
+      <p>Three files under <code>lib/core/theme/</code>, and nothing outside them picks a colour, a radius or a duration. Both colour schemes are written out rather than seeded — seeding from a teal brand hue tints every grey green and drags clinical content toward the product colour.</p>
+      <p>Status colour comes from <code>AppTones</code>, not from primary and error. A completed appointment is not an error and a scanning record is not a success. A tone ships a contrast-checked foreground <em>and</em> container for both brightnesses, where a raw colour at 12% alpha is only ever checked in whichever mode the author had open.</p>
+      <p>Motion is one language: 120ms for press, 180ms for state swaps, 240ms for pages, 360ms for first-run reveals; only opacity and transform are animated; every animation checks the OS reduce-motion setting. Loading is a skeleton, held back 160ms so a cached list does not flash grey bars for 60ms.</p>
+
+      <div class="note">
+        <h4>Two traps worth knowing</h4>
+        <p><strong>A stateful list item in a builder needs a key.</strong> Entrance animations are stateful, so an unkeyed one is matched positionally — switch a filter and row three's finished animation controller is handed to a different record, which arrives already faded in. Key by domain id.</p>
+        <p><strong>Fixed heights must come from <code>MediaQuery.textScalerOf</code>.</strong> A hard-coded tile height is a guaranteed overflow the moment someone turns the system font up, and this audience turns it up. Widget tests render the main screens at 1.3× and 2× and fail on any overflow.</p>
+      </div>
+
+      <h3>Offline</h3>
+      <p>Appointments and prescriptions are cached through <code>ClinicalCache</code>, as a decorator so the policy lives in one place and wraps the fixture too. Every clause matters: encrypted at rest, <strong>never on web</strong>, <strong>metadata only</strong> — never record bytes or a prescription PDF — a <strong>3-day expiry</strong> with anything already past dropped on the way out, wiped on sign-out, and <strong>the screen says so</strong>, escalating its wording past 24 hours because one phrasing cannot carry both "an hour old" and "two days old".</p>
+      <p>That last clause justifies the rest. Silently rendering yesterday's appointments as today's is a wrong answer delivered confidently, which for a list somebody plans their day around is worse than an error. A non-network failure is never masked by the cache: a 403 is an answer, and serving last week's list would hide a suspension.</p>
+    </section>
+
+    <!-- ================================================== 09 -->
+    <section id="api">
+      <p class="eyebrow">09 · Engineering</p>
+      <h2>The API</h2>
+
+      <p>An Express app on Cloud Functions in <code>asia-south1</code>, plus <code>verifyIndianCarrier</code> (a Twilio callable), <code>inspectUpload</code> (a storage trigger) and three scheduled sweeps. Wire values are <code>UPPER_SNAKE</code> throughout.</p>
+
+      <h3>Invariants the client depends on</h3>
+      <ul>
+        <li><strong>Slot lock ids are deterministic</strong> — <code>&lt;doctorId&gt;__&lt;startMillis&gt;</code>. That is the entire no-double-booking guarantee: two phones addressing the same document id lets a Firestore transaction serialise them, the way a Postgres exclusion constraint would. Random ids would silently remove it.</li>
+        <li><strong>Refresh tokens are single-use and stored hashed; reuse revokes the family.</strong> This is why single-flight refresh exists on the client.</li>
+        <li><strong>A permission-version mismatch returns <code>TOKEN_STALE</code></strong>, which the interceptor answers by refreshing and replaying. Every authorization change increments it, so a suspension lands on the next request rather than up to fifteen minutes later.</li>
+        <li><strong>Uploaded bytes never pass through the API.</strong> The client PUTs to a signed URL, the object lands in a <code>quarantine/</code> prefix nothing can read, and the trigger promotes it only after confirming the type from magic bytes and stripping EXIF.</li>
+        <li><strong>Firestore rules deny everything, deliberately.</strong> The app never holds a Firestore credential; the API uses the Admin SDK, which bypasses rules. Authorization has exactly one implementation — a second, weaker implementation of consent expiry is worse than none.</li>
+      </ul>
+
+      <div class="note warn">
+        <h4>New queries usually need a new index</h4>
+        <p>An equality filter plus an <code>orderBy</code> or a range on a <em>different</em> field needs an entry in <code>firestore.indexes.json</code>. Equality-only conjunctions do not. Nothing fails locally, the emulator serves anything, and nothing fails at build — it fails as <code>FAILED_PRECONDITION</code> the first time a real user opens the screen. Five accumulated before an audit caught them.</p>
+      </div>
+
+      <h3>Route table (abridged)</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Requires</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">POST</td><td class="mono">/v1/auth/session</td><td>a Firebase ID token</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/auth/refresh</td><td>a refresh token</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/v1/doctors, /:id</td><td>authenticated</td></tr>
+            <tr><td class="mono">GET/POST</td><td class="mono">/v1/booking/slots, /hold, /book</td><td class="mono">appointment:create</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/appointments/:id/reschedule</td><td class="mono">appointment:create</td></tr>
+            <tr><td class="mono">GET/POST</td><td class="mono">/v1/appointments/:id/note</td><td>participant · <span class="mono">prescription:write</span></td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/notes/:id/addendum</td><td class="mono">prescription:write</td></tr>
+            <tr><td class="mono">GET/POST</td><td class="mono">/v1/records</td><td class="mono">records:read_own</td></tr>
+            <tr><td class="mono">GET/POST</td><td class="mono">/v1/consent/grants, /requests, /log</td><td class="mono">consent:*</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/prescriptions</td><td class="mono">prescription:write</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/v1/prescriptions/:id/pdf</td><td>patient or issuing doctor</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/v1/rx/:code</td><td><strong>none</strong> — a pharmacist holds no token</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/v1/medications/doses?from=</td><td class="mono">prescription:read_own</td></tr>
+            <tr><td class="mono">PUT/DELETE</td><td class="mono">/v1/medications/doses/:id</td><td class="mono">prescription:read_own</td></tr>
+            <tr><td class="mono">GET/PUT</td><td class="mono">/v1/notifications/preferences</td><td>authenticated</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/credentials/submit</td><td class="mono">credentials:submit</td></tr>
+            <tr><td class="mono">GET/POST</td><td class="mono">/v1/review/providers/:userId</td><td class="mono">provider:review</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The full table is in <code>functions/README.md</code>.</p>
+
+      <div class="note">
+        <h4>A trap this API has already fallen into</h4>
+        <p>Dose ids contain <code>#</code>. Interpolated raw into a URL path, <code>#</code> starts the fragment — and a fragment is never sent, so every request silently addressed the prescription id alone. Percent-encode any id that carries one.</p>
+      </div>
+    </section>
+
+    <!-- ================================================== 10 -->
+    <section id="security">
+      <p class="eyebrow">10 · Engineering</p>
+      <h2>Security &amp; privacy</h2>
+
+      <p><strong>Jurisdiction, for the record.</strong> HIPAA is US law. This product is India-facing, where the <strong>DPDP Act 2023</strong>, the <strong>Telemedicine Practice Guidelines 2020</strong> and the SPDI Rules bind. §164.312 is the stricter checklist, so building to it satisfies DPDP too. Every HIPAA §164.312 technical safeguard a mobile client can implement is implemented; what remains is server-side or organizational. The control-by-control audit is in <code>docs/SECURITY_AUDIT.md</code>.</p>
+
+      <h3>Controls that are not obvious from reading a screen</h3>
+      <ul>
+        <li><strong>Screens holding PHI are wrapped in <code>ProtectedScreen</code></strong> — Android <code>FLAG_SECURE</code>, iOS blur-on-resign. It follows <em>visibility</em>, not mount: tab branches are never disposed, so an enable-on-mount version latched the flag on forever and never released it. Adding a screen that renders PHI means adding it to the list.</li>
+        <li><strong>The whole app sits inside a 15-minute inactivity timeout.</strong> It arms off the session provider rather than starting unconditionally — an earlier version read the session only when the timer fired, caught it mid-restore, treated that as signed-out and never re-armed.</li>
+        <li><strong>Clinical free-text fields disable autocorrect and suggestions.</strong> The OS otherwise learns typed words into the personal dictionary and suggests them <em>in other apps</em> — a diagnosis leaking with no consent record and no way to revoke it.</li>
+        <li><strong><code>debugPrint</code> is not stripped from release builds.</strong> It forwards to <code>print</code> and reaches logcat, and the lint does not catch it, so a <code>kDebugMode</code> guard on every call site is the only control.</li>
+        <li><strong>Crash reports never carry PHI.</strong> A <code>Failure</code>'s message can quote the server's detail verbatim, so only the kind and the machine code are forwarded. Breadcrumbs are route names, never arguments.</li>
+        <li><strong>The audit log is server-side only</strong>, deliberately. A client-side log is evidence the audited party can edit.</li>
+      </ul>
+
+      <h3>Where web is weaker, and why</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Control</th><th>Native</th><th>Web</th></tr></thead>
+          <tbody>
+            <tr><td>Screenshot blocking</td><td><span class="chip ok">Yes</span></td><td><span class="chip bad">No equivalent exists</span></td></tr>
+            <tr><td>Certificate pinning</td><td><span class="chip ok">Wired</span></td><td><span class="chip bad">Not expressible</span></td></tr>
+            <tr><td>Credential storage</td><td><span class="chip ok">Keychain / KeyStore</span></td><td><span class="chip warn">Memory only</span></td></tr>
+            <tr><td>Clinical cache</td><td><span class="chip ok">Encrypted</span></td><td><span class="chip bad">Disabled</span></td></tr>
+            <tr><td>Video consultation</td><td><span class="chip ok">Yes</span></td><td><span class="chip bad">Not supported</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>On web, "secure storage" is <code>localStorage</code>, so the refresh token and session id are kept <strong>in memory only</strong> and never written. The consequence is deliberate and visible: reloading the tab signs you out. That is the right trade for a credential that unlocks health records — and especially for the console, where the same credential can suspend an account. The real fix is a same-site <code>HttpOnly</code> refresh cookie, which script cannot read at all; setting <code>WEB_ORIGINS</code> on the API turns that on.</p>
+
+      <div class="note bad">
+        <h4>Certificate pinning is wired and its pins are empty</h4>
+        <p>Empty means disabled, and that is the kill switch — a pin is the one control that can permanently brick an installed fleet. Populate <code>AppConfig.pinsForEnvironment</code> before any external release, always with two pins: the live certificate and its successor. <code>dart run tool/check_release_config.dart prod</code> fails while it is unset, so this is a gate rather than a note.</p>
+      </div>
+    </section>
+
+    <!-- ================================================== 11 -->
+    <section id="testing">
+      <p class="eyebrow">11 · Engineering</p>
+      <h2>Testing</h2>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Suite</th><th>Covers</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">router_redirect_test</td><td>The redirect function across 7 roles × 9 provider statuses</td></tr>
+            <tr><td class="mono">fixture_backend_test</td><td>Cross-feature consequences: book → appointments, upload → readable, grant → visible, prescribe → patient, reschedule → old slot freed</td></tr>
+            <tr><td class="mono">domain_rules_test</td><td>Drug lists, consent expiry, cancellation, join window, holds, verification gate, ratings</td></tr>
+            <tr><td class="mono">medication_schedule_test</td><td>The dosing parser including every interval it refuses, course windows, adherence arithmetic</td></tr>
+            <tr><td class="mono">api_repository_test</td><td>The wire contract of every API-backed repository</td></tr>
+            <tr><td class="mono">widget/screens_test</td><td>Screens mounted for real, in both locales, at 1.3× and 2× text scale</td></tr>
+            <tr><td class="mono">golden/screens_golden_test</td><td>Layout regressions in light, dark and Hindi. Excluded from CI</td></tr>
+            <tr><td class="mono">notification_rules_test</td><td>Quiet-hour wrapping, mandatory kinds that cannot be silenced</td></tr>
+            <tr><td class="mono">inactivity_timeout · screen_protection · certificate_pinning · sensitive_clipboard</td><td>The four security controls</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p><strong>Those four security tests exist because every control they cover fails open and silently.</strong> A broken inactivity timer, a screenshot flag that never re-enables, a pin that is not applied, a clipboard that never clears. None of them throw, none look wrong on screen, and two of the four were already broken when the tests were written.</p>
+      </div>
+
+      <h3>Dates make tests flaky by accident</h3>
+      <p>The fixture seed is relative to "now". Two have already bitten: three booking tests reached for "tomorrow" and slots return nothing on a Sunday, so they failed one day in seven; and the goldens render seeded dates, which only survived a rollover because the test font draws every digit as an identical box. Use <code>FixtureSeed.pinClock(at)</code> — it returns its own undo, so a test cannot date-lock the ones after it.</p>
+      <p>The same applies to times: anything resolving a day in IST should be tested with explicit instants rather than local wall-clock times, or it answers differently on a UTC CI box than on a laptop in India.</p>
+
+      <h3>Still untested</h3>
+      <p>The operator console's screens have no widget tests, and the Firestore transactions — double-booking and refresh rotation — need the emulator.</p>
+    </section>
+
+    <!-- ================================================== 12 -->
+    <section id="gaps">
+      <p class="eyebrow">12 · Platform</p>
+      <h2>What is not finished</h2>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Area</th><th>State</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>Credentials backend</td><td><span class="chip warn">~15%</span></td><td>Submission and checklist only. Document upload, DigiLocker and MFA enrolment are still fixtures.</td></tr>
+            <tr><td>Payments</td><td><span class="chip bad">Not built</span></td><td><code>BookingPolicy.requiresPayment()</code> returns false. Stripe is likely wrong for INR domestic — Razorpay, Cashfree or PhonePe with UPI are the practical options.</td></tr>
+            <tr><td>Apple token revocation</td><td><span class="chip warn">Partial</span></td><td>Works only if the user signed in with Apple in that same app run. A cold-start deletion needs the server to revoke using a stored refresh token. Required by App Store review.</td></tr>
+            <tr><td>Google Sign-In on iOS</td><td><span class="chip warn">Needs setup</span></td><td>Wants <code>CFBundleURLTypes</code> with the reversed client id. The block sits commented out in <code>Info.plist</code>. Without it the consent sheet opens and never returns.</td></tr>
+            <tr><td>Certificate pins</td><td><span class="chip bad">Empty</span></td><td>Disabled until populated. A release gate fails while they are unset.</td></tr>
+            <tr><td>Web auth persistence</td><td><span class="chip warn">By design</span></td><td>A tab reload signs you out until <code>WEB_ORIGINS</code> turns on cookie auth.</td></tr>
+            <tr><td>Console widget tests</td><td><span class="chip bad">None</span></td><td>Its redirect logic is unit-tested; its screens are not.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Before launch</h3>
+      <p>Beyond the code: a production Firebase project, Play and Apple developer accounts, production 100ms and Twilio credentials, NMC provider verification, DPDP compliance artefacts, a payment gateway decision, and the deployment steps that cannot be done from a repository — populating the pins, setting <code>WEB_ORIGINS</code>, locking bucket retention on the prescriptions prefix, and uploading the APNs key to Firebase.</p>
+      <p>The release AAB is around 80 MB because of the WebRTC natives. Ship the App Bundle, never the universal APK.</p>
+    </section>
+
+    <!-- ================================================== 13 -->
+    <section id="reference">
+      <p class="eyebrow">13 · Reference</p>
+      <h2>Reference tables</h2>
+
+      <h3>Roles</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Role</th><th>Where they work</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">patient</td><td>Mobile app, patient shell</td></tr>
+            <tr><td class="mono">provider</td><td>Mobile app, provider shell — only when approved</td></tr>
+            <tr><td class="mono">supervisor</td><td>Console — review, approve, reject, moderate</td></tr>
+            <tr><td class="mono">supportL1 · supportL2</td><td>Console — tickets</td></tr>
+            <tr><td class="mono">admin</td><td>Console — everything</td></tr>
+            <tr><td class="mono">unassigned</td><td>Nowhere. Routed to the blocked screen</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Statuses</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Kind</th><th>Values</th></tr></thead>
+          <tbody>
+            <tr><td>Account</td><td class="mono">active · pending · suspended · deactivated</td></tr>
+            <tr><td>Provider</td><td class="mono">draft · submitted · underReview · approved · rejected · resubmitRequested · suspended · deactivated · notApplicable</td></tr>
+            <tr><td>Prescription</td><td class="mono">DRAFT · ISSUED · CANCELLED · SUPERSEDED</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A non-active account goes to a terminal <strong>blocked</strong> screen with an explanation, never a silent sign-out. Only <code>approved</code> opens the provider shell.</p>
+
+      <h3>Scopes</h3>
+      <p><strong>Patient</strong> — <code class="mono">profile:read/write</code>, <code class="mono">doctor:search</code>, <code class="mono">appointment:create/cancel</code>, <code class="mono">records:read_own/write_own</code>, <code class="mono">consent:grant/revoke/view_log</code>, <code class="mono">prescription:read_own</code>, <code class="mono">consultation:join</code>, <code class="mono">rating:write</code>, <code class="mono">support:ticket_create</code>.</p>
+      <p><strong>Approved provider</strong> — <code class="mono">profile:read/write_limited</code>, <code class="mono">availability:write</code>, <code class="mono">appointments:read_own</code>, <code class="mono">records:read_granted/request_access</code>, <code class="mono">prescription:write</code>, <code class="mono">consultation:host/join</code>, <code class="mono">ratings:read_own</code>.</p>
+      <p>An unapproved provider holds exactly two: <code class="mono">profile:read</code> and <code class="mono">credentials:submit</code>. That is the whole reason verification is a <em>status</em> rather than a second role — the scope set collapses to almost nothing until a supervisor approves, and there is no path by which an unapproved doctor can see a patient record or issue a prescription.</p>
+      <p>The server matrix is the authority. The Flutter fixture mirrors it so fixture-backed screens gate identically, but a client copy of a permission table is a convenience for the UI, never a control: every endpoint re-checks.</p>
+
+      <h3>Rules that are easy to break</h3>
+      <ol>
+        <li>Never add a package before the code that imports it.</li>
+        <li>Never <code>print()</code>. A stray print leaks PHI into logcat.</li>
+        <li>Clinical data on the device goes through <code>ClinicalCache</code>, or not at all.</li>
+        <li>Never throw from a release build-type block in Gradle.</li>
+        <li>Release builds fail closed without <code>android/key.properties</code>. That is deliberate.</li>
+        <li>Write Riverpod providers by hand; the generator does not work here.</li>
+        <li>Use <code>flutter pub add</code>, not hand-pinned versions.</li>
+        <li>Run <code>dart format lib test</code> before committing. CI enforces it.</li>
+        <li><code>functions/</code> sources are CRLF; <code>lib/</code> is LF.</li>
+        <li>A new Firestore query usually needs a new composite index.</li>
+        <li>Never add a scope without an endpoint behind it.</li>
+        <li>Crash reports must never carry PHI.</li>
+        <li>No clinical content in a notification title or body.</li>
+        <li>The consent gate renders from <code>TelemedicineConsent</code>; changing the wording means bumping the version.</li>
+      </ol>
+    </section>
+
+    <footer>
+      <p>MiDoctor — Flutter client and the MiDoctor API. Source of record for anything that contradicts this page: <code>CLAUDE.md</code>, <code>functions/README.md</code> and <code>docs/SECURITY_AUDIT.md</code>.</p>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // Marks the section you are reading in the contents. Rootmargin biases the
+  // active line towards the top of the viewport, so the highlight matches the
+  // heading you can actually see rather than whatever is dead centre.
+  (function () {
+    var links = {};
+    document.querySelectorAll('.rail a[href^="#"]').forEach(function (a) {
+      links[a.getAttribute('href').slice(1)] = a;
+    });
+
+    var seen = new Set();
+    var order = Object.keys(links);
+
+    function paint() {
+      var current = null;
+      for (var i = 0; i < order.length; i++) {
+        if (seen.has(order[i])) { current = order[i]; break; }
+      }
+      order.forEach(function (id) {
+        if (id === current) links[id].setAttribute('aria-current', 'true');
+        else links[id].removeAttribute('aria-current');
+      });
+    }
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) seen.add(entry.target.id);
+        else seen.delete(entry.target.id);
+      });
+      paint();
+    }, { rootMargin: '0px 0px -68% 0px', threshold: 0 });
+
+    document.querySelectorAll('main section[id]').forEach(function (s) {
+      observer.observe(s);
+    });
+  })();
+</script>

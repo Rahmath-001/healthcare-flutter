@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/feature_providers.dart';
+import '../../../core/theme/app_palette.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../l10n/l10n.dart';
 import '../../../shared/widgets/async_view.dart';
+import '../../../shared/haptics.dart';
 import '../domain/prescription.dart';
+import '../domain/prescription_template.dart';
 
 /// Provider-side prescription composer.
 ///
@@ -49,6 +53,97 @@ class _PrescribeScreenState extends ConsumerState<PrescribeScreen> {
     if (item != null) setState(() => _items.add(item));
   }
 
+  /// Picks a template and fills the composer from it.
+  ///
+  /// Applying appends rather than replaces: a doctor part-way through a
+  /// prescription who reaches for a template is adding to what they have,
+  /// and silently discarding typed-in medicines would be the worst possible
+  /// reading of the gesture.
+  Future<void> _openTemplates() async {
+    final applied = await showModalBottomSheet<PrescriptionTemplate>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _TemplatePickerSheet(isFollowUp: _isFollowUp),
+    );
+    if (applied == null || !mounted) return;
+
+    // Only what may be prescribed on *this* consultation. The sheet has
+    // already shown the doctor what was excluded and why.
+    final usable = applied.prescribableOn(isFollowUp: _isFollowUp);
+
+    setState(() {
+      for (final item in usable) {
+        final already = _items.any((existing) =>
+            existing.drugId == item.drugId &&
+            existing.strength == item.strength);
+        if (!already) _items.add(item.toPrescriptionItem());
+      }
+      // Offered, never forced: a template's diagnosis is about a condition,
+      // not about a set of drugs, so it fills only an empty field.
+      if (applied.diagnosis != null && _diagnosisCtrl.text.trim().isEmpty) {
+        _diagnosisCtrl.text = applied.diagnosis!;
+      }
+      if (applied.advice != null && _adviceCtrl.text.trim().isEmpty) {
+        _adviceCtrl.text = applied.advice!;
+      }
+    });
+  }
+
+  Future<void> _saveTemplate() async {
+    final messenger = ScaffoldMessenger.of(context);
+    // Captured before the dialog, so the snackbar text does not need the
+    // context back after the await.
+    final savedLabel = context.l10n.templatesSaved;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => const _NameTemplateDialog(),
+    );
+    if (name == null || !mounted) return;
+
+    // Templates are keyed on drug id, because that is what the catalogue is
+    // re-read by. An item composed without one cannot be re-checked against
+    // the drug lists later, so it is left out rather than saved unverifiable.
+    final items = <TemplateItem>[
+      for (final i in _items)
+        if (i.drugId != null)
+          TemplateItem(
+            drugId: i.drugId!,
+            drugName: i.drugName,
+            genericName: i.genericName,
+            strength: i.strength,
+            form: i.form,
+            frequency: i.frequency,
+            durationDays: i.durationDays,
+            instructions: i.instructions,
+            // Not stored; the catalogue supplies it on read. Any value here
+            // is discarded on the way out.
+            telemedicineList: TelemedicineDrugList.listO,
+          ),
+    ];
+
+    try {
+      await ref.read(prescriptionTemplateRepositoryProvider).create(
+            name: name,
+            items: items,
+            diagnosis: _diagnosisCtrl.text.trim().isEmpty
+                ? null
+                : _diagnosisCtrl.text.trim(),
+            advice: _adviceCtrl.text.trim().isEmpty
+                ? null
+                : _adviceCtrl.text.trim(),
+          );
+      ref.invalidate(prescriptionTemplatesProvider);
+      Haptics.success();
+      messenger.showSnackBar(
+        SnackBar(content: Text(savedLabel)),
+      );
+    } on Failure catch (e) {
+      Haptics.warning();
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Future<void> _issue() async {
     setState(() => _issuing = true);
     try {
@@ -85,7 +180,16 @@ class _PrescribeScreenState extends ConsumerState<PrescribeScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.prescribeWriteTitle)),
+      appBar: AppBar(
+        title: Text(context.l10n.prescribeWriteTitle),
+        actions: [
+          IconButton(
+            tooltip: context.l10n.templatesTitle,
+            icon: const Icon(Icons.bookmarks_outlined),
+            onPressed: _openTemplates,
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -123,6 +227,13 @@ class _PrescribeScreenState extends ConsumerState<PrescribeScreen> {
                       Text(context.l10n.prescribeMedicines,
                           style: theme.textTheme.titleSmall),
                       const Spacer(),
+                      if (_items.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: _saveTemplate,
+                          icon:
+                              const Icon(Icons.bookmark_add_outlined, size: 18),
+                          label: Text(context.l10n.templatesSave),
+                        ),
                       TextButton.icon(
                         onPressed: _addMedicine,
                         icon: const Icon(Icons.add, size: 18),
@@ -409,6 +520,186 @@ class _DrugPickerSheetState extends ConsumerState<_DrugPickerSheet> {
                 ],
               ),
       ),
+    );
+  }
+}
+
+/// A doctor's saved prescribing sets.
+final prescriptionTemplatesProvider =
+    FutureProvider<List<PrescriptionTemplate>>((ref) async {
+  return ref.watch(prescriptionTemplateRepositoryProvider).list();
+});
+
+/// Choose a template, having been told what it will not carry across.
+class _TemplatePickerSheet extends ConsumerWidget {
+  const _TemplatePickerSheet({required this.isFollowUp});
+
+  final bool isFollowUp;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final templates = ref.watch(prescriptionTemplatesProvider);
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  Insets.gutter, 0, Insets.gutter, Insets.sm),
+              child:
+                  Text(l10n.templatesTitle, style: theme.textTheme.titleLarge),
+            ),
+            Flexible(
+              child: AsyncView<List<PrescriptionTemplate>>(
+                value: templates,
+                onRetry: () => ref.invalidate(prescriptionTemplatesProvider),
+                data: (list) => list.isEmpty
+                    ? EmptyState(
+                        icon: Icons.bookmarks_outlined,
+                        title: l10n.templatesNone,
+                        message: l10n.templatesNoneBody,
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Insets.gutter),
+                        itemCount: list.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (_, i) => _TemplateTile(
+                          template: list[i],
+                          isFollowUp: isFollowUp,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TemplateTile extends ConsumerWidget {
+  const _TemplateTile({required this.template, required this.isFollowUp});
+
+  final PrescriptionTemplate template;
+  final bool isFollowUp;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final tones = context.tones;
+    final l10n = context.l10n;
+
+    final blocked = template.blockedOn(isFollowUp: isFollowUp);
+    final usable = template.prescribableOn(isFollowUp: isFollowUp);
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(template.name, style: theme.textTheme.titleSmall),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            template.items.map((i) => i.drugName).join(' · '),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall,
+          ),
+          // Said before applying, not after. A doctor who discovers the
+          // exclusion only once rows are greyed out has already committed to
+          // the template.
+          if (blocked.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: Insets.xs),
+              child: Text(
+                l10n.templatesBlockedHere(blocked.length),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: tones.warning,
+                ),
+              ),
+            ),
+        ],
+      ),
+      trailing: IconButton(
+        tooltip: l10n.templatesDelete,
+        icon: const Icon(Icons.delete_outline),
+        onPressed: () => _delete(context, ref),
+      ),
+      // Nothing to apply is not a tap worth accepting.
+      onTap: usable.isEmpty ? null : () => Navigator.of(context).pop(template),
+      enabled: usable.isNotEmpty,
+    );
+  }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(prescriptionTemplateRepositoryProvider)
+          .delete(template.id);
+      ref.invalidate(prescriptionTemplatesProvider);
+    } on Failure catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+}
+
+class _NameTemplateDialog extends StatefulWidget {
+  const _NameTemplateDialog();
+
+  @override
+  State<_NameTemplateDialog> createState() => _NameTemplateDialogState();
+}
+
+class _NameTemplateDialogState extends State<_NameTemplateDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final name = _controller.text.trim();
+
+    return AlertDialog(
+      title: Text(l10n.templatesSave),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: PrescriptionTemplate.maxNameLength,
+        textCapitalization: TextCapitalization.sentences,
+        // A template name is the doctor's own shorthand, not clinical text
+        // about a patient, so the keyboard dictionary rule does not apply.
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          labelText: l10n.templatesName,
+          hintText: l10n.templatesNameHint,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.actionCancel),
+        ),
+        FilledButton(
+          onPressed:
+              name.isEmpty ? null : () => Navigator.of(context).pop(name),
+          child: Text(l10n.actionSave),
+        ),
+      ],
     );
   }
 }

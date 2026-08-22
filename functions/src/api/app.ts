@@ -5,6 +5,7 @@ import { adminRoutes } from "./admin/routes";
 import { reviewRoutes } from "./admin/review_routes";
 import { appointmentRoutes, noteRoutes } from "./appointments/routes";
 import { medicationRoutes } from "./medications/routes";
+import { prescriptionTemplateRoutes } from "./prescriptions/template_routes";
 import { availabilityRoutes } from "./availability/routes";
 import { authRoutes, meRoutes } from "./auth/routes";
 import { cookieModeEnabled, webOrigins } from "./auth/refresh_cookie";
@@ -96,6 +97,9 @@ export function buildApp(deps: AppDependencies | (() => string)) {
   app.use("/v1/notifications", notificationRoutes(secret));
   app.use("/v1/waitlist", waitlistRoutes(secret));
   app.use("/v1/notes", noteRoutes(secret));
+  // Before the prescriptions router: its `/:id` route would otherwise
+  // match the literal path "templates".
+  app.use("/v1/prescriptions/templates", prescriptionTemplateRoutes(secret));
   app.use("/v1/medications", medicationRoutes(secret));
   app.use("/v1/support/tickets", supportRoutes(secret));
   app.use("/v1/prescriptions", prescriptionRoutes(secret));

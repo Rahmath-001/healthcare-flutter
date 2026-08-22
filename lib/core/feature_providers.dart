@@ -21,6 +21,7 @@ import '../features/prescriptions/data/api_prescription_repository.dart';
 import '../features/prescriptions/data/cached_prescription_repository.dart';
 import '../features/medications/data/medication_repository.dart';
 import '../features/prescriptions/data/prescription_repository.dart';
+import '../features/prescriptions/data/prescription_template_repository.dart';
 import '../features/providers_search/data/api_doctor_repository.dart';
 import '../features/providers_search/data/doctor_repository.dart';
 import '../features/ratings/data/api_ratings_repository.dart';
@@ -152,6 +153,18 @@ final _livePrescriptionRepositoryProvider =
 final medicationRepositoryProvider = Provider<MedicationRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixtureMedicationRepository();
   return ApiMedicationRepository(ref.watch(apiClientProvider));
+});
+
+/// A doctor's saved prescribing sets.
+///
+/// Not cached offline: a template is only useful inside the composer, which
+/// needs the drug catalogue and a live consultation anyway.
+final prescriptionTemplateRepositoryProvider =
+    Provider<PrescriptionTemplateRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) {
+    return FixturePrescriptionTemplateRepository();
+  }
+  return ApiPrescriptionTemplateRepository(ref.watch(apiClientProvider));
 });
 
 final credentialsRepositoryProvider = Provider<CredentialsRepository>((ref) {

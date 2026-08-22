@@ -3811,6 +3811,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'My medicines'**
   String get homeQuickMedicines;
+
+  /// No description provided for @templatesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved sets'**
+  String get templatesTitle;
+
+  /// No description provided for @templatesSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as set'**
+  String get templatesSave;
+
+  /// No description provided for @templatesSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get templatesSaved;
+
+  /// No description provided for @templatesName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get templatesName;
+
+  /// No description provided for @templatesNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Chest infection, adults'**
+  String get templatesNameHint;
+
+  /// No description provided for @templatesNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved sets yet'**
+  String get templatesNone;
+
+  /// No description provided for @templatesNoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the medicines you prescribe often, then add them in one tap next time.'**
+  String get templatesNoneBody;
+
+  /// No description provided for @templatesDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete set'**
+  String get templatesDelete;
+
+  /// No description provided for @templatesBlockedHere.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 medicine cannot be prescribed on this consultation} other{{count} medicines cannot be prescribed on this consultation}}'**
+  String templatesBlockedHere(int count);
 }
 
 class _AppLocalizationsDelegate

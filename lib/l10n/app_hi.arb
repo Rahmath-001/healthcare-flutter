@@ -607,5 +607,15 @@
   "medsTimesAreOurs": "समय ऐप का सुझाव है। आपके डॉक्टर ने दिन में कितनी खुराक तय की, घंटा नहीं।",
   "medsPreviousDay": "पिछला दिन",
   "medsNextDay": "अगला दिन",
-  "homeQuickMedicines": "मेरी दवाइयाँ"
+  "homeQuickMedicines": "मेरी दवाइयाँ",
+  "templatesTitle": "सहेजे गए सेट",
+  "templatesSave": "सेट के रूप में सहेजें",
+  "templatesSaved": "सहेजा गया",
+  "templatesName": "नाम",
+  "templatesNameHint": "जैसे: छाती का संक्रमण, वयस्क",
+  "templatesNone": "अभी कोई सेट सहेजा नहीं गया",
+  "templatesNoneBody": "जो दवाइयाँ आप अक्सर लिखते हैं उन्हें सहेजें, फिर अगली बार एक टैप में जोड़ें।",
+  "templatesDelete": "सेट हटाएँ",
+  "templatesBlockedHere": "{count, plural, =1{1 दवा इस परामर्श में नहीं लिखी जा सकती} other{{count} दवाइयाँ इस परामर्श में नहीं लिखी जा सकतीं}}",
+  "@templatesBlockedHere": {"placeholders": {"count": {"type": "int"}}}
 }

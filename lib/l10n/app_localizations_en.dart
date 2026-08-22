@@ -2068,4 +2068,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeQuickMedicines => 'My medicines';
+
+  @override
+  String get templatesTitle => 'Saved sets';
+
+  @override
+  String get templatesSave => 'Save as set';
+
+  @override
+  String get templatesSaved => 'Saved';
+
+  @override
+  String get templatesName => 'Name';
+
+  @override
+  String get templatesNameHint => 'e.g. Chest infection, adults';
+
+  @override
+  String get templatesNone => 'No saved sets yet';
+
+  @override
+  String get templatesNoneBody =>
+      'Save the medicines you prescribe often, then add them in one tap next time.';
+
+  @override
+  String get templatesDelete => 'Delete set';
+
+  @override
+  String templatesBlockedHere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count medicines cannot be prescribed on this consultation',
+      one: '1 medicine cannot be prescribed on this consultation',
+    );
+    return '$_temp0';
+  }
 }

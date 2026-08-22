@@ -12,6 +12,7 @@ import '../../features/notifications/domain/notification.dart';
 import '../../features/credentials/domain/credential.dart';
 import '../../features/prescriptions/data/prescription_repository.dart';
 import '../../features/prescriptions/domain/prescription.dart';
+import '../../features/prescriptions/domain/prescription_template.dart';
 import '../../features/prescriptions/domain/refill_request.dart';
 import '../../features/providers_search/data/doctor_fixtures.dart';
 import '../../features/providers_search/domain/doctor.dart';
@@ -83,6 +84,14 @@ class FixtureBackend {
   /// entry, matching the server's PUT-on-a-derived-id contract. A list would
   /// let a double tap log two tablets.
   final Map<String, DoseMark> _doseMarks = {};
+
+  /// Saved prescribing sets, newest first.
+  ///
+  /// Stores drug ids and doses only. The telemedicine classification is
+  /// resolved from the catalogue on every read, so a drug that moves to
+  /// List B starts refusing on first consultations immediately, in every
+  /// template that contains it, with nothing to migrate.
+  final List<_StoredTemplate> _templates = [];
   NotificationPreferences _notificationPreferences =
       NotificationPreferences.defaults;
 
@@ -1209,6 +1218,137 @@ class FixtureBackend {
     );
   }
 
+  // --- prescription templates ----------------------------------------------
+
+  List<PrescriptionTemplate> prescriptionTemplates() {
+    final out = [for (final t in _templates) _hydrate(t)];
+    return List.unmodifiable(out);
+  }
+
+  PrescriptionTemplate createPrescriptionTemplate({
+    required String name,
+    required List<TemplateItem> items,
+    String? diagnosis,
+    String? advice,
+  }) {
+    final label = name.trim();
+    if (label.isEmpty) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Give the template a name.',
+        code: 'TEMPLATE_NAME_REQUIRED',
+      );
+    }
+    if (label.length > PrescriptionTemplate.maxNameLength) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'That name is too long.',
+        code: 'TEMPLATE_NAME_TOO_LONG',
+      );
+    }
+    if (items.isEmpty) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Add at least one medicine before saving a template.',
+        code: 'TEMPLATE_EMPTY',
+      );
+    }
+    if (items.length > PrescriptionTemplate.maxItems) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'A template can hold at most '
+            '${PrescriptionTemplate.maxItems} medicines.',
+        code: 'TEMPLATE_TOO_LARGE',
+      );
+    }
+    if (_templates.any((t) => t.name.toLowerCase() == label.toLowerCase())) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'You already have a template with that name.',
+        code: 'TEMPLATE_NAME_TAKEN',
+      );
+    }
+
+    // Every item must be resolvable in the catalogue. One that is not can
+    // never be re-checked against the drug lists, and a template item that
+    // escapes the check is exactly the hole templates must not open.
+    for (final item in items) {
+      final known = FixturePrescriptionRepository.drugCatalogue
+          .any((d) => d.id == item.drugId);
+      if (!known) {
+        throw Failure(
+          kind: FailureKind.validation,
+          message: '${item.drugName} is no longer in the catalogue.',
+          code: 'DRUG_NOT_FOUND',
+        );
+      }
+    }
+
+    final stored = _StoredTemplate(
+      id: 'tpl-${_nextId()}',
+      name: label,
+      createdAt: DateTime.now(),
+      diagnosis: diagnosis?.trim().isEmpty ?? true ? null : diagnosis!.trim(),
+      advice: advice?.trim().isEmpty ?? true ? null : advice!.trim(),
+      items: [
+        for (final i in items)
+          _StoredTemplateItem(
+            drugId: i.drugId,
+            strength: i.strength,
+            frequency: i.frequency,
+            durationDays: i.durationDays,
+            instructions: i.instructions,
+          )
+      ],
+    );
+    _templates.insert(0, stored);
+    return _hydrate(stored);
+  }
+
+  void deletePrescriptionTemplate(String id) {
+    final before = _templates.length;
+    _templates.removeWhere((t) => t.id == id);
+    if (_templates.length == before) {
+      throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That template no longer exists.',
+        code: 'TEMPLATE_NOT_FOUND',
+      );
+    }
+  }
+
+  /// Fills a stored template out of the current catalogue.
+  PrescriptionTemplate _hydrate(_StoredTemplate t) {
+    final items = <TemplateItem>[];
+    for (final i in t.items) {
+      final matches = FixturePrescriptionRepository.drugCatalogue
+          .where((d) => d.id == i.drugId);
+      // A drug withdrawn from the catalogue drops out of the template rather
+      // than appearing with a stale name and no classification.
+      if (matches.isEmpty) continue;
+      final drug = matches.first;
+      items.add(TemplateItem(
+        drugId: drug.id,
+        drugName: drug.name,
+        genericName: drug.genericName,
+        strength: i.strength,
+        form: drug.form,
+        frequency: i.frequency,
+        durationDays: i.durationDays,
+        instructions: i.instructions,
+        telemedicineList: drug.telemedicineList,
+      ));
+    }
+    return PrescriptionTemplate(
+      id: t.id,
+      name: t.name,
+      createdAt: t.createdAt,
+      diagnosis: t.diagnosis,
+      advice: t.advice,
+      items: items,
+    );
+  }
+
   // --- medications ---------------------------------------------------------
 
   /// The patient's own account of which doses they took.
@@ -1677,4 +1817,39 @@ class FixtureBackend {
     ).join();
     return 'MD-$code';
   }
+}
+
+/// A template as stored: drug ids and doses, never names or classifications.
+class _StoredTemplate {
+  _StoredTemplate({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+    required this.items,
+    this.diagnosis,
+    this.advice,
+  });
+
+  final String id;
+  final String name;
+  final DateTime createdAt;
+  final List<_StoredTemplateItem> items;
+  final String? diagnosis;
+  final String? advice;
+}
+
+class _StoredTemplateItem {
+  _StoredTemplateItem({
+    required this.drugId,
+    required this.strength,
+    required this.frequency,
+    required this.durationDays,
+    this.instructions,
+  });
+
+  final String drugId;
+  final String strength;
+  final String frequency;
+  final int durationDays;
+  final String? instructions;
 }

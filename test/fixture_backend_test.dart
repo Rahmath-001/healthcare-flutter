@@ -16,7 +16,9 @@ import 'package:healthcare_mobile/features/notifications/domain/notification.dar
 import 'package:healthcare_mobile/features/credentials/data/credentials_repository.dart';
 import 'package:healthcare_mobile/features/credentials/domain/credential.dart';
 import 'package:healthcare_mobile/features/prescriptions/data/prescription_repository.dart';
+import 'package:healthcare_mobile/features/prescriptions/data/prescription_template_repository.dart';
 import 'package:healthcare_mobile/features/prescriptions/domain/prescription.dart';
+import 'package:healthcare_mobile/features/prescriptions/domain/prescription_template.dart';
 import 'package:healthcare_mobile/features/prescriptions/domain/refill_request.dart';
 import 'package:healthcare_mobile/features/providers_search/data/doctor_fixtures.dart';
 import 'package:healthcare_mobile/features/providers_search/domain/doctor.dart';
@@ -264,6 +266,121 @@ void main() {
       expect(told.body, isNot(contains('amlodipine')));
       expect(told.body, isNot(contains('hypertension')));
       expect(told.targetId, appointment.id);
+    });
+  });
+
+  group('saved prescribing sets', () {
+    /// The seeded catalogue: `dr1` is OTC, and there is a List B entry used
+    /// below to prove a set cannot launder one onto a first consultation.
+    TemplateItem item(String drugId, {String frequency = '1-0-1'}) =>
+        TemplateItem(
+          drugId: drugId,
+          drugName: 'ignored on the way in',
+          genericName: '',
+          strength: '500 mg',
+          form: 'Tablet',
+          frequency: frequency,
+          durationDays: 5,
+          telemedicineList: TelemedicineDrugList.listO,
+        );
+
+    test('a set is saved and read back from the catalogue', () async {
+      final repo = FixturePrescriptionTemplateRepository(latency: fast);
+      expect(await repo.list(), isEmpty);
+
+      final saved = await repo.create(
+        name: 'Chest infection, adults',
+        items: [item('dr1')],
+        diagnosis: 'Acute bronchitis',
+      );
+
+      expect(saved.name, 'Chest infection, adults');
+      expect(saved.items.single.drugId, 'dr1');
+      // The name came back from the catalogue, not from what was sent.
+      expect(saved.items.single.drugName, isNot('ignored on the way in'));
+      expect(saved.diagnosis, 'Acute bronchitis');
+
+      expect((await repo.list()).single.id, saved.id);
+    });
+
+    test('the classification is resolved on read, never stored', () async {
+      // The property that matters: a drug the regulator moves to List B
+      // starts refusing on first consultations in every saved set that
+      // contains it, with nothing to migrate.
+      final repo = FixturePrescriptionTemplateRepository(latency: fast);
+      final listB = FixturePrescriptionRepository.drugCatalogue
+          .firstWhere((d) => d.telemedicineList == TelemedicineDrugList.listB);
+
+      final saved = await repo.create(name: 'Repeat', items: [item(listB.id)]);
+      final read = (await repo.list()).single;
+
+      expect(read.items.single.telemedicineList, TelemedicineDrugList.listB);
+      expect(saved.items.single.telemedicineList, TelemedicineDrugList.listB);
+    });
+
+    test('a set cannot carry a List B drug onto a first consult', () async {
+      // Applying is filtered by the same rule as typing the drug in by hand.
+      // A set that granted its own permission would launder a medicine past a
+      // rule the doctor met once, for a different patient.
+      final repo = FixturePrescriptionTemplateRepository(latency: fast);
+      final listB = FixturePrescriptionRepository.drugCatalogue
+          .firstWhere((d) => d.telemedicineList == TelemedicineDrugList.listB);
+      final otc = FixturePrescriptionRepository.drugCatalogue
+          .firstWhere((d) => d.telemedicineList == TelemedicineDrugList.listO);
+
+      final saved = await repo.create(
+        name: 'Mixed',
+        items: [item(otc.id), item(listB.id)],
+      );
+
+      expect(saved.prescribableOn(isFollowUp: false).length, 1);
+      expect(saved.blockedOn(isFollowUp: false).single.drugId, listB.id);
+      // On a follow-up the same set carries both.
+      expect(saved.prescribableOn(isFollowUp: true).length, 2);
+    });
+
+    test('a drug that is not in the catalogue is refused', () async {
+      final repo = FixturePrescriptionTemplateRepository(latency: fast);
+      await expectLater(
+        repo.create(name: 'Bad', items: [item('no-such-drug')]),
+        throwsA(isA<Failure>().having((f) => f.code, 'code', 'DRUG_NOT_FOUND')),
+      );
+    });
+
+    test('an empty or unnamed set is refused', () async {
+      final repo = FixturePrescriptionTemplateRepository(latency: fast);
+      await expectLater(
+        repo.create(name: 'Empty', items: const []),
+        throwsA(isA<Failure>().having((f) => f.code, 'code', 'TEMPLATE_EMPTY')),
+      );
+      await expectLater(
+        repo.create(name: '   ', items: [item('dr1')]),
+        throwsA(isA<Failure>()
+            .having((f) => f.code, 'code', 'TEMPLATE_NAME_REQUIRED')),
+      );
+    });
+
+    test('two sets cannot share a name', () async {
+      final repo = FixturePrescriptionTemplateRepository(latency: fast);
+      await repo.create(name: 'Standard', items: [item('dr1')]);
+      await expectLater(
+        repo.create(name: 'standard', items: [item('dr1')]),
+        throwsA(isA<Failure>()
+            .having((f) => f.code, 'code', 'TEMPLATE_NAME_TAKEN')),
+      );
+    });
+
+    test('a set can be deleted, once', () async {
+      final repo = FixturePrescriptionTemplateRepository(latency: fast);
+      final saved = await repo.create(name: 'Temp', items: [item('dr1')]);
+      await repo.delete(saved.id);
+      expect(await repo.list(), isEmpty);
+
+      await expectLater(
+        repo.delete(saved.id),
+        throwsA(
+            isA<Failure>().having((f) => f.code, 'code', 'TEMPLATE_NOT_FOUND')),
+      );
     });
   });
 

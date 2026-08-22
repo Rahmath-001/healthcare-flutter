@@ -2068,4 +2068,40 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get homeQuickMedicines => 'मेरी दवाइयाँ';
+
+  @override
+  String get templatesTitle => 'सहेजे गए सेट';
+
+  @override
+  String get templatesSave => 'सेट के रूप में सहेजें';
+
+  @override
+  String get templatesSaved => 'सहेजा गया';
+
+  @override
+  String get templatesName => 'नाम';
+
+  @override
+  String get templatesNameHint => 'जैसे: छाती का संक्रमण, वयस्क';
+
+  @override
+  String get templatesNone => 'अभी कोई सेट सहेजा नहीं गया';
+
+  @override
+  String get templatesNoneBody =>
+      'जो दवाइयाँ आप अक्सर लिखते हैं उन्हें सहेजें, फिर अगली बार एक टैप में जोड़ें।';
+
+  @override
+  String get templatesDelete => 'सेट हटाएँ';
+
+  @override
+  String templatesBlockedHere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count दवाइयाँ इस परामर्श में नहीं लिखी जा सकतीं',
+      one: '1 दवा इस परामर्श में नहीं लिखी जा सकती',
+    );
+    return '$_temp0';
+  }
 }

@@ -42,6 +42,7 @@ export const C = {
   waitlist: "waitlist",
   consultationNotes: "consultationNotes",
   medicationDoses: "medicationDoses",
+  prescriptionTemplates: "prescriptionTemplates",
 } as const;
 
 export type NotificationKind =
@@ -614,6 +615,32 @@ export interface MedicationDoseDoc {
   slot: "MORNING" | "AFTERNOON" | "EVENING" | "NIGHT";
   outcome: "TAKEN" | "SKIPPED";
   markedAt: Timestamp;
+}
+
+/**
+ * A doctor's saved prescribing set.
+ *
+ * Stores drug **ids** and doses only - never names, never a telemedicine
+ * classification. Both are read back from the catalogue on every request, so a
+ * drug reclassified by the regulator changes every saved set that contains it
+ * immediately, with nothing to migrate and no stale copy to disagree.
+ *
+ * A set grants nothing. Issuing still runs `assertPrescribable` over every
+ * item.
+ */
+export interface PrescriptionTemplateDoc {
+  doctorId: string;
+  name: string;
+  diagnosis?: string | null;
+  advice?: string | null;
+  items: {
+    drugId: string;
+    strength: string;
+    frequency: string;
+    durationDays: number;
+    instructions?: string | null;
+  }[];
+  createdAt: Timestamp;
 }
 
 export interface PrescriptionItemDoc {

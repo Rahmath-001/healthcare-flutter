@@ -96,6 +96,15 @@ class AppLocalizationsHi extends AppLocalizations {
   String get offline => 'आप ऑफ़लाइन हैं';
 
   @override
+  String offlineCopy(String when) {
+    return '$when की ऑफ़लाइन प्रति';
+  }
+
+  @override
+  String get offlineCopyBody =>
+      'यह पुरानी हो सकती है। ऑनलाइन आते ही यह अपने आप ताज़ा हो जाएगी।';
+
+  @override
   String get notificationsTitle => 'सूचनाएँ';
 
   @override

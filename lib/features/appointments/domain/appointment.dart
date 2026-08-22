@@ -53,6 +53,27 @@ enum AppointmentStatus {
         _ => AppointmentStatus.confirmed,
       };
 
+  /// The wire value, so a status can be written back out as well as read in.
+  ///
+  /// Needed by the offline cache, which round-trips a list through exactly the
+  /// same `fromJson` the API response uses — a second, private serialisation
+  /// would be a second parser to keep in step, and the cached one is the one
+  /// nobody notices has drifted.
+  String get wire => switch (this) {
+        AppointmentStatus.held => 'HELD',
+        AppointmentStatus.pendingPayment => 'PENDING_PAYMENT',
+        AppointmentStatus.confirmed => 'CONFIRMED',
+        AppointmentStatus.checkedIn => 'CHECKED_IN',
+        AppointmentStatus.inProgress => 'IN_PROGRESS',
+        AppointmentStatus.completed => 'COMPLETED',
+        AppointmentStatus.cancelledByPatient => 'CANCELLED_BY_PATIENT',
+        AppointmentStatus.cancelledByProvider => 'CANCELLED_BY_PROVIDER',
+        AppointmentStatus.rescheduled => 'RESCHEDULED',
+        AppointmentStatus.noShowPatient => 'NO_SHOW_PATIENT',
+        AppointmentStatus.noShowProvider => 'NO_SHOW_PROVIDER',
+        AppointmentStatus.expired => 'EXPIRED',
+      };
+
   String get label => switch (this) {
         AppointmentStatus.held => 'Holding slot',
         AppointmentStatus.pendingPayment => 'Payment pending',
@@ -79,6 +100,16 @@ enum PaymentStatus {
   refundPending,
   refunded,
   failed;
+
+  String get wire => switch (this) {
+        PaymentStatus.notRequired => 'NOT_REQUIRED',
+        PaymentStatus.pending => 'PENDING',
+        PaymentStatus.authorized => 'AUTHORIZED',
+        PaymentStatus.paid => 'PAID',
+        PaymentStatus.refundPending => 'REFUND_PENDING',
+        PaymentStatus.refunded => 'REFUNDED',
+        PaymentStatus.failed => 'FAILED',
+      };
 
   String get label => switch (this) {
         PaymentStatus.notRequired => 'No payment required',

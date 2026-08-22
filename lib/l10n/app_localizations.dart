@@ -272,6 +272,18 @@ abstract class AppLocalizations {
   /// **'You are offline'**
   String get offline;
 
+  /// No description provided for @offlineCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline copy from {when}'**
+  String offlineCopy(String when);
+
+  /// No description provided for @offlineCopyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This may be out of date. It will refresh when you are back online.'**
+  String get offlineCopyBody;
+
   /// No description provided for @notificationsTitle.
   ///
   /// In en, this message translates to:

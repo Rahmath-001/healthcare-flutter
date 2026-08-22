@@ -29,6 +29,8 @@
   "actionSkip": "छोड़ें",
   "actionNotNow": "अभी नहीं",
   "offline": "आप ऑफ़लाइन हैं",
+  "offlineCopy": "{when} की ऑफ़लाइन प्रति",
+  "offlineCopyBody": "यह पुरानी हो सकती है। ऑनलाइन आते ही यह अपने आप ताज़ा हो जाएगी।",
   "notificationsTitle": "सूचनाएँ",
   "notificationsSettings": "सूचना सेटिंग",
   "notificationsMarkAllRead": "सभी पढ़ा हुआ करें",

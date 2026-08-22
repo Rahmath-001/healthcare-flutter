@@ -29,6 +29,11 @@
   "actionSkip": "Skip",
   "actionNotNow": "Not now",
   "offline": "You are offline",
+  "offlineCopy": "Offline copy from {when}",
+  "@offlineCopy": {
+    "placeholders": { "when": { "type": "String" } }
+  },
+  "offlineCopyBody": "This may be out of date. It will refresh when you are back online.",
   "notificationsTitle": "Notifications",
   "notificationsSettings": "Notification settings",
   "notificationsMarkAllRead": "Mark all read",

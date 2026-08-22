@@ -96,6 +96,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offline => 'You are offline';
 
   @override
+  String offlineCopy(String when) {
+    return 'Offline copy from $when';
+  }
+
+  @override
+  String get offlineCopyBody =>
+      'This may be out of date. It will refresh when you are back online.';
+
+  @override
   String get notificationsTitle => 'Notifications';
 
   @override

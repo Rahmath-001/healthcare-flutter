@@ -677,9 +677,28 @@ retention notices must not be machine-translated. See [lib/l10n/README.md](lib/l
 
 1. **Never add a package before the code that imports it.** This has broken the build twice.
 2. **Never `print()`.** `avoid_print` is an error — a stray print leaks PHI into logcat.
-3. **Never persist clinical data locally.** Age/blood group were once in SharedPreferences;
-   `purgeLegacyHealthData()` in `main()` wipes them on upgrade. They live in `patient_profiles`
-   server-side now.
+3. **Clinical data on the device goes through `ClinicalCache`, or not at all.**
+   This rule used to read "never persist clinical data locally", written after an early build
+   put age and blood group in plaintext `SharedPreferences` — `purgeLegacyHealthData()` still
+   wipes those on upgrade. That was right about the bug and too broad as policy: it also
+   forbade the thing a patient on an Indian mobile network most needs, which is to see when
+   their appointment is with no signal.
+
+   The narrower rule, and every clause matters:
+   **encrypted at rest** (Keychain / KeyStore, never `SharedPreferences`);
+   **never on web**, where "secure storage" is `localStorage`;
+   **metadata only** — never record bytes, never a prescription PDF;
+   **12-hour expiry**, because a clinical list from last week presented as today's plan is
+   worse than none; **wiped on sign-out**, before the next person on a shared phone signs in;
+   and **the screen says so** via `OfflineCopyBanner`. That last one is the justification for
+   the rest: silently rendering yesterday's appointments as today's is a wrong answer
+   delivered confidently, which for a list somebody plans their day around is worse than an
+   error.
+
+   The cache is a decorator (`CachedAppointmentRepository`), so the policy is in one place and
+   it wraps the fixture too — flight mode exercises the whole path on sample data. A
+   non-network `Failure` is never masked by it: a 403 is an answer, and serving last week's
+   list would hide a suspension.
 4. **Never throw from a release `buildType` block** in `android/app/build.gradle.kts`.
    R8 needs a Play Core `dontwarn` rule (see `android/app/proguard-rules.pro`).
 5. Release builds **fail closed** without `android/key.properties` — that is deliberate.

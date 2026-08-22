@@ -9,6 +9,7 @@ import '../../features/auth/presentation/role_selection_screen.dart';
 import '../observability/crash_reporting.dart';
 import '../providers.dart';
 import '../service_providers.dart';
+import '../storage/clinical_cache.dart';
 import '../storage/secure_token_store.dart';
 import 'session.dart';
 import 'user_role.dart';
@@ -206,6 +207,10 @@ class SessionController extends AsyncNotifier<Session?> {
 
   Future<void> _clear() async {
     _accessToken = null;
+    // Before the next person on a shared phone signs in. The cache holds
+    // appointment times and prescription summaries; leaving them would make
+    // sign-out a change of session rather than a change of person.
+    unawaited(ref.read(clinicalCacheProvider).wipe());
     // Detaches the crash reporter from the signed-out user, so later reports
     // are not attributed to someone who is no longer using the device.
     unawaited(CrashReporting.setUser(null));

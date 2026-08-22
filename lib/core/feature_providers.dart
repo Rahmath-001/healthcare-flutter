@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/appointments/data/api_appointment_repository.dart';
 import '../features/appointments/data/appointment_repository.dart';
+import '../features/appointments/data/cached_appointment_repository.dart';
 import '../features/availability/data/api_availability_repository.dart';
 import '../features/availability/data/availability_repository.dart';
 import '../features/booking/data/api_booking_repository.dart';
@@ -29,6 +30,8 @@ import '../features/support/data/api_support_repository.dart';
 import '../features/support/data/support_repository.dart';
 import 'files/blob_client.dart';
 import 'providers.dart';
+import 'service_providers.dart';
+import 'storage/clinical_cache.dart';
 
 /// Repository bindings for every feature.
 ///
@@ -53,7 +56,37 @@ final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
   return ApiBookingRepository(ref.watch(apiClientProvider));
 });
 
+/// Wraps whichever appointment repository is bound in an offline copy.
+///
+/// The decorator sits outside both implementations, so the caching policy is
+/// in one readable place — and it wraps the fixture too, which is what makes
+/// this testable on sample data: put the device in flight mode and the fixture
+/// is never reached either.
 final appointmentRepositoryProvider = Provider<AppointmentRepository>((ref) {
+  return CachedAppointmentRepository(
+    inner: ref.watch(_liveAppointmentRepositoryProvider),
+    cache: ref.watch(clinicalCacheProvider),
+    status: ref.watch(offlineCacheStatusProvider.notifier),
+    // Read at call time rather than watched: a repository rebuilt on every
+    // connectivity flap would drop in-flight requests every time a train
+    // passes a tunnel.
+    //
+    // Unknown counts as online, and so does any failure to determine it. The
+    // request fails on its own if there is no connection and the cache catches
+    // that — whereas treating "I could not ask the platform" as offline would
+    // serve a stored copy to someone with perfect signal.
+    isOnline: () async {
+      try {
+        return ref.read(isOnlineProvider).value ?? true;
+      } catch (_) {
+        return true;
+      }
+    },
+  );
+});
+
+final _liveAppointmentRepositoryProvider =
+    Provider<AppointmentRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixtureAppointmentRepository();
   return ApiAppointmentRepository(ref.watch(apiClientProvider));
 });

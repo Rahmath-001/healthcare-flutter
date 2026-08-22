@@ -7,7 +7,9 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../l10n/l10n.dart';
 import '../../../shared/formatters.dart';
 import '../../../shared/widgets/app_motion.dart';
+import '../../../core/storage/clinical_cache.dart';
 import '../../../shared/widgets/async_view.dart';
+import '../../../shared/widgets/offline_copy_banner.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../providers_search/domain/doctor.dart';
 import '../domain/appointment.dart';
@@ -39,43 +41,53 @@ class AppointmentsScreen extends ConsumerWidget {
           icon: const Icon(Icons.add),
           label: Text(l10n.actionBookShort),
         ),
-        body: AsyncView<List<Appointment>>(
-          value: appointments,
-          onRetry: () => ref.invalidate(patientAppointmentsProvider),
-          skeleton: const SkeletonList(count: 4, rows: 3),
-          data: (all) => TabBarView(
-            children: [
-              _AppointmentList(
-                items: all.where((a) => a.status.isUpcoming).toList()
-                  ..sort((a, b) => a.start.compareTo(b.start)),
-                emptyTitle: l10n.appointmentsNoUpcoming,
-                emptyMessage: l10n.appointmentsNoUpcomingBody,
-                emptyAction: FilledButton(
-                  onPressed: () => context.go(Routes.doctorSearch),
-                  child: Text(l10n.actionBook),
+        body: Column(
+          children: [
+            // Above the tabs rather than inside one, because the staleness is
+            // a property of the whole fetched list and not of Upcoming or Past
+            // in particular.
+            const OfflineCopyBanner(cacheKey: CacheKeys.patientAppointments),
+            Expanded(
+              child: AsyncView<List<Appointment>>(
+                value: appointments,
+                onRetry: () => ref.invalidate(patientAppointmentsProvider),
+                skeleton: const SkeletonList(count: 4, rows: 3),
+                data: (all) => TabBarView(
+                  children: [
+                    _AppointmentList(
+                      items: all.where((a) => a.status.isUpcoming).toList()
+                        ..sort((a, b) => a.start.compareTo(b.start)),
+                      emptyTitle: l10n.appointmentsNoUpcoming,
+                      emptyMessage: l10n.appointmentsNoUpcomingBody,
+                      emptyAction: FilledButton(
+                        onPressed: () => context.go(Routes.doctorSearch),
+                        child: Text(l10n.actionBook),
+                      ),
+                      onRefresh: () =>
+                          ref.refresh(patientAppointmentsProvider.future),
+                    ),
+                    _AppointmentList(
+                      // Most recent first: a past list read oldest-first buries the
+                      // consultation someone is actually looking for — usually the
+                      // last one — under everything that came before it.
+                      items: all.where((a) => a.status.isPast).toList()
+                        ..sort((a, b) => b.start.compareTo(a.start)),
+                      emptyTitle: l10n.appointmentsNoPast,
+                      onRefresh: () =>
+                          ref.refresh(patientAppointmentsProvider.future),
+                    ),
+                    _AppointmentList(
+                      items: all.where((a) => a.status.isCancelled).toList()
+                        ..sort((a, b) => b.start.compareTo(a.start)),
+                      emptyTitle: l10n.appointmentsNoCancelled,
+                      onRefresh: () =>
+                          ref.refresh(patientAppointmentsProvider.future),
+                    ),
+                  ],
                 ),
-                onRefresh: () =>
-                    ref.refresh(patientAppointmentsProvider.future),
               ),
-              _AppointmentList(
-                // Most recent first: a past list read oldest-first buries the
-                // consultation someone is actually looking for — usually the
-                // last one — under everything that came before it.
-                items: all.where((a) => a.status.isPast).toList()
-                  ..sort((a, b) => b.start.compareTo(a.start)),
-                emptyTitle: l10n.appointmentsNoPast,
-                onRefresh: () =>
-                    ref.refresh(patientAppointmentsProvider.future),
-              ),
-              _AppointmentList(
-                items: all.where((a) => a.status.isCancelled).toList()
-                  ..sort((a, b) => b.start.compareTo(a.start)),
-                emptyTitle: l10n.appointmentsNoCancelled,
-                onRefresh: () =>
-                    ref.refresh(patientAppointmentsProvider.future),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

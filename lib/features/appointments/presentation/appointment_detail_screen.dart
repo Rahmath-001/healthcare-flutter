@@ -8,6 +8,7 @@ import '../../../shared/formatters.dart';
 import '../../../shared/widgets/async_view.dart';
 import '../../providers_search/domain/doctor.dart';
 import '../domain/appointment.dart';
+import 'queue_card.dart';
 import 'reschedule_sheet.dart';
 import 'appointments_controller.dart';
 
@@ -165,6 +166,10 @@ class _Body extends ConsumerWidget {
           Text(a.cancellationReason!, style: theme.textTheme.bodyMedium),
         ],
         const SizedBox(height: 24),
+        if (QueueCard.appliesTo(a)) ...[
+          QueueCard(appointment: a),
+          const SizedBox(height: 12),
+        ],
         if (a.canJoinConsultation)
           SizedBox(
             height: 52,

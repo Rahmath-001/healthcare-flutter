@@ -1492,6 +1492,38 @@ class AppLocalizationsHi extends AppLocalizations {
   String get appointmentWhen => 'कब';
 
   @override
+  String get queueTitle => 'क़तार में आपका स्थान';
+
+  @override
+  String get queueNext => 'आपकी बारी अगली है';
+
+  @override
+  String queueAhead(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'आपसे पहले $count मरीज़',
+      one: 'आपसे पहले 1 मरीज़',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueInProgress => 'डॉक्टर एक मरीज़ के साथ हैं';
+
+  @override
+  String queueEstimate(int minutes) {
+    return 'लगभग $minutes मिनट';
+  }
+
+  @override
+  String get queueNotCheckedIn =>
+      'क़तार में अपना स्थान देखने के लिए क्लिनिक में चेक इन करें';
+
+  @override
+  String get queueCheckedIn => 'चेक इन हो गया';
+
+  @override
   String get appointmentType => 'प्रकार';
 
   @override

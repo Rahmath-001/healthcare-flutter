@@ -1,5 +1,6 @@
 import '../../../core/fixtures/fixture_backend.dart';
 import '../domain/appointment.dart';
+import '../domain/queue_position.dart';
 
 abstract class AppointmentRepository {
   /// Patient's own appointments.
@@ -28,6 +29,14 @@ abstract class AppointmentRepository {
 
   /// Provider-side check-in, moving CONFIRMED to CHECKED_IN.
   Future<Appointment> checkIn(String id);
+
+  /// Where this appointment stands in the doctor's queue today.
+  ///
+  /// Returns counts rather than the appointments they were derived from. The
+  /// derivation needs everyone else's slots and statuses; the patient asking
+  /// must not receive them, because that list is other people's names and
+  /// appointment times. The server computes and sends four numbers.
+  Future<QueuePosition> queuePosition(String id);
 }
 
 class FixtureAppointmentRepository implements AppointmentRepository {
@@ -76,6 +85,15 @@ class FixtureAppointmentRepository implements AppointmentRepository {
   }) async {
     await Future<void>.delayed(latency);
     return _backend.rescheduleAppointment(id, start: start, end: end);
+  }
+
+  @override
+  Future<QueuePosition> queuePosition(String id) async {
+    await Future<void>.delayed(latency);
+    final mine = _backend.appointmentById(id);
+    // The fixture holds every appointment in one store, so it can run the same
+    // derivation the server does. It still returns only the position.
+    return QueuePosition.of(mine, _backend.appointments());
   }
 
   @override

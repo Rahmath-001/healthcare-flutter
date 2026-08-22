@@ -2768,6 +2768,48 @@ abstract class AppLocalizations {
   /// **'When'**
   String get appointmentWhen;
 
+  /// No description provided for @queueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your place in the queue'**
+  String get queueTitle;
+
+  /// No description provided for @queueNext.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re next'**
+  String get queueNext;
+
+  /// No description provided for @queueAhead.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 patient ahead of you} other{{count} patients ahead of you}}'**
+  String queueAhead(int count);
+
+  /// No description provided for @queueInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'The doctor is with a patient'**
+  String get queueInProgress;
+
+  /// No description provided for @queueEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'About {minutes} min'**
+  String queueEstimate(int minutes);
+
+  /// No description provided for @queueNotCheckedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Check in at the clinic to see your place in the queue'**
+  String get queueNotCheckedIn;
+
+  /// No description provided for @queueCheckedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in'**
+  String get queueCheckedIn;
+
   /// No description provided for @appointmentType.
   ///
   /// In en, this message translates to:

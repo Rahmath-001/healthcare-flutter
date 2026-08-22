@@ -1492,6 +1492,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appointmentWhen => 'When';
 
   @override
+  String get queueTitle => 'Your place in the queue';
+
+  @override
+  String get queueNext => 'You\'re next';
+
+  @override
+  String queueAhead(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count patients ahead of you',
+      one: '1 patient ahead of you',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueInProgress => 'The doctor is with a patient';
+
+  @override
+  String queueEstimate(int minutes) {
+    return 'About $minutes min';
+  }
+
+  @override
+  String get queueNotCheckedIn =>
+      'Check in at the clinic to see your place in the queue';
+
+  @override
+  String get queueCheckedIn => 'Checked in';
+
+  @override
   String get appointmentType => 'Type';
 
   @override

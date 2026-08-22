@@ -1,5 +1,6 @@
 import '../../../core/network/api_client.dart';
 import '../domain/appointment.dart';
+import '../domain/queue_position.dart';
 import 'appointment_repository.dart';
 
 /// API-backed [AppointmentRepository].
@@ -55,6 +56,13 @@ class ApiAppointmentRepository implements AppointmentRepository {
       body: {'start': start.toUtc().toIso8601String()},
     );
     return Appointment.fromJson(json);
+  }
+
+  @override
+  Future<QueuePosition> queuePosition(String id) async {
+    final json =
+        await _api.get<Map<String, dynamic>>('/v1/appointments/$id/queue');
+    return QueuePosition.fromJson(json);
   }
 
   @override

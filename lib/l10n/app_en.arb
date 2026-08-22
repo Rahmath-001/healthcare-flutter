@@ -661,6 +661,19 @@
   "sharingShare": "Share",
   "appointmentReference": "Reference",
   "appointmentWhen": "When",
+  "queueTitle": "Your place in the queue",
+  "queueNext": "You're next",
+  "queueAhead": "{count, plural, =1{1 patient ahead of you} other{{count} patients ahead of you}}",
+  "@queueAhead": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "queueInProgress": "The doctor is with a patient",
+  "queueEstimate": "About {minutes} min",
+  "@queueEstimate": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "queueNotCheckedIn": "Check in at the clinic to see your place in the queue",
+  "queueCheckedIn": "Checked in",
   "appointmentType": "Type",
   "appointmentTellUsWhy": "Tell us why",
   "appointmentCancellationReason": "Cancellation reason",

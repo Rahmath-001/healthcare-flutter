@@ -12,6 +12,10 @@ import {
   type SlotLockDoc,
 } from "../db";
 import { handler, Problem } from "../errors";
+
+/** IST, always: the "day" a queue belongs to is the doctor's calendar day. */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 import { istWhen, notify } from "../notifications/send";
 
 /** Batch-loads the doctors referenced by a set of appointments. */
@@ -295,6 +299,88 @@ export function appointmentRoutes(secret: () => string): Router {
       res.json(
         appointmentJson(req.params.id, updated, updated.doctorId, doctorSnap.data() as DoctorDoc)
       );
+    })
+  );
+
+  /**
+   * Where this appointment stands in the doctor's queue today.
+   *
+   * Returns **four numbers and nothing else**. The derivation needs every other
+   * appointment in that clinic — their times, statuses and, in the documents,
+   * their patients' names — and a patient asking where they are in a queue has
+   * no business receiving any of it. Computing this client-side would have
+   * meant shipping the whole day's list to every phone in the waiting room.
+   *
+   * Not stored, either. A stored position needs rewriting every time anyone
+   * checks in, is seen or cancels, and every missed recompute is a patient told
+   * they are third when they are next.
+   */
+  r.get(
+    "/:id/queue",
+    handler(async (req, res) => {
+      const firestore = db();
+      const snap = await firestore.collection(C.appointments).doc(req.params.id).get();
+      if (!snap.exists) throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Appointment not found.");
+
+      const mine = snap.data() as AppointmentDoc;
+      const isProvider = req.auth!.role === "PROVIDER";
+      const isParticipant = isProvider
+        ? mine.doctorId === req.user!.doctorId
+        : mine.patientId === req.auth!.sub;
+      if (!isParticipant) {
+        throw Problem.notFound("APPOINTMENT_NOT_FOUND", "Appointment not found.");
+      }
+
+      // The IST calendar day this appointment falls on. Bounded by instants
+      // rather than filtered in memory: a busy doctor's whole history is not
+      // something to read on every poll.
+      const start = mine.start.toDate();
+      const istMidnight = new Date(
+        Math.floor((start.getTime() + IST_OFFSET_MS) / DAY_MS) * DAY_MS - IST_OFFSET_MS
+      );
+
+      const sameDay = await firestore
+        .collection(C.appointments)
+        .where("doctorId", "==", mine.doctorId)
+        .where("start", ">=", Timestamp.fromDate(istMidnight))
+        .where("start", "<", Timestamp.fromMillis(istMidnight.getTime() + DAY_MS))
+        .get();
+
+      let aheadOfYou = 0;
+      let someoneInProgress = false;
+
+      for (const doc of sameDay.docs) {
+        if (doc.id === req.params.id) continue;
+        const other = doc.data() as AppointmentDoc;
+
+        if (other.status === "IN_PROGRESS") {
+          // Being seen, not waiting — reported separately so a patient who is
+          // next is not told the queue is empty while the doctor is busy.
+          someoneInProgress = true;
+        } else if (other.status === "CHECKED_IN") {
+          // Counts regardless of slot time: arriving early is what checking in
+          // means.
+          aheadOfYou++;
+        } else if (
+          other.status === "CONFIRMED" &&
+          other.start.toMillis() < mine.start.toMillis()
+        ) {
+          aheadOfYou++;
+        }
+        // Cancelled, completed and no-show drop out. They are why a queue
+        // moves faster than the clock suggests.
+      }
+
+      const slotMinutes = Math.round(
+        (mine.end.toMillis() - mine.start.toMillis()) / 60000
+      );
+
+      res.json({
+        aheadOfYou,
+        someoneInProgress,
+        isCheckedIn: mine.status === "CHECKED_IN",
+        averageConsultationMinutes: slotMinutes > 0 ? slotMinutes : 15,
+      });
     })
   );
 

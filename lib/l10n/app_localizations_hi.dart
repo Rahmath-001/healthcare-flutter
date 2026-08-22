@@ -849,6 +849,74 @@ class AppLocalizationsHi extends AppLocalizations {
       'परामर्श के दौरान लिखा गया नुस्ख़ा यहाँ दिखेगा।';
 
   @override
+  String get refillRequest => 'दोबारा नुस्ख़ा माँगें';
+
+  @override
+  String get refillTitle => 'दोबारा नुस्ख़ा माँगें';
+
+  @override
+  String get refillBody =>
+      'आपके डॉक्टर इसकी समीक्षा करके निर्णय लेंगे। दोबारा नुस्ख़ा अपने आप नहीं मिलता।';
+
+  @override
+  String get refillNoteHint => 'डॉक्टर को कुछ बताना हो तो लिखें (वैकल्पिक)';
+
+  @override
+  String get refillSend => 'अनुरोध भेजें';
+
+  @override
+  String get refillSent => 'आपके डॉक्टर को भेज दिया गया।';
+
+  @override
+  String get refillPending => 'डॉक्टर के उत्तर की प्रतीक्षा';
+
+  @override
+  String get refillWithdraw => 'वापस लें';
+
+  @override
+  String get refillsTitle => 'दोबारा नुस्ख़े के अनुरोध';
+
+  @override
+  String get refillsEmpty => 'कोई अनुरोध नहीं';
+
+  @override
+  String get refillsEmptyBody =>
+      'किसी नुस्ख़े से दोबारा माँगें, वह यहाँ दिखेगा।';
+
+  @override
+  String get refillApprove => 'स्वीकृत करें और जारी करें';
+
+  @override
+  String get refillDecline => 'अस्वीकार करें';
+
+  @override
+  String get refillDeclineTitle => 'यह अनुरोध अस्वीकार करें';
+
+  @override
+  String get refillDeclineWhy => 'आप क्यों अस्वीकार कर रहे हैं?';
+
+  @override
+  String get refillDeclineNote => 'मरीज़ को आगे क्या करना चाहिए?';
+
+  @override
+  String get refillDeclineNoteRequired =>
+      'टिप्पणी आवश्यक है। मरीज़ को पता होना चाहिए कि समीक्षा बुक करनी है, प्रतीक्षा करनी है, या दवा बंद करनी है।';
+
+  @override
+  String get refillDeclineSend => 'निर्णय भेजें';
+
+  @override
+  String get refillDecided => 'निर्णय मरीज़ को भेज दिया गया।';
+
+  @override
+  String get refillApproved => 'स्वीकृत — नया नुस्ख़ा जारी कर दिया गया है';
+
+  @override
+  String refillDeclinedBy(String doctor) {
+    return '$doctor ने अस्वीकार किया';
+  }
+
+  @override
   String get prescriptionTitle => 'नुस्ख़ा';
 
   @override

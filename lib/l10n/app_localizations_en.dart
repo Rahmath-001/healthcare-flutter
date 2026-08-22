@@ -848,6 +848,74 @@ class AppLocalizationsEn extends AppLocalizations {
       'A prescription written during a consultation will appear here.';
 
   @override
+  String get refillRequest => 'Ask for a repeat';
+
+  @override
+  String get refillTitle => 'Ask for a repeat';
+
+  @override
+  String get refillBody =>
+      'Your doctor will review this and decide. A repeat is not automatic.';
+
+  @override
+  String get refillNoteHint => 'Anything your doctor should know (optional)';
+
+  @override
+  String get refillSend => 'Send request';
+
+  @override
+  String get refillSent => 'Sent to your doctor.';
+
+  @override
+  String get refillPending => 'Waiting for your doctor';
+
+  @override
+  String get refillWithdraw => 'Withdraw';
+
+  @override
+  String get refillsTitle => 'Repeat requests';
+
+  @override
+  String get refillsEmpty => 'No repeat requests';
+
+  @override
+  String get refillsEmptyBody =>
+      'Ask for a repeat from a prescription and it will appear here.';
+
+  @override
+  String get refillApprove => 'Approve and issue';
+
+  @override
+  String get refillDecline => 'Decline';
+
+  @override
+  String get refillDeclineTitle => 'Decline this repeat';
+
+  @override
+  String get refillDeclineWhy => 'Why are you declining?';
+
+  @override
+  String get refillDeclineNote => 'What should the patient do next?';
+
+  @override
+  String get refillDeclineNoteRequired =>
+      'A note is required. The patient needs to know whether to book a review, wait, or stop taking this.';
+
+  @override
+  String get refillDeclineSend => 'Send decision';
+
+  @override
+  String get refillDecided => 'Decision sent to the patient.';
+
+  @override
+  String get refillApproved => 'Approved — a new prescription has been issued';
+
+  @override
+  String refillDeclinedBy(String doctor) {
+    return 'Declined by $doctor';
+  }
+
+  @override
   String get prescriptionTitle => 'Prescription';
 
   @override

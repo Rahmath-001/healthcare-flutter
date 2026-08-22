@@ -1,6 +1,7 @@
 import '../../../core/error/failure.dart';
 import '../../../core/network/api_client.dart';
 import '../domain/prescription.dart';
+import '../domain/refill_request.dart';
 import 'prescription_repository.dart';
 
 /// Prescriptions against the MiDoctor API.
@@ -44,6 +45,56 @@ class ApiPrescriptionRepository implements PrescriptionRepository {
       if (f.code == 'PRESCRIPTION_PDF_PENDING') return null;
       rethrow;
     }
+  }
+
+  @override
+  Future<List<RefillRequest>> refillRequests() async {
+    final json = await _api.get<List<dynamic>>('/v1/prescriptions/refills');
+    return json
+        .map((e) => RefillRequest.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<RefillRequest> requestRefill(
+    String prescriptionId, {
+    String? note,
+  }) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      '/v1/prescriptions/$prescriptionId/refill',
+      body: {if (note != null && note.trim().isNotEmpty) 'note': note.trim()},
+    );
+    return RefillRequest.fromJson(json);
+  }
+
+  @override
+  Future<RefillRequest> cancelRefill(String id) async {
+    final json = await _api
+        .post<Map<String, dynamic>>('/v1/prescriptions/refills/$id/cancel');
+    return RefillRequest.fromJson(json);
+  }
+
+  @override
+  Future<RefillRequest> approveRefill(String id) async {
+    final json = await _api
+        .post<Map<String, dynamic>>('/v1/prescriptions/refills/$id/approve');
+    return RefillRequest.fromJson(json);
+  }
+
+  @override
+  Future<RefillRequest> declineRefill(
+    String id, {
+    required RefillDeclineReason reason,
+    required String note,
+  }) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      '/v1/prescriptions/refills/$id/decline',
+      // Both required by the contract and both sent. The server refuses a
+      // blank note, so a client that made it optional would be building
+      // against a laxer rule than the one that applies.
+      body: {'reason': reason.wire, 'note': note.trim()},
+    );
+    return RefillRequest.fromJson(json);
   }
 
   @override

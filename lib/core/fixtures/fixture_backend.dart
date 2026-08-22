@@ -6,7 +6,9 @@ import '../../features/availability/domain/availability.dart';
 import '../../features/consent/domain/consent.dart';
 import '../../features/notifications/domain/notification.dart';
 import '../../features/credentials/domain/credential.dart';
+import '../../features/prescriptions/data/prescription_repository.dart';
 import '../../features/prescriptions/domain/prescription.dart';
+import '../../features/prescriptions/domain/refill_request.dart';
 import '../../features/providers_search/data/doctor_fixtures.dart';
 import '../../features/providers_search/domain/doctor.dart';
 import '../../features/ratings/domain/rating.dart';
@@ -67,6 +69,7 @@ class FixtureBackend {
   final List<AvailabilityException> _exceptions = [];
   final List<ProviderApplicationRecord> _applications = [];
   final List<AppNotification> _notifications = [];
+  final List<RefillRequest> _refillRequests = [];
   NotificationPreferences _notificationPreferences =
       NotificationPreferences.defaults;
 
@@ -633,6 +636,230 @@ class FixtureBackend {
     );
 
     return prescription;
+  }
+
+  // --- refill requests -----------------------------------------------------
+
+  List<RefillRequest> refillRequests() {
+    final sorted = [..._refillRequests]
+      ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    return List.unmodifiable(sorted);
+  }
+
+  RefillRequest refillRequestById(String id) => _refillRequests.firstWhere(
+        (r) => r.id == id,
+        orElse: () => throw const Failure(
+          kind: FailureKind.notFound,
+          message: 'That request no longer exists.',
+          code: 'REFILL_NOT_FOUND',
+        ),
+      );
+
+  /// Asks the issuing doctor to repeat a prescription.
+  RefillRequest requestRefill(String prescriptionId, {String? note}) {
+    final prescription = _prescriptions.firstWhere(
+      (p) => p.id == prescriptionId,
+      orElse: () => throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That prescription no longer exists.',
+        code: 'PRESCRIPTION_NOT_FOUND',
+      ),
+    );
+
+    if (!RefillRequest.canRequestFor(prescription)) {
+      // A cancelled or superseded prescription was withdrawn or replaced by a
+      // clinician. Repeating it would quietly reinstate a decision somebody
+      // deliberately made.
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'This prescription can no longer be repeated.',
+        code: 'REFILL_NOT_ALLOWED',
+      );
+    }
+
+    if (_refillRequests
+        .any((r) => r.prescriptionId == prescriptionId && r.isOpen)) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'You have already asked for a repeat of this prescription.',
+        code: 'REFILL_ALREADY_REQUESTED',
+      );
+    }
+
+    final trimmed = note?.trim();
+    if (trimmed != null &&
+        trimmed.length > RefillRequest.maxPatientNoteLength) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Keep your note under 300 characters.',
+        code: 'NOTE_TOO_LONG',
+      );
+    }
+
+    final request = RefillRequest(
+      id: 'rf-${_nextId()}',
+      prescriptionId: prescriptionId,
+      doctorName: prescription.providerName,
+      requestedAt: DateTime.now(),
+      status: RefillStatus.pending,
+      patientNote: (trimmed?.isEmpty ?? true) ? null : trimmed,
+    );
+    _refillRequests.insert(0, request);
+
+    notify(
+      kind: NotificationKind.accountUpdate,
+      title: 'Repeat requested',
+      body: 'Sent to ${prescription.providerName}',
+      targetId: request.id,
+    );
+
+    return request;
+  }
+
+  RefillRequest cancelRefill(String id) {
+    final existing = refillRequestById(id);
+    if (!existing.canCancel) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'Your doctor has already answered this request.',
+        code: 'REFILL_ALREADY_DECIDED',
+      );
+    }
+    final updated = existing.copyWith(
+      status: RefillStatus.cancelled,
+      decidedAt: DateTime.now(),
+    );
+    _replaceRefill(updated);
+    return updated;
+  }
+
+  /// Approves a refill, issuing a fresh prescription.
+  ///
+  /// The new document is a **new prescription**, not a copy carrying the old
+  /// id: it needs its own verification code, its own issue date and its own
+  /// write-once PDF, because a pharmacist dispensing against it is dispensing
+  /// today rather than against a document from six weeks ago.
+  ///
+  /// A refill is by definition a follow-up, which is exactly what makes a
+  /// List B medicine prescribable at all. That makes this the one
+  /// patient-initiated path that can end in a restricted drug being dispensed,
+  /// so the drug list is re-checked here rather than inherited from the
+  /// original.
+  RefillRequest approveRefill(String id) {
+    final request = refillRequestById(id);
+    if (!request.isOpen) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'This request has already been answered.',
+        code: 'REFILL_ALREADY_DECIDED',
+      );
+    }
+
+    final original = _prescriptions.firstWhere(
+      (p) => p.id == request.prescriptionId,
+      orElse: () => throw const Failure(
+        kind: FailureKind.notFound,
+        message: 'That prescription no longer exists.',
+        code: 'PRESCRIPTION_NOT_FOUND',
+      ),
+    );
+
+    // Re-resolved from the catalogue by name, because an item on an issued
+    // prescription is a snapshot with no drug id — and a classification that
+    // has changed since should be honoured rather than inherited.
+    for (final item in original.items) {
+      final matches = FixturePrescriptionRepository.drugCatalogue
+          .where((d) => d.name == item.drugName);
+      if (matches.isEmpty) continue;
+      final drug = matches.first;
+      if (!drug.isPrescribableOn(isFollowUp: true)) {
+        throw Failure(
+          kind: FailureKind.validation,
+          message: '${drug.name} cannot be repeated remotely.',
+          code: 'DRUG_NOT_PRESCRIBABLE',
+        );
+      }
+    }
+
+    final refill = Prescription(
+      id: 'rx-${_nextId()}',
+      providerName: original.providerName,
+      providerQualification: original.providerQualification,
+      providerRegistrationNumber: original.providerRegistrationNumber,
+      patientName: original.patientName,
+      patientAge: original.patientAge,
+      patientGender: original.patientGender,
+      issuedAt: DateTime.now(),
+      status: PrescriptionStatus.issued,
+      items: original.items,
+      diagnosis: original.diagnosis,
+      advice: original.advice,
+      verificationCode: 'MD-RF${_nextId()}',
+      appointmentReference: original.appointmentReference,
+    );
+    // Filed against the same consultation as the original: a repeat is not a
+    // new episode of care, and attributing it to nothing would leave the
+    // patient with a prescription that belongs to no visit.
+    issuePrescription(refill, appointmentId: original.appointmentReference);
+
+    final updated = request.copyWith(
+      status: RefillStatus.approved,
+      decidedAt: DateTime.now(),
+      issuedPrescriptionId: refill.id,
+    );
+    _replaceRefill(updated);
+    return updated;
+  }
+
+  /// Declines a refill. **A reason is mandatory.**
+  ///
+  /// A patient told only "declined" will either ask again or stop taking a
+  /// medicine they still need. The category says what to do about it; the note
+  /// says why. Neither is optional, and the fixture refuses a blank one so the
+  /// UI cannot be built against a laxer contract than the server enforces.
+  RefillRequest declineRefill(
+    String id, {
+    required RefillDeclineReason reason,
+    required String note,
+  }) {
+    final request = refillRequestById(id);
+    if (!request.isOpen) {
+      throw const Failure(
+        kind: FailureKind.conflict,
+        message: 'This request has already been answered.',
+        code: 'REFILL_ALREADY_DECIDED',
+      );
+    }
+
+    final trimmed = note.trim();
+    if (trimmed.isEmpty) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Tell the patient why, so they know what to do next.',
+        code: 'DECLINE_REASON_REQUIRED',
+      );
+    }
+    if (trimmed.length > RefillRequest.maxDecisionNoteLength) {
+      throw const Failure(
+        kind: FailureKind.validation,
+        message: 'Keep the note under 300 characters.',
+        code: 'NOTE_TOO_LONG',
+      );
+    }
+
+    final updated = request.copyWith(
+      status: RefillStatus.declined,
+      decidedAt: DateTime.now(),
+      declineReason: reason,
+      decisionNote: trimmed,
+    );
+    _replaceRefill(updated);
+    return updated;
+  }
+
+  void _replaceRefill(RefillRequest updated) {
+    final index = _refillRequests.indexWhere((r) => r.id == updated.id);
+    if (index >= 0) _refillRequests[index] = updated;
   }
 
   // --- notifications -------------------------------------------------------

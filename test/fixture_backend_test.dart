@@ -15,6 +15,7 @@ import 'package:healthcare_mobile/features/credentials/data/credentials_reposito
 import 'package:healthcare_mobile/features/credentials/domain/credential.dart';
 import 'package:healthcare_mobile/features/prescriptions/data/prescription_repository.dart';
 import 'package:healthcare_mobile/features/prescriptions/domain/prescription.dart';
+import 'package:healthcare_mobile/features/prescriptions/domain/refill_request.dart';
 import 'package:healthcare_mobile/features/providers_search/data/doctor_fixtures.dart';
 import 'package:healthcare_mobile/features/providers_search/domain/doctor.dart';
 import 'package:healthcare_mobile/features/ratings/data/ratings_repository.dart';
@@ -134,6 +135,160 @@ void main() {
       );
       // A cancellation that helps nobody else is not a cancellation.
       expect(again.firstWhere((s) => s.id == free.id).isAvailable, isTrue);
+    });
+  });
+
+  group('asking for a repeat prescription', () {
+    Future<Prescription> anyIssued(
+      FixturePrescriptionRepository prescriptions,
+    ) async =>
+        (await prescriptions.listForPatient()).firstWhere((p) => p.isValid);
+
+    test('a request reaches the doctor and is not a prescription', () async {
+      // The distinction the whole feature rests on: asking is not receiving.
+      // A one-tap "reorder" would teach people that medicines arrive on
+      // request, which is the expectation the MoHFW rules exist to prevent.
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      final before = (await prescriptions.listForPatient()).length;
+
+      final request = await prescriptions.requestRefill(
+        source.id,
+        note: 'Ran out yesterday',
+      );
+
+      expect(request.status, RefillStatus.pending);
+      expect(request.isOpen, isTrue);
+      expect(request.patientNote, 'Ran out yesterday');
+      expect((await prescriptions.listForPatient()).length, before,
+          reason: 'nothing is issued until a doctor decides');
+    });
+
+    test('approving issues a new prescription, not a copy of the old one',
+        () async {
+      // A pharmacist dispensing against it is dispensing today. It needs its
+      // own id, its own issue date and its own verification code.
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      final request = await prescriptions.requestRefill(source.id);
+
+      final approved = await prescriptions.approveRefill(request.id);
+
+      expect(approved.status, RefillStatus.approved);
+      expect(approved.issuedPrescriptionId, isNotNull);
+      expect(approved.issuedPrescriptionId, isNot(source.id));
+
+      final issued = (await prescriptions.listForPatient())
+          .firstWhere((p) => p.id == approved.issuedPrescriptionId);
+      expect(issued.verificationCode, isNot(source.verificationCode));
+      expect(issued.issuedAt.isAfter(source.issuedAt), isTrue);
+      expect(issued.items.length, source.items.length);
+    });
+
+    test('declining without a note is refused', () async {
+      // The rule this feature was asked for. A patient told only "declined"
+      // cannot tell whether to book a review, wait, or stop taking the
+      // medicine — so the fixture refuses a blank note and the UI cannot be
+      // built against a laxer contract than the server's.
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      final request = await prescriptions.requestRefill(source.id);
+
+      await expectLater(
+        prescriptions.declineRefill(
+          request.id,
+          reason: RefillDeclineReason.tooSoon,
+          note: '   ',
+        ),
+        throwsA(isA<Failure>()
+            .having((f) => f.code, 'code', 'DECLINE_REASON_REQUIRED')),
+      );
+
+      // Still open, so the doctor can answer properly.
+      final still = FixtureBackend.shared.refillRequestById(request.id);
+      expect(still.isOpen, isTrue);
+    });
+
+    test('a decline carries both a category and a note the patient can read',
+        () async {
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      final request = await prescriptions.requestRefill(source.id);
+
+      final declined = await prescriptions.declineRefill(
+        request.id,
+        reason: RefillDeclineReason.reviewNeeded,
+        note: 'Please book a review first — it has been six months.',
+      );
+
+      expect(declined.status, RefillStatus.declined);
+      expect(declined.declineReason, RefillDeclineReason.reviewNeeded);
+      expect(declined.decisionNote, isNotEmpty);
+      // The category is what tells the patient what to do next.
+      expect(declined.declineReason!.label, isNotEmpty);
+    });
+
+    test('only one open request per prescription', () async {
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      await prescriptions.requestRefill(source.id);
+
+      await expectLater(
+        prescriptions.requestRefill(source.id),
+        throwsA(isA<Failure>()
+            .having((f) => f.code, 'code', 'REFILL_ALREADY_REQUESTED')),
+      );
+    });
+
+    test('but a new one may be asked once the last was answered', () async {
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      final first = await prescriptions.requestRefill(source.id);
+      await prescriptions.declineRefill(
+        first.id,
+        reason: RefillDeclineReason.tooSoon,
+        note: 'Try again next month.',
+      );
+
+      final second = await prescriptions.requestRefill(source.id);
+      expect(second.isOpen, isTrue);
+    });
+
+    test('a decided request cannot be decided again', () async {
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      final request = await prescriptions.requestRefill(source.id);
+      await prescriptions.approveRefill(request.id);
+
+      await expectLater(
+        prescriptions.declineRefill(
+          request.id,
+          reason: RefillDeclineReason.other,
+          note: 'Changed my mind.',
+        ),
+        throwsA(isA<Failure>()
+            .having((f) => f.code, 'code', 'REFILL_ALREADY_DECIDED')),
+      );
+    });
+
+    test('a patient can withdraw a request the doctor has not answered',
+        () async {
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      final request = await prescriptions.requestRefill(source.id);
+
+      final cancelled = await prescriptions.cancelRefill(request.id);
+      expect(cancelled.status, RefillStatus.cancelled);
+      expect(cancelled.isOpen, isFalse);
+    });
+
+    test('the request appears in the shared list both sides read', () async {
+      final prescriptions = FixturePrescriptionRepository(latency: fast);
+      final source = await anyIssued(prescriptions);
+      final request = await prescriptions.requestRefill(source.id);
+
+      final all = await prescriptions.refillRequests();
+      expect(all.map((r) => r.id), contains(request.id));
     });
   });
 

@@ -1,6 +1,7 @@
 import '../../../core/error/failure.dart';
 import '../../../core/fixtures/fixture_backend.dart';
 import '../domain/prescription.dart';
+import '../domain/refill_request.dart';
 
 abstract class PrescriptionRepository {
   Future<List<Prescription>> listForPatient();
@@ -25,6 +26,38 @@ abstract class PrescriptionRepository {
     DateTime? followUpDate,
   });
 
+  /// Refill requests the caller can see.
+  ///
+  /// The patient's own when signed in as a patient; those addressed to the
+  /// doctor when signed in as a provider. One method rather than two, because
+  /// the server already knows which side is asking and a client-supplied
+  /// "whose" parameter would be a authorization decision made in the wrong
+  /// place.
+  Future<List<RefillRequest>> refillRequests();
+
+  /// Asks the issuing doctor to repeat a prescription.
+  Future<RefillRequest> requestRefill(String prescriptionId, {String? note});
+
+  /// Withdraws a request the doctor has not answered yet.
+  Future<RefillRequest> cancelRefill(String id);
+
+  /// Approves a refill, issuing a fresh prescription.
+  ///
+  /// A refill is by definition a follow-up, which is what makes a List B
+  /// medicine prescribable at all — so the drug list is re-checked server-side
+  /// rather than inherited from the original document.
+  Future<RefillRequest> approveRefill(String id);
+
+  /// Declines a refill. **The reason and the note are both required.**
+  ///
+  /// A patient told only "declined" will ask again or stop taking a medicine
+  /// they still need. The category says what to do next; the note says why.
+  Future<RefillRequest> declineRefill(
+    String id, {
+    required RefillDeclineReason reason,
+    required String note,
+  });
+
   /// A short-lived link to the **server-generated, write-once** PDF.
   ///
   /// Null while the document is still being prepared, which is a real state
@@ -39,6 +72,43 @@ abstract class PrescriptionRepository {
 }
 
 class FixturePrescriptionRepository implements PrescriptionRepository {
+  @override
+  Future<List<RefillRequest>> refillRequests() async {
+    await Future<void>.delayed(latency);
+    return _backend.refillRequests();
+  }
+
+  @override
+  Future<RefillRequest> requestRefill(
+    String prescriptionId, {
+    String? note,
+  }) async {
+    await Future<void>.delayed(latency);
+    return _backend.requestRefill(prescriptionId, note: note);
+  }
+
+  @override
+  Future<RefillRequest> cancelRefill(String id) async {
+    await Future<void>.delayed(latency);
+    return _backend.cancelRefill(id);
+  }
+
+  @override
+  Future<RefillRequest> approveRefill(String id) async {
+    await Future<void>.delayed(latency);
+    return _backend.approveRefill(id);
+  }
+
+  @override
+  Future<RefillRequest> declineRefill(
+    String id, {
+    required RefillDeclineReason reason,
+    required String note,
+  }) async {
+    await Future<void>.delayed(latency);
+    return _backend.declineRefill(id, reason: reason, note: note);
+  }
+
   /// Sample data has no object storage behind it, so there is no frozen
   /// document to link to. Returning null rather than a fake URL is what keeps
   /// the fallback path exercised in every fixture run — a mock that claims a

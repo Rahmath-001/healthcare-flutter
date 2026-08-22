@@ -38,6 +38,7 @@ export const C = {
   notifications: "notifications",
   notificationPreferences: "notificationPreferences",
   devices: "devices",
+  refillRequests: "refillRequests",
 } as const;
 
 export type NotificationKind =
@@ -642,6 +643,42 @@ export interface PrescriptionDoc {
   /** SHA-256 of the stored bytes, so a copy can be checked against the record. */
   pdfSha256?: string | null;
   pdfStoredAt?: Timestamp | null;
+}
+
+export type RefillStatus = "PENDING" | "APPROVED" | "DECLINED" | "CANCELLED";
+
+export type RefillDeclineReason =
+  | "REVIEW_NEEDED"
+  | "NOT_SUITABLE_REMOTELY"
+  | "TOO_SOON"
+  | "TREATMENT_CHANGED"
+  | "SEE_ANOTHER_DOCTOR"
+  | "OTHER";
+
+/**
+ * A patient asking their doctor to repeat a prescription.
+ *
+ * A refill is by definition a follow-up, and follow-up status is exactly what
+ * makes a List B medicine prescribable under the MoHFW rules. That makes this
+ * the one patient-initiated path that can end in a restricted drug being
+ * dispensed, so it is a record rather than a message: who asked, when, against
+ * which prescription, what was decided, and on what stated grounds.
+ */
+export interface RefillRequestDoc {
+  prescriptionId: string;
+  patientId: string;
+  doctorId: string;
+  /** Snapshot, so the request reads the same after a profile edit. */
+  doctorName: string;
+  requestedAt: Timestamp;
+  status: RefillStatus;
+  patientNote?: string | null;
+  decidedAt?: Timestamp | null;
+  /** Set only on a decline, and always set on one. */
+  declineReason?: RefillDeclineReason | null;
+  /** The doctor's note. Required when declining. */
+  decisionNote?: string | null;
+  issuedPrescriptionId?: string | null;
 }
 
 export type RatingStatus = "PENDING_MODERATION" | "PUBLISHED" | "HIDDEN" | "REMOVED";

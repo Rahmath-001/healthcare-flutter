@@ -1598,6 +1598,132 @@ abstract class AppLocalizations {
   /// **'A prescription written during a consultation will appear here.'**
   String get prescriptionsEmptyBody;
 
+  /// No description provided for @refillRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for a repeat'**
+  String get refillRequest;
+
+  /// No description provided for @refillTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for a repeat'**
+  String get refillTitle;
+
+  /// No description provided for @refillBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your doctor will review this and decide. A repeat is not automatic.'**
+  String get refillBody;
+
+  /// No description provided for @refillNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything your doctor should know (optional)'**
+  String get refillNoteHint;
+
+  /// No description provided for @refillSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send request'**
+  String get refillSend;
+
+  /// No description provided for @refillSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent to your doctor.'**
+  String get refillSent;
+
+  /// No description provided for @refillPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for your doctor'**
+  String get refillPending;
+
+  /// No description provided for @refillWithdraw.
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw'**
+  String get refillWithdraw;
+
+  /// No description provided for @refillsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat requests'**
+  String get refillsTitle;
+
+  /// No description provided for @refillsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No repeat requests'**
+  String get refillsEmpty;
+
+  /// No description provided for @refillsEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for a repeat from a prescription and it will appear here.'**
+  String get refillsEmptyBody;
+
+  /// No description provided for @refillApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve and issue'**
+  String get refillApprove;
+
+  /// No description provided for @refillDecline.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get refillDecline;
+
+  /// No description provided for @refillDeclineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline this repeat'**
+  String get refillDeclineTitle;
+
+  /// No description provided for @refillDeclineWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'Why are you declining?'**
+  String get refillDeclineWhy;
+
+  /// No description provided for @refillDeclineNote.
+  ///
+  /// In en, this message translates to:
+  /// **'What should the patient do next?'**
+  String get refillDeclineNote;
+
+  /// No description provided for @refillDeclineNoteRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'A note is required. The patient needs to know whether to book a review, wait, or stop taking this.'**
+  String get refillDeclineNoteRequired;
+
+  /// No description provided for @refillDeclineSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send decision'**
+  String get refillDeclineSend;
+
+  /// No description provided for @refillDecided.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision sent to the patient.'**
+  String get refillDecided;
+
+  /// No description provided for @refillApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved — a new prescription has been issued'**
+  String get refillApproved;
+
+  /// No description provided for @refillDeclinedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Declined by {doctor}'**
+  String refillDeclinedBy(String doctor);
+
   /// No description provided for @prescriptionTitle.
   ///
   /// In en, this message translates to:

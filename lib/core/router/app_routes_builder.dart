@@ -15,6 +15,7 @@ import '../../features/credentials/presentation/credentials_screen.dart';
 import '../../features/mfa/presentation/mfa_enrolment_screen.dart';
 import '../../features/prescriptions/presentation/prescribe_screen.dart';
 import '../../features/prescriptions/presentation/prescriptions_screen.dart';
+import '../../features/prescriptions/presentation/refills_screen.dart';
 import '../../features/provider_home/presentation/provider_tabs.dart';
 import '../../features/provider_home/presentation/provider_today_screen.dart';
 import '../../features/provider_verification/presentation/provider_verification_screen.dart';
@@ -134,6 +135,14 @@ List<RouteBase> buildRoutes() => [
         // class of data as a record, and previously the only PHI screen with
         // no screenshot protection at all.
         builder: (_, __) => const ProtectedScreen(child: EditProfileScreen()),
+      ),
+      GoRoute(
+        path: Routes.refills,
+        builder: (_, __) => const ProtectedScreen(child: RefillsScreen()),
+      ),
+      GoRoute(
+        path: Routes.providerRefills,
+        builder: (_, __) => const ProtectedScreen(child: RefillsScreen()),
       ),
       GoRoute(
         path: Routes.notifications,

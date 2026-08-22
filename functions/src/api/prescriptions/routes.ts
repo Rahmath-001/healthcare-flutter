@@ -11,6 +11,9 @@ import {
   type PatientProfileDoc,
   type PrescriptionDoc,
   type PrescriptionItemDoc,
+  type RefillRequestDoc,
+  type RefillStatus,
+  type RefillDeclineReason,
 } from "../db";
 import { handler, Problem } from "../errors";
 import { rateLimit } from "../rate_limit";
@@ -103,6 +106,69 @@ function ageFrom(dateOfBirth?: string | null): string {
   return `${years}`;
 }
 
+
+const MAX_NOTE = 300;
+
+const DECLINE_REASONS = [
+  "REVIEW_NEEDED",
+  "NOT_SUITABLE_REMOTELY",
+  "TOO_SOON",
+  "TREATMENT_CHANGED",
+  "SEE_ANOTHER_DOCTOR",
+  "OTHER",
+];
+
+function refillJson(id: string, r: RefillRequestDoc) {
+  return {
+    id,
+    prescriptionId: r.prescriptionId,
+    doctorName: r.doctorName,
+    requestedAt: r.requestedAt.toDate().toISOString(),
+    status: r.status,
+    patientNote: r.patientNote ?? null,
+    decidedAt: r.decidedAt ? r.decidedAt.toDate().toISOString() : null,
+    declineReason: r.declineReason ?? null,
+    decisionNote: r.decisionNote ?? null,
+    issuedPrescriptionId: r.issuedPrescriptionId ?? null,
+  };
+}
+
+async function loadRefill(id: string) {
+  const ref = db().collection(C.refillRequests).doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw Problem.notFound("REFILL_NOT_FOUND", "Not found.");
+  return { ref, doc: snap.data() as RefillRequestDoc };
+}
+
+/**
+ * Re-resolves every item and refuses anything that may not be repeated.
+ *
+ * `isFollowUp: true` throughout, because that is what a refill is — and the
+ * reason this check cannot be skipped: it is precisely the flag that unlocks
+ * List B.
+ */
+async function assertRefillable(source: PrescriptionDoc): Promise<void> {
+  for (const item of source.items) {
+    const snap = await db()
+      .collection(C.drugs)
+      .where("name", "==", item.drugName)
+      .limit(1)
+      .get();
+    if (snap.empty) continue;
+
+    const drug = snap.docs[0].data() as { telemedicineList?: string };
+    // List B is *permitted* here, and that is the whole point: a refill is the
+    // follow-up that unlocks it. Only the prohibited list is refused, and it is
+    // refused against today's classification rather than the one snapshotted on
+    // a document that may be months old.
+    if (drug.telemedicineList === "PROHIBITED") {
+      throw Problem.validation(`${item.drugName} cannot be repeated remotely.`, {
+        items: "not_prescribable",
+      });
+    }
+  }
+}
+
 export function prescriptionRoutes(secret: () => string): Router {
   const r = Router();
   r.use(requireAuth(secret));
@@ -178,6 +244,225 @@ export function prescriptionRoutes(secret: () => string): Router {
       }
 
       res.json(prescriptionJson(req.params.id, p));
+    })
+  );
+
+  /**
+   * Refill requests visible to the caller.
+   *
+   * Which side is asking is decided from the session, never from a parameter.
+   * A `?whose=` would be an authorization decision made by the client.
+   */
+  r.get(
+    "/refills",
+    handler(async (req, res) => {
+      const isProvider = req.auth!.role === "PROVIDER";
+      const field = isProvider ? "doctorId" : "patientId";
+      const value = isProvider ? req.user!.doctorId : req.auth!.sub;
+      if (!value) throw Problem.forbidden("NOT_A_PROVIDER", "Not a provider.");
+
+      const snap = await db()
+        .collection(C.refillRequests)
+        .where(field, "==", value)
+        .orderBy("requestedAt", "desc")
+        .limit(100)
+        .get();
+
+      res.json(
+        snap.docs.map((d) => refillJson(d.id, d.data() as RefillRequestDoc))
+      );
+    })
+  );
+
+  /** Asks the issuing doctor to repeat a prescription. */
+  r.post(
+    "/:id/refill",
+    requireScope("prescription:read_own"),
+    handler(async (req, res) => {
+      const snap = await db().collection(C.prescriptions).doc(req.params.id).get();
+      if (!snap.exists) throw Problem.notFound("PRESCRIPTION_NOT_FOUND", "Not found.");
+
+      const p = snap.data() as PrescriptionDoc;
+      if (p.patientId !== req.auth!.sub) {
+        throw Problem.notFound("PRESCRIPTION_NOT_FOUND", "Not found.");
+      }
+      if (p.status !== "ISSUED") {
+        // Cancelled or superseded means a clinician withdrew or replaced it.
+        // Repeating it would quietly reinstate a decision somebody made.
+        throw Problem.conflict("REFILL_NOT_ALLOWED", "This prescription can no longer be repeated.");
+      }
+
+      const open = await db()
+        .collection(C.refillRequests)
+        .where("prescriptionId", "==", req.params.id)
+        .where("status", "==", "PENDING")
+        .limit(1)
+        .get();
+      if (!open.empty) {
+        throw Problem.conflict(
+          "REFILL_ALREADY_REQUESTED",
+          "You have already asked for a repeat of this prescription."
+        );
+      }
+
+      const note = typeof req.body?.note === "string" ? req.body.note.trim() : "";
+      if (note.length > MAX_NOTE) {
+        throw Problem.validation("Keep your note under 300 characters.", { note: "too_long" });
+      }
+
+      const doc: RefillRequestDoc = {
+        prescriptionId: req.params.id,
+        patientId: p.patientId,
+        doctorId: p.doctorId,
+        doctorName: p.providerName,
+        requestedAt: Timestamp.now(),
+        status: "PENDING",
+        patientNote: note || null,
+        decidedAt: null,
+        declineReason: null,
+        decisionNote: null,
+        issuedPrescriptionId: null,
+      };
+
+      const ref = await db().collection(C.refillRequests).add(doc);
+      res.status(201).json(refillJson(ref.id, doc));
+    })
+  );
+
+  /** Withdraws a request the doctor has not answered. */
+  r.post(
+    "/refills/:id/cancel",
+    handler(async (req, res) => {
+      const { ref, doc } = await loadRefill(req.params.id);
+      if (doc.patientId !== req.auth!.sub) {
+        throw Problem.notFound("REFILL_NOT_FOUND", "Not found.");
+      }
+      if (doc.status !== "PENDING") {
+        throw Problem.conflict("REFILL_ALREADY_DECIDED", "Your doctor has already answered this.");
+      }
+
+      const patch = { status: "CANCELLED" as RefillStatus, decidedAt: Timestamp.now() };
+      await ref.update(patch);
+      res.json(refillJson(req.params.id, { ...doc, ...patch }));
+    })
+  );
+
+  /**
+   * Approves a refill, issuing a fresh prescription.
+   *
+   * The drug list is re-checked here rather than inherited. A refill *is* the
+   * follow-up that makes List B permissible, so this is the one patient-
+   * initiated path that can end in a restricted drug being dispensed — and a
+   * classification that has changed since the original must be honoured.
+   */
+  r.post(
+    "/refills/:id/approve",
+    requireScope("prescription:write"),
+    handler(async (req, res) => {
+      const { ref, doc } = await loadRefill(req.params.id);
+      if (doc.doctorId !== req.user!.doctorId) {
+        throw Problem.notFound("REFILL_NOT_FOUND", "Not found.");
+      }
+      if (doc.status !== "PENDING") {
+        throw Problem.conflict("REFILL_ALREADY_DECIDED", "This request has already been answered.");
+      }
+
+      const original = await db().collection(C.prescriptions).doc(doc.prescriptionId).get();
+      if (!original.exists) throw Problem.notFound("PRESCRIPTION_NOT_FOUND", "Not found.");
+      const source = original.data() as PrescriptionDoc;
+
+      await assertRefillable(source);
+
+      const id = randomUUID();
+      const refill: PrescriptionDoc = {
+        ...source,
+        verificationCode: verificationCode(secret(), id, source.items),
+        issuedAt: Timestamp.now(),
+        status: "ISSUED",
+        isFollowUp: true,
+        pdfPath: null,
+        pdfSha256: null,
+        pdfStoredAt: null,
+      };
+      await db().collection(C.prescriptions).doc(id).set(refill);
+      // Best-effort, exactly as on first issue: the prescription is already
+      // committed, and a storage outage must not undo a clinical decision.
+      await storePrescriptionPdf(id, refill);
+
+      const patch = {
+        status: "APPROVED" as RefillStatus,
+        decidedAt: Timestamp.now(),
+        issuedPrescriptionId: id,
+      };
+      await ref.update(patch);
+
+      await notify({
+        userId: doc.patientId,
+        kind: "PRESCRIPTION_ISSUED",
+        title: "Repeat approved",
+        body: `From ${doc.doctorName}`,
+        targetId: id,
+      });
+
+      res.json(refillJson(req.params.id, { ...doc, ...patch }));
+    })
+  );
+
+  /**
+   * Declines a refill. **The reason and the note are both required.**
+   *
+   * A patient told only "declined" will ask again, or stop taking a medicine
+   * they still need. The category says what to do next and can be counted
+   * later; the note says why. Refusing a blank note here is what stops a
+   * client from making it optional.
+   */
+  r.post(
+    "/refills/:id/decline",
+    requireScope("prescription:write"),
+    handler(async (req, res) => {
+      const { ref, doc } = await loadRefill(req.params.id);
+      if (doc.doctorId !== req.user!.doctorId) {
+        throw Problem.notFound("REFILL_NOT_FOUND", "Not found.");
+      }
+      if (doc.status !== "PENDING") {
+        throw Problem.conflict("REFILL_ALREADY_DECIDED", "This request has already been answered.");
+      }
+
+      const reason = req.body?.reason;
+      if (!DECLINE_REASONS.includes(reason)) {
+        throw Problem.validation("Choose a reason.", { reason: "invalid" });
+      }
+
+      const note = typeof req.body?.note === "string" ? req.body.note.trim() : "";
+      if (!note) {
+        throw Problem.validation(
+          "Tell the patient why, so they know what to do next.",
+          { note: "required" }
+        );
+      }
+      if (note.length > MAX_NOTE) {
+        throw Problem.validation("Keep the note under 300 characters.", { note: "too_long" });
+      }
+
+      const patch = {
+        status: "DECLINED" as RefillStatus,
+        decidedAt: Timestamp.now(),
+        declineReason: reason as RefillDeclineReason,
+        decisionNote: note,
+      };
+      await ref.update(patch);
+
+      await notify({
+        userId: doc.patientId,
+        kind: "ACCOUNT_UPDATE",
+        title: "Repeat declined",
+        // The reason lives in the app, behind authentication. A lock screen is
+        // the wrong place for a clinical judgement about someone.
+        body: `${doc.doctorName} has answered your request`,
+        targetId: req.params.id,
+      });
+
+      res.json(refillJson(req.params.id, { ...doc, ...patch }));
     })
   );
 

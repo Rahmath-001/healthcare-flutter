@@ -10,9 +10,12 @@ import '../../../core/error/failure.dart';
 import '../../../core/feature_providers.dart';
 import '../../../core/files/blob_client.dart';
 import '../../../shared/formatters.dart';
+import '../../../shared/haptics.dart';
 import '../../../shared/widgets/async_view.dart';
 import '../data/prescription_pdf.dart';
 import '../domain/prescription.dart';
+import '../domain/refill_request.dart';
+import 'refills_screen.dart';
 
 final prescriptionsProvider = FutureProvider<List<Prescription>>((ref) async {
   return ref.watch(prescriptionRepositoryProvider).listForPatient();
@@ -341,6 +344,20 @@ class _Detail extends StatelessWidget {
             ),
           ),
         ),
+        // Offered only on a live prescription. A cancelled or superseded one
+        // was withdrawn or replaced by a clinician, and a button to repeat it
+        // would invite a patient to reinstate a decision somebody made.
+        if (RefillRequest.canRequestFor(p)) ...[
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _askForRepeat(context, p),
+              icon: const Icon(Icons.autorenew, size: 20),
+              label: Text(context.l10n.refillRequest),
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         Text(
           'Retained until ${Fmt.date(p.retainedUntil)} as required by medical '
@@ -349,6 +366,118 @@ class _Detail extends StatelessWidget {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Future<void> _askForRepeat(BuildContext context, Prescription p) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _RepeatSheet(prescription: p),
+    );
+  }
+}
+
+/// The patient's side of a repeat request.
+///
+/// Says plainly that a repeat is a decision rather than a refill button. The
+/// alternative — a one-tap "reorder" — teaches people that medicines arrive on
+/// request, which is exactly the expectation the MoHFW rules exist to prevent.
+class _RepeatSheet extends ConsumerStatefulWidget {
+  const _RepeatSheet({required this.prescription});
+
+  final Prescription prescription;
+
+  @override
+  ConsumerState<_RepeatSheet> createState() => _RepeatSheetState();
+}
+
+class _RepeatSheetState extends ConsumerState<_RepeatSheet> {
+  final _note = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final sent = context.l10n.refillSent;
+    setState(() => _sending = true);
+
+    try {
+      await ref.read(prescriptionRepositoryProvider).requestRefill(
+            widget.prescription.id,
+            note: _note.text,
+          );
+      ref.invalidate(refillRequestsProvider);
+      Haptics.success();
+      navigator.pop();
+      messenger.showSnackBar(SnackBar(content: Text(sent)));
+    } on Failure catch (f) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      Haptics.warning();
+      messenger.showSnackBar(SnackBar(content: Text(f.message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l10n.refillTitle, style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(l10n.refillBody, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _note,
+              maxLines: 3,
+              maxLength: RefillRequest.maxPatientNoteLength,
+              // Symptoms and side effects end up here. Same
+              // keyboard-dictionary rule as every other clinical field.
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: l10n.refillNoteHint,
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: _sending ? null : _send,
+              child: _sending
+                  ? SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    )
+                  : Text(l10n.refillSend),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

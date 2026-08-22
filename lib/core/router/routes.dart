@@ -30,6 +30,7 @@ abstract final class Routes {
   static const sharing = '/patient/sharing';
   static const recordUpload = '/patient/records/upload';
   static const prescriptions = '/patient/prescriptions';
+  static const refills = '/patient/refills';
   static const supportTickets = '/patient/support';
   static const notifications = '/patient/notifications';
   static const notificationSettings = '/patient/notifications/settings';
@@ -51,6 +52,7 @@ abstract final class Routes {
   static const providerPatients = '/provider/patients';
   static const providerProfile = '/provider/profile';
   static const providerRatings = '/provider/ratings';
+  static const providerRefills = '/provider/refills';
 
   /// Terminal screen for a provider who is not APPROVED. Mirrors the RBAC
   /// matrix, where an unverified provider may only read their own profile and

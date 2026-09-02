@@ -4,6 +4,9 @@
 /// codegen step, and route strings are the part of this app least in need of
 /// type generation.
 abstract final class Routes {
+  // Public catalogue. This is the first screen in the client wireframe and
+  // deliberately remains useful before a person creates an account.
+  static const landing = '/';
   static const splash = '/splash';
 
   // --- Auth ----------------------------------------------------------------
@@ -12,6 +15,8 @@ abstract final class Routes {
   static const signup = '/auth/signup';
   static const phone = '/auth/phone';
   static const otp = '/auth/otp';
+  static const consent = '/auth/consent';
+  static const organisationRegistration = '/auth/organisation';
 
   // --- Onboarding ----------------------------------------------------------
   static const onboardingPatient = '/onboarding/patient';
@@ -45,6 +50,8 @@ abstract final class Routes {
   static const devices = '/patient/settings/devices';
 
   static String doctorDetail(String id) => '$doctorSearch/$id';
+  static String publicDoctorDetail(String id) => '/doctors/$id';
+  static String publicBooking(String id) => '${publicDoctorDetail(id)}/book';
   static String booking(String id) => '$doctorSearch/$id/book';
   static String appointmentDetail(String id) => '$patientAppointments/$id';
   static String recordDetail(String id) => '$patientRecords/$id';

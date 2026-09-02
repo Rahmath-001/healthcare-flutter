@@ -18,9 +18,10 @@ import 'booking_controller.dart';
 import 'waitlist_button.dart';
 
 class BookingScreen extends ConsumerWidget {
-  const BookingScreen({super.key, required this.doctorId});
+  const BookingScreen({super.key, required this.doctorId, this.requiresSignIn = false});
 
   final String doctorId;
+  final bool requiresSignIn;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,16 +32,17 @@ class BookingScreen extends ConsumerWidget {
       body: AsyncView<Doctor>(
         value: doctor,
         onRetry: () => ref.invalidate(doctorByIdProvider(doctorId)),
-        data: (d) => _BookingBody(doctor: d),
+        data: (d) => _BookingBody(doctor: d, requiresSignIn: requiresSignIn),
       ),
     );
   }
 }
 
 class _BookingBody extends ConsumerStatefulWidget {
-  const _BookingBody({required this.doctor});
+  const _BookingBody({required this.doctor, required this.requiresSignIn});
 
   final Doctor doctor;
+  final bool requiresSignIn;
 
   @override
   ConsumerState<_BookingBody> createState() => _BookingBodyState();
@@ -87,6 +89,14 @@ class _BookingBodyState extends ConsumerState<_BookingBody> {
       // A lost race means the slot list on screen is stale.
       ref.invalidate(slotsProvider);
     }
+  }
+
+  void _showSignInPrompt() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => _SignInToBookSheet(doctorId: widget.doctor.id),
+    );
   }
 
   @override
@@ -139,23 +149,34 @@ class _BookingBodyState extends ConsumerState<_BookingBody> {
                 ),
                 selected: state.selectedSlot,
                 doctor: widget.doctor,
+                onSignInRequired:
+                    widget.requiresSignIn ? _showSignInPrompt : null,
               ),
               const SizedBox(height: 20),
               // The reason for visit is a symptom list. See
               // `edit_profile_screen.dart`.
-              TextField(
-                controller: _reasonCtrl,
-                maxLines: 3,
-                maxLength: 200,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: context.l10n.bookingReasonOptional,
-                  hintText: context.l10n.bookingSymptomsHint,
-                  border: const OutlineInputBorder(),
-                  alignLabelWithHint: true,
+              if (widget.requiresSignIn)
+                Card(
+                  child: const ListTile(
+                    leading: Icon(Icons.lock_outline),
+                    title: Text('Sign in to add a reason for your visit'),
+                    subtitle: Text('Your health information is collected only in your secure account.'),
+                  ),
+                )
+              else
+                TextField(
+                  controller: _reasonCtrl,
+                  maxLines: 3,
+                  maxLength: 200,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.bookingReasonOptional,
+                    hintText: context.l10n.bookingSymptomsHint,
+                    border: const OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -280,6 +301,7 @@ class _SlotGrid extends ConsumerWidget {
     required this.query,
     required this.selected,
     required this.doctor,
+    this.onSignInRequired,
   });
 
   final SlotQuery query;
@@ -288,6 +310,7 @@ class _SlotGrid extends ConsumerWidget {
   /// Needed only for the waitlist offer, which is the one thing on this widget
   /// that is about the doctor rather than about the day.
   final Doctor doctor;
+  final VoidCallback? onSignInRequired;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -315,11 +338,17 @@ class _SlotGrid extends ConsumerWidget {
                 // Offered where the disappointment happens. Someone who has
                 // just found no free times is the only person who wants this,
                 // and they want it now rather than from a menu.
-                WaitlistButton(
-                  doctor: doctor,
-                  mode: query.mode,
-                  preferredDate: query.date,
-                ),
+                onSignInRequired == null
+                    ? WaitlistButton(
+                        doctor: doctor,
+                        mode: query.mode,
+                        preferredDate: query.date,
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: onSignInRequired,
+                        icon: const Icon(Icons.login),
+                        label: const Text('Sign in to join the waitlist'),
+                      ),
               ],
             ),
           );
@@ -337,10 +366,14 @@ class _SlotGrid extends ConsumerWidget {
               // reads as "busy" rather than "empty".
               onSelected: slot.isAvailable
                   ? (_) {
-                      Haptics.selection();
-                      ref
-                          .read(bookingControllerProvider.notifier)
-                          .selectSlot(slot);
+                      if (onSignInRequired != null) {
+                        onSignInRequired!();
+                      } else {
+                        Haptics.selection();
+                        ref
+                            .read(bookingControllerProvider.notifier)
+                            .selectSlot(slot);
+                      }
                     }
                   : null,
             );
@@ -349,6 +382,43 @@ class _SlotGrid extends ConsumerWidget {
       },
     );
   }
+}
+
+class _SignInToBookSheet extends StatelessWidget {
+  const _SignInToBookSheet({required this.doctorId});
+
+  final String doctorId;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Sign in to continue', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              const Text('Create an account or sign in to reserve this appointment time.'),
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: () => context.go(
+                  Uri(
+                    path: '/auth/login',
+                    queryParameters: {'returnTo': '/patient/doctors/$doctorId/book'},
+                  ).toString(),
+                ),
+                child: const Text('Sign in'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () => context.go('/auth/role'),
+                child: const Text('Create account'),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 /// Bottom bar showing the hold countdown and the confirm action.

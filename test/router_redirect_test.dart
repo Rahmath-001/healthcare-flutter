@@ -35,6 +35,20 @@ String? redirect({
     );
 
 void main() {
+  group('post-sign-in booking return', () {
+    test('accepts only a patient booking path', () {
+      expect(
+        bookingReturnPath('/patient/doctors/d-ramesh/book'),
+        '/patient/doctors/d-ramesh/book',
+      );
+    });
+
+    test('rejects external and non-booking destinations', () {
+      expect(bookingReturnPath('https://example.com'), isNull);
+      expect(bookingReturnPath('/patient/records'), isNull);
+    });
+  });
+
   group('while the session is loading', () {
     test('holds on splash', () {
       expect(redirect(location: Routes.splash, loading: true), isNull);
@@ -54,16 +68,18 @@ void main() {
         Routes.login,
         Routes.signup,
         Routes.phone,
-        Routes.otp
+        Routes.otp,
+        Routes.consent,
+        Routes.organisationRegistration,
       ]) {
         expect(redirect(location: route), isNull, reason: route);
       }
     });
 
-    test('everything else goes to login', () {
-      expect(redirect(location: Routes.patientHome), Routes.login);
-      expect(redirect(location: Routes.providerToday), Routes.login);
-      expect(redirect(location: Routes.splash), Routes.login);
+    test('everything else goes to the public catalogue', () {
+      expect(redirect(location: Routes.patientHome), Routes.landing);
+      expect(redirect(location: Routes.providerToday), Routes.landing);
+      expect(redirect(location: Routes.splash), Routes.landing);
     });
   });
 

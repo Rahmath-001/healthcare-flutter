@@ -5,12 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../core/providers.dart';
 import '../core/router/routes.dart';
 import '../core/service_providers.dart';
-import '../l10n/l10n.dart';
-import '../utils/debouncer.dart';
+import '../core/session/user_role.dart';
+import '../features/auth/presentation/role_selection_screen.dart';
 import '../widgets/apple_button.dart';
 import '../widgets/google_button.dart';
-import '../widgets/primary_button.dart';
 
+/// Patient and provider registration form from the client wireframe.
+/// Phone verification continues in the existing secure phone/OTP screens.
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
@@ -19,48 +20,52 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  final _nameCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final _debouncer = Debouncer();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _email = TextEditingController();
+  final _mobile = TextEditingController();
+  final _house = TextEditingController();
+  final _street = TextEditingController();
+  final _city = TextEditingController();
+  final _zip = TextEditingController();
+  final _state = TextEditingController();
+  final _country = TextEditingController(text: 'India');
+  final _otp = TextEditingController();
   bool _googleLoading = false;
   bool _appleLoading = false;
-  bool? _nameValid;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameCtrl.addListener(_onNameChanged);
-  }
-
-  void _onNameChanged() {
-    _debouncer.run(() {
-      if (mounted) {
-        setState(() => _nameValid = _nameCtrl.text.trim().length >= 2);
-      }
-    });
-  }
+  bool _otpSent = false;
 
   @override
   void dispose() {
-    _debouncer.dispose();
-    _nameCtrl.dispose();
+    for (final controller in [
+      _firstName, _lastName, _email, _mobile, _house, _street, _city, _zip,
+      _state, _country, _otp,
+    ]) {
+      controller.dispose();
+    }
     super.dispose();
   }
+
+  String? _required(String? value, String field) =>
+      value == null || value.trim().isEmpty ? 'Enter $field' : null;
+
+  bool get _basicDetailsValid =>
+      _firstName.text.trim().isNotEmpty &&
+      _lastName.text.trim().isNotEmpty &&
+      _email.text.contains('@') &&
+      _mobile.text.trim().length >= 8;
 
   Future<void> _google() async {
     setState(() => _googleLoading = true);
     try {
       await ref.read(authServiceProvider).signInWithGoogle();
-      // Firebase proved who they are; this turns that into a session
-      // that says what they may do. Without it the router sees no
-      // session and bounces straight back to sign-in.
-      await ref
-          .read(sessionControllerProvider.notifier)
-          .completeFirebaseSignIn();
+      await ref.read(sessionControllerProvider.notifier).completeFirebaseSignIn();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Google sign-in failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google sign-in failed: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _googleLoading = false);
@@ -71,84 +76,182 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() => _appleLoading = true);
     try {
       await ref.read(authServiceProvider).signInWithApple();
-      await ref
-          .read(sessionControllerProvider.notifier)
-          .completeFirebaseSignIn();
+      await ref.read(sessionControllerProvider.notifier).completeFirebaseSignIn();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Apple sign-in failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Apple sign-in failed: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _appleLoading = false);
     }
   }
 
-  void _phone() {
-    if (!_formKey.currentState!.validate()) return;
-    context.push(
-      Uri(
-        path: Routes.phone,
-        queryParameters: {'name': _nameCtrl.text.trim()},
-      ).toString(),
-    );
+  void _sendOtp() {
+    if (!_basicDetailsValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Complete your basic information first.')),
+      );
+      return;
+    }
+    setState(() => _otpSent = true);
   }
 
-  Widget? get _nameSuffix {
-    if (_nameValid == null) return null;
-    return Icon(
-      _nameValid! ? Icons.check_circle : Icons.cancel,
-      color: _nameValid! ? Colors.green : Colors.red,
-    );
+  void _verifyOtp() {
+    if (!_basicDetailsValid) return;
+    context.push(Uri(
+      path: Routes.phone,
+      queryParameters: {
+        'name': '${_firstName.text.trim()} ${_lastName.text.trim()}',
+      },
+    ).toString());
   }
 
   @override
   Widget build(BuildContext context) {
+    final isProvider = ref.watch(requestedRoleProvider) == UserRole.provider;
+    final title = isProvider ? 'Doctor / Provider Registration' : 'Patient Registration';
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.authCreateAccount)),
+      appBar: AppBar(title: const Text('MiDoctor')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 8),
-                Text('Tell us your name',
-                    style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: context.l10n.editProfileFullName,
-                    border: const OutlineInputBorder(),
-                    suffixIcon: _nameSuffix,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                children: [
+                  Text(title, style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: 8),
+                  const Text('Register with Google, Apple, or your mobile phone.'),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: GoogleButton(onPressed: _google, loading: _googleLoading)),
+                      const SizedBox(width: 12),
+                      Expanded(child: AppleButton(onPressed: _apple, loading: _appleLoading)),
+                    ],
                   ),
-                  validator: (v) => (v == null || v.trim().length < 2)
-                      ? 'Enter your name'
-                      : null,
-                ),
-                const SizedBox(height: 24),
-                PrimaryButton(label: 'Continue with phone', onPressed: _phone),
-                const SizedBox(height: 14),
-                GoogleButton(onPressed: _google, loading: _googleLoading),
-                ...ref.watch(appleSignInAvailableProvider).maybeWhen(
-                      data: (available) => available
-                          ? [
-                              const SizedBox(height: 14),
-                              AppleButton(
-                                  onPressed: _apple, loading: _appleLoading),
-                            ]
-                          : const <Widget>[],
-                      orElse: () => const <Widget>[],
+                  const SizedBox(height: 24),
+                  _RegistrationSection(
+                    title: 'Basic Information',
+                    children: [
+                      _field(_firstName, 'First name', capitalization: TextCapitalization.words),
+                      _field(_lastName, 'Last name', capitalization: TextCapitalization.words),
+                      _field(_email, 'Email', type: TextInputType.emailAddress, validator: (value) => value != null && value.contains('@') ? null : 'Enter a valid email'),
+                      _field(_mobile, 'Mobile number', type: TextInputType.phone),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  FilledButton.icon(
+                    onPressed: _sendOtp,
+                    icon: const Icon(Icons.sms_outlined),
+                    label: const Text('Send OTP'),
+                  ),
+                  if (_otpSent) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _otp,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Enter OTP'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton(
+                          onPressed: _verifyOtp,
+                          child: const Text('Validate OTP'),
+                        ),
+                      ],
                     ),
-              ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Verification continues on the secure phone screen.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  _RegistrationSection(
+                    title: 'Home Address',
+                    children: [
+                      _field(_house, 'House number'),
+                      _field(_street, 'Street'),
+                      _field(_city, 'City'),
+                      _field(_zip, 'Zip code', type: TextInputType.number),
+                      _field(_state, 'State'),
+                      _field(_country, 'Country'),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _otpSent ? _verifyOtp : _sendOtp,
+                          child: Text(_otpSent ? 'Validate OTP' : 'Register'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => context.pop(),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    TextInputType? type,
+    TextCapitalization capitalization = TextCapitalization.none,
+    String? Function(String?)? validator,
+  }) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextFormField(
+          controller: controller,
+          keyboardType: type,
+          textCapitalization: capitalization,
+          decoration: InputDecoration(labelText: label),
+          validator: validator ?? (value) => _required(value, label.toLowerCase()),
+        ),
+      );
+}
+
+class _RegistrationSection extends StatelessWidget {
+  const _RegistrationSection({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 16),
+              ...children,
+            ],
+          ),
+        ),
+      );
 }

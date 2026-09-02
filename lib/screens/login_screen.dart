@@ -123,13 +123,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       children: [
                         Text(
-                          context.l10n.authWelcomeBack,
+                          'Sign in with',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.headlineMedium,
                         ),
                         const SizedBox(height: Insets.sm),
                         Text(
-                          context.l10n.authSignInToContinue,
+                          'Google, Apple, or your mobile phone.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
@@ -170,12 +170,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        PrimaryButton(
-                          label: context.l10n.authContinueWithPhone,
-                          onPressed:
-                              _busy ? null : () => context.push(Routes.phone),
-                        ),
-                        const SizedBox(height: Insets.md),
                         GoogleButton(
                           onPressed: _busy ? null : _google,
                           loading: _googleLoading,
@@ -195,6 +189,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   : const <Widget>[],
                               orElse: () => const <Widget>[],
                             ),
+                        const SizedBox(height: Insets.md),
+                        PrimaryButton(
+                          label: context.l10n.authContinueWithPhone,
+                          onPressed:
+                              _busy ? null : () => context.push(Routes.phone),
+                        ),
                       ],
                     ),
                   ),

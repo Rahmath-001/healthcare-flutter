@@ -6,6 +6,8 @@ import '../../features/appointments/presentation/appointment_detail_screen.dart'
 import '../../features/appointments/presentation/appointments_screen.dart';
 import '../../features/availability/presentation/availability_screen.dart';
 import '../../features/auth/presentation/role_selection_screen.dart';
+import '../../features/auth/presentation/consent_screen.dart';
+import '../../features/auth/presentation/organisation_registration_screen.dart';
 import '../../features/blocked/presentation/blocked_screen.dart';
 import '../../features/booking/presentation/booking_confirmed_screen.dart';
 import '../../features/booking/presentation/booking_screen.dart';
@@ -84,6 +86,27 @@ class ShellScaffold extends StatelessWidget {
 /// Separate shells also make it structurally impossible for a patient build to
 /// render a provider tab.
 List<RouteBase> buildRoutes() => [
+      // --- Public catalogue -------------------------------------------------
+      GoRoute(
+        path: Routes.landing,
+        builder: (_, __) => const DoctorSearchScreen(publicBrowse: true),
+      ),
+      GoRoute(
+        path: '/doctors/:id',
+        builder: (_, state) => DoctorDetailScreen(
+          doctorId: state.pathParameters['id']!,
+          publicBrowse: true,
+        ),
+        routes: [
+          GoRoute(
+            path: 'book',
+            builder: (_, state) => BookingScreen(
+              doctorId: state.pathParameters['id']!,
+              requiresSignIn: true,
+            ),
+          ),
+        ],
+      ),
       GoRoute(
         path: Routes.splash,
         builder: (_, __) => const SplashScreen(),
@@ -100,6 +123,13 @@ List<RouteBase> buildRoutes() => [
         builder: (_, __) => const RoleSelectionScreen(),
       ),
       GoRoute(path: Routes.signup, builder: (_, __) => const SignupScreen()),
+      GoRoute(path: Routes.consent, builder: (_, __) => const ConsentScreen()),
+      GoRoute(
+        path: Routes.organisationRegistration,
+        builder: (_, state) => OrganisationRegistrationScreen(
+          type: state.uri.queryParameters['type'] ?? 'Hospital',
+        ),
+      ),
       GoRoute(
         path: Routes.phone,
         builder: (_, state) => PhoneInputScreen(

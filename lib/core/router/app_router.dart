@@ -46,7 +46,11 @@ String? resolveRedirect({
   if (sessionLoading) return isSplash ? null : Routes.splash;
 
   if (session == null) {
-    return isAuthRoute ? null : Routes.login;
+    // The catalogue is intentionally public: the first client-approved
+    // screen lets someone browse doctors before deciding to register.
+    return isAuthRoute || location == Routes.landing || location.startsWith('/doctors')
+        ? null
+        : Routes.landing;
   }
 
   // Suspended/deactivated accounts get a terminal screen rather than a silent
@@ -105,6 +109,21 @@ String? resolveRedirect({
   }
 }
 
+/// Allows only an in-app patient booking URL to survive the public sign-in
+/// hand-off. Kept separate from [resolveRedirect] so the allow-list is tested
+/// without constructing a router state.
+@visibleForTesting
+String? bookingReturnPath(String? returnTo) {
+  final uri = returnTo == null ? null : Uri.tryParse(returnTo);
+  if (uri != null &&
+      !uri.hasScheme &&
+      !uri.hasAuthority &&
+      RegExp(r'^/patient/doctors/[^/]+/book$').hasMatch(uri.path)) {
+    return uri.toString();
+  }
+  return null;
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: Routes.splash,
@@ -115,12 +134,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Route names only, never arguments: a breadcrumb carrying a record id
       // would put clinical context into a crash report.
       CrashReporting.breadcrumb(state.matchedLocation);
-      return resolveRedirect(
+      final redirect = resolveRedirect(
         location: state.matchedLocation,
         sessionLoading: sessionAsync.isLoading,
         session: sessionAsync.value,
         onboardingComplete: ref.read(onboardingControllerProvider),
       );
+
+      // A person can browse availability before authenticating. Once a patient
+      // signs in, return them to the selected doctor's booking flow rather than
+      // making them search for that doctor again. Only this exact internal
+      // booking path is accepted; an arbitrary return URL must never be a
+      // redirect target.
+      if (redirect == Routes.patientHome && state.matchedLocation == Routes.login) {
+        final returnTo = bookingReturnPath(
+          state.uri.queryParameters['returnTo'],
+        );
+        if (returnTo != null) return returnTo;
+      }
+      return redirect;
     },
     routes: buildRoutes(),
   );

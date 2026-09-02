@@ -12,18 +12,21 @@ import 'package:flutter/material.dart';
 abstract final class Brand {
   /// The product colour. Unchanged from the original seed, so nothing already
   /// shipped shifts hue.
-  static const Color teal = Color(0xFF0E8388);
+  // The client wireframes are structural only. MiDoctor's production colour
+  // is light blue, so screens use this blue ramp rather than the wireframe's
+  // filled blue background.
+  static const Color teal = Color(0xFF1976D2);
 
-  static const Color teal50 = Color(0xFFE6F4F4);
-  static const Color teal100 = Color(0xFFC4E5E6);
-  static const Color teal200 = Color(0xFF97D2D4);
-  static const Color teal300 = Color(0xFF63BCBF);
-  static const Color teal400 = Color(0xFF2FA1A6);
+  static const Color teal50 = Color(0xFFEAF4FF);
+  static const Color teal100 = Color(0xFFCFE7FF);
+  static const Color teal200 = Color(0xFF9DCEFA);
+  static const Color teal300 = Color(0xFF64B5F6);
+  static const Color teal400 = Color(0xFF42A5F5);
   static const Color teal500 = teal;
-  static const Color teal600 = Color(0xFF0C7276);
-  static const Color teal700 = Color(0xFF0A5D61);
-  static const Color teal800 = Color(0xFF08484B);
-  static const Color teal900 = Color(0xFF063437);
+  static const Color teal600 = Color(0xFF1565C0);
+  static const Color teal700 = Color(0xFF0D47A1);
+  static const Color teal800 = Color(0xFF0A397C);
+  static const Color teal900 = Color(0xFF062958);
 
   /// Secondary. A muted slate-blue that reads as informational next to the
   /// teal without competing with it for "this is the action".
@@ -223,10 +226,10 @@ const ColorScheme lightScheme = ColorScheme(
   onSurface: Color(0xFF111C1D),
   onSurfaceVariant: Color(0xFF4C5D5E),
   surfaceContainerLowest: Color(0xFFFFFFFF),
-  surfaceContainerLow: Color(0xFFF6FAFA),
-  surfaceContainer: Color(0xFFF0F5F5),
-  surfaceContainerHigh: Color(0xFFE9F0F0),
-  surfaceContainerHighest: Color(0xFFE2EAEA),
+  surfaceContainerLow: Color(0xFFF7FAFF),
+  surfaceContainer: Color(0xFFF0F6FD),
+  surfaceContainerHigh: Color(0xFFE8F1FB),
+  surfaceContainerHighest: Color(0xFFDDEAF7),
   surfaceTint: Brand.teal600,
   inverseSurface: Color(0xFF1E2B2C),
   onInverseSurface: Color(0xFFEFF4F4),

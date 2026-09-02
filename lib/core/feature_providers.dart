@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/auth/data/organisation_registration_repository.dart';
 import '../features/appointments/data/api_appointment_repository.dart';
 import '../features/appointments/data/appointment_repository.dart';
 import '../features/appointments/data/cached_appointment_repository.dart';
@@ -54,6 +55,16 @@ import 'storage/clinical_cache.dart';
 final doctorRepositoryProvider = Provider<DoctorRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixtureDoctorRepository();
   return ApiDoctorRepository(ref.watch(apiClientProvider));
+});
+
+/// Public registration requests for hospitals, labs, and home-health services.
+/// They never create a privileged account or skip human approval.
+final organisationRegistrationRepositoryProvider =
+    Provider<OrganisationRegistrationRepository>((ref) {
+  if (ref.watch(useFixturesProvider)) {
+    return FixtureOrganisationRegistrationRepository();
+  }
+  return ApiOrganisationRegistrationRepository(ref.watch(apiClientProvider));
 });
 
 final bookingRepositoryProvider = Provider<BookingRepository>((ref) {

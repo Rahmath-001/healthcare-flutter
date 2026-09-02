@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../error/failure.dart';
 import '../../features/auth/data/session_repository.dart';
+import '../../features/auth/domain/registration_terms_acceptance.dart';
 import '../../features/auth/presentation/role_selection_screen.dart';
+import '../../features/auth/presentation/registration_terms_acceptance.dart';
 import '../observability/crash_reporting.dart';
 import '../providers.dart';
 import '../service_providers.dart';
@@ -145,18 +147,58 @@ class SessionController extends AsyncNotifier<Session?> {
     state = const AsyncValue<Session?>.loading();
     state = await AsyncValue.guard(() async {
       final deviceId = await ref.read(deviceIdProvider.future);
-      final result = await _repository.exchange(
+      final requestedRole = ref.read(requestedRoleProvider);
+      final appVersion = ref.read(appVersionProvider);
+      final termsAcceptance = ref.read(registrationTermsAcceptanceProvider);
+      final result = await _exchangeOrUseFixtures(
         firebaseIdToken: firebaseIdToken,
         deviceId: deviceId,
         platform: defaultTargetPlatform.name,
-        appVersion: ref.read(appVersionProvider),
-        requestedRole: ref.read(requestedRoleProvider),
+        appVersion: appVersion,
+        requestedRole: requestedRole,
+        termsAcceptance: termsAcceptance,
       );
       await _persistRefreshToken(result.refreshToken);
       _accessToken = result.session.accessToken;
+      ref.read(registrationTermsAcceptanceProvider.notifier).clear();
       unawaited(CrashReporting.setUser(result.session.userId));
       return result.session;
     });
+  }
+
+  /// Completes an outage transition without making a person press a second
+  /// "sample data" button after Firebase sign-in has already succeeded.
+  ///
+  /// [ApiClient] changes [useFixturesProvider] only for transport and 5xx
+  /// failures. Authorization and validation failures leave it false and are
+  /// rethrown here, so a revoked account is never replaced by a fixture one.
+  Future<({Session session, String? refreshToken})> _exchangeOrUseFixtures({
+    required String firebaseIdToken,
+    required String deviceId,
+    required String platform,
+    required String appVersion,
+    required UserRole requestedRole,
+    required RegistrationTermsAcceptance? termsAcceptance,
+  }) async {
+    try {
+      return await _repository.exchange(
+        firebaseIdToken: firebaseIdToken,
+        deviceId: deviceId,
+        platform: platform,
+        appVersion: appVersion,
+        requestedRole: requestedRole,
+        termsAcceptance: termsAcceptance,
+      );
+    } on Failure {
+      if (!ref.read(useFixturesProvider)) rethrow;
+      return FixtureSessionRepository().exchange(
+        firebaseIdToken: 'fixture',
+        deviceId: 'fixture-device',
+        platform: 'fixture',
+        appVersion: appVersion,
+        requestedRole: requestedRole,
+      );
+    }
   }
 
   /// Invoked by the auth interceptor on 401/TOKEN_STALE. Throws when the

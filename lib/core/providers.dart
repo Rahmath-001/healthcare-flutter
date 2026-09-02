@@ -84,15 +84,48 @@ final dioProvider = Provider<Dio>((ref) {
 });
 
 final apiClientProvider = Provider<ApiClient>(
-  (ref) => ApiClient(dio: ref.watch(dioProvider)),
+  (ref) => ApiClient(
+    dio: ref.watch(dioProvider),
+    onServiceUnavailable: () =>
+        ref.read(backendModeProvider.notifier).fallBackToFixtures(),
+  ),
 );
 
-/// Swaps to [ApiSessionRepository] once the backend is deployed.
+/// Which data source the running app is using.
 ///
-/// Until then the fixture keeps the whole client architecture — router, shells,
-/// interceptors, repositories — buildable and testable end to end.
+/// `fixtures` is the normal local-development default. `fallbackFixtures` is
+/// entered only after a live API request cannot reach the service or receives a
+/// 5xx response, so the UI can be candid that the data on screen is sample data.
+enum BackendMode { fixtures, api, fallbackFixtures }
+
+/// Owns the app-wide API-to-fixture fallback.
+///
+/// This is deliberately process-local: it prevents an outage from turning into
+/// a sticky user preference, and the next fresh launch always tries the
+/// configured backend again. Authorization, validation, and conflict failures
+/// never reach this notifier — they are real answers, not an unavailable API.
+class BackendModeNotifier extends Notifier<BackendMode> {
+  @override
+  BackendMode build() => const bool.fromEnvironment(
+        'USE_FIXTURES',
+        defaultValue: true,
+      )
+          ? BackendMode.fixtures
+          : BackendMode.api;
+
+  void fallBackToFixtures() {
+    if (state == BackendMode.api) state = BackendMode.fallbackFixtures;
+  }
+}
+
+final backendModeProvider =
+    NotifierProvider<BackendModeNotifier, BackendMode>(BackendModeNotifier.new);
+
+/// Selects fixture repositories for local development and after a live-service
+/// outage. Existing tests and the operator-console entry point can still
+/// override this boolean directly.
 final useFixturesProvider = Provider<bool>(
-  (ref) => const bool.fromEnvironment('USE_FIXTURES', defaultValue: true),
+  (ref) => ref.watch(backendModeProvider) != BackendMode.api,
 );
 
 final sessionRepositoryProvider = Provider<SessionRepository>((ref) {

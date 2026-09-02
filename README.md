@@ -32,6 +32,11 @@ writes one shared in-memory store, so the features actually connect: book an app
 it appears in your list, upload a record and it becomes readable once "scanned", grant consent
 and the doctor's view changes. The console works the same way.
 
+When `USE_FIXTURES=false`, the app first uses the live API. A network failure or a server `5xx`
+response automatically switches that app session to fixture sample data and shows a clear in-app
+banner. Authentication, permission, validation, and conflict errors remain visible; they are
+never replaced with mock data.
+
 To run against the real API:
 
 ```bash
@@ -95,6 +100,10 @@ Google OAuth, Sign in with Apple (Apple platforms only), and India phone OTP beh
 Twilio carrier/VoIP check. **No email/password.** Whatever succeeds, the Firebase ID token is
 exchanged for a MiDoctor session via `POST /v1/auth/session`.
 
+For a newly created account, that exchange includes the accepted Privacy Policy and Terms of
+Service revisions. The API records the acceptance timestamp and a three-year retention date
+alongside account creation.
+
 Two platform steps are not finished and both fail silently at runtime:
 
 - **iOS Google Sign-In** needs `CFBundleURLTypes` with the `REVERSED_CLIENT_ID` from
@@ -123,8 +132,8 @@ journey, while the application retains MiDoctor's light-blue theme:
   while the completed section collapses with a green completion tick. Phone numbers use the
   fixed `+91` prefix and the country/address controls remain India-only.
 - Hospital, laboratory and home-health registration follows the same sequence: Basic
-  Organisation Information then Business Address. Fixture-backed data is used where no API
-  endpoint exists.
+  Organisation Information then Business Address. Submission creates a server-side review
+  request; it does not create an account or grant a privileged role.
 - The public directory keeps Speciality and Location side by side. Both controls accept typed
   text as well as a compact suggestion list, use Indian fixture locations, close on their
   arrows or a background tap, and show an explicit right-side scrollbar when doctor results

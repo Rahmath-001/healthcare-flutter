@@ -43,6 +43,8 @@ export const C = {
   consultationNotes: "consultationNotes",
   medicationDoses: "medicationDoses",
   prescriptionTemplates: "prescriptionTemplates",
+  organisationRegistrations: "organisationRegistrations",
+  registrationTermsAcceptances: "registrationTermsAcceptances",
 } as const;
 
 export type NotificationKind =
@@ -139,6 +141,37 @@ export interface UserDoc {
   reviewClaimedBy?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+/**
+ * A prospective hospital, diagnostics centre, or home-health provider.
+ *
+ * This is intentionally separate from users and roles: submitting this public
+ * form must not create an authenticated or privileged account.
+ */
+export interface OrganisationRegistrationDoc {
+  type: "HOSPITAL" | "LAB_DIAGNOSTICS" | "HOME_HEALTH_PROVIDER";
+  name: string;
+  registrationNumber: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  state: string;
+  country: "India";
+  status: "SUBMITTED";
+  submittedAt: Timestamp;
+}
+
+/** Immutable evidence of the policy and terms revisions a new user accepted. */
+export interface RegistrationTermsAcceptanceDoc {
+  userId: string;
+  privacyPolicyVersion: string;
+  termsOfServiceVersion: string;
+  acceptedAt: Timestamp;
+  retentionUntil: Timestamp;
+  appVersion: string;
 }
 
 /**

@@ -18,6 +18,7 @@ import { consultationRoutes } from "./consultations/routes";
 import { credentialRoutes } from "./credentials/routes";
 import { doctorRoutes } from "./doctors/routes";
 import { notificationRoutes } from "./notifications/routes";
+import { organisationRegistrationRoutes } from "./organisation/routes";
 import { problemHandler, Problem, requestId } from "./errors";
 import {
   prescriptionRoutes,
@@ -101,6 +102,7 @@ export function buildApp(deps: AppDependencies | (() => string)) {
   app.use("/v1/credentials", credentialRoutes(secret));
   app.use("/v1/ratings", ratingRoutes(secret));
   app.use("/v1/notifications", notificationRoutes(secret));
+  app.use("/v1/organisation-registrations", organisationRegistrationRoutes());
   app.use("/v1/waitlist", waitlistRoutes(secret));
   app.use("/v1/notes", noteRoutes(secret));
   // Before the prescriptions router: its `/:id` route would otherwise

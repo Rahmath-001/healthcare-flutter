@@ -26,7 +26,7 @@ class ApiBookingRepository implements BookingRepository {
         // Date only: the server materialises a whole day from the doctor's
         // availability rules, so sending a time would imply a precision the
         // query does not have.
-        'date': DateTime(date.year, date.month, date.day).toIso8601String(),
+        'date': _dateOnly(date),
         'mode': mode.wire,
       },
     );
@@ -35,6 +35,14 @@ class ApiBookingRepository implements BookingRepository {
         .map((s) => AppointmentSlot.fromJson(s as Map<String, dynamic>))
         .toList();
   }
+
+  /// The API treats the requested day as an IST calendar date, never as an
+  /// instant. Sending `toIso8601String()` here would include a time component
+  /// and is correctly rejected by the server's strict `YYYY-MM-DD` contract.
+  static String _dateOnly(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
 
   @override
   Future<List<WaitlistEntry>> waitlist() async {

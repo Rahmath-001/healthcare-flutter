@@ -9,6 +9,9 @@ import 'package:healthcare_mobile/core/network/api_client.dart';
 import 'package:healthcare_mobile/features/appointments/data/api_appointment_repository.dart';
 import 'package:healthcare_mobile/features/availability/data/api_availability_repository.dart';
 import 'package:healthcare_mobile/features/availability/domain/availability.dart';
+import 'package:healthcare_mobile/features/auth/data/organisation_registration_repository.dart';
+import 'package:healthcare_mobile/features/auth/domain/organisation_registration.dart';
+import 'package:healthcare_mobile/features/booking/data/api_booking_repository.dart';
 import 'package:healthcare_mobile/features/medications/data/medication_repository.dart';
 import 'package:healthcare_mobile/features/medications/domain/medication_schedule.dart';
 import 'package:healthcare_mobile/features/prescriptions/data/api_prescription_repository.dart';
@@ -92,6 +95,62 @@ void main() {
       // Surfaced to patients because the MoHFW guidelines require it visible.
       expect(doctors.first.registrationNumber, 'KMC-12345');
       expect(doctors.first.modes, contains(ConsultationMode.video));
+    });
+  });
+
+  group('ApiBookingRepository', () {
+    test('sends slot searches as an IST calendar date, not an instant',
+        () async {
+      adapter.onGet(
+        '/v1/doctors/d1/slots',
+        (server) => server.reply(200, {'items': <Object>[]}),
+        queryParameters: {'date': '2026-03-05', 'mode': 'VIDEO'},
+      );
+
+      final slots = await ApiBookingRepository(api).slotsFor(
+        doctorId: 'd1',
+        date: DateTime(2026, 3, 5, 23, 30),
+        mode: ConsultationMode.video,
+      );
+
+      expect(slots, isEmpty);
+    });
+  });
+
+  group('ApiOrganisationRegistrationRepository', () {
+    test('submits the wireframe organisation request to the API', () async {
+      adapter.onPost(
+        '/v1/organisation-registrations',
+        (server) => server.reply(201, {'id': 'org-1', 'status': 'SUBMITTED'}),
+        data: {
+          'type': 'HOSPITAL',
+          'name': 'Apollo North',
+          'registrationNumber': 'KA-123',
+          'email': 'care@apollo.example',
+          'phone': '+919876543210',
+          'address': '42 Health Road',
+          'city': 'Bengaluru',
+          'postalCode': '560001',
+          'state': 'Karnataka',
+          'country': 'India',
+        },
+      );
+
+      final receipt = await ApiOrganisationRegistrationRepository(api).submit(
+        const OrganisationRegistrationDraft(
+          type: OrganisationType.hospital,
+          name: 'Apollo North',
+          registrationNumber: 'KA-123',
+          email: 'care@apollo.example',
+          phone: '+919876543210',
+          address: '42 Health Road',
+          city: 'Bengaluru',
+          postalCode: '560001',
+          state: 'Karnataka',
+        ),
+      );
+
+      expect(receipt.id, 'org-1');
     });
   });
 

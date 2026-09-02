@@ -63,6 +63,7 @@ part of the attack surface and easy to miss when reading the table below.
 | --- | --- | --- |
 | GET | `/v1/health` | — |
 | POST | `/v1/auth/session` | — (Firebase ID token in body) |
+| POST | `/v1/organisation-registrations` | — public prospect form, rate-limited; never creates an account or role |
 | POST | `/v1/auth/refresh` | — (refresh token in body) |
 | POST | `/v1/auth/logout` | authenticated |
 | GET/PUT | `/v1/me` | authenticated |
@@ -127,6 +128,10 @@ part of the attack surface and easy to miss when reading the table below.
 | GET | `/v1/review/ratings/pending` | `provider:review` |
 | GET | `/v1/review/support/tickets`, `/:id` | `support:ticket_read` |
 | POST | `/v1/review/support/tickets/:id/{replies,status}` | `support:ticket_read` |
+
+New-account requests to `POST /v1/auth/session` must include the accepted `privacyPolicyVersion`
+and `termsOfServiceVersion`. The API writes that acceptance atomically with account creation and
+retains it for three years; existing users do not need to re-accept unchanged terms.
 
 `GET /v1/provider/verification` enforces no scope — only an inline check that
 the caller is a PROVIDER. Only `/queue` requires `provider:review`.

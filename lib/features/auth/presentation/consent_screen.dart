@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/session/user_role.dart';
 import 'role_selection_screen.dart';
+import 'registration_terms_acceptance.dart';
 
 /// Required acknowledgement inserted between account selection and registration
 /// as shown in the client wireframe. Both records are unchecked by default.
@@ -52,10 +53,12 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 children: [
-                  Text('Welcome to MiDoctor', style: theme.textTheme.titleMedium),
+                  Text('Welcome to MiDoctor',
+                      style: theme.textTheme.titleMedium),
                   const SizedBox(height: 12),
                   Card(
-                    color: theme.colorScheme.primaryContainer.withValues(alpha: .45),
+                    color: theme.colorScheme.primaryContainer
+                        .withValues(alpha: .45),
                     child: const Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
@@ -69,14 +72,17 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                   const SizedBox(height: 16),
                   CheckboxListTile(
                     value: _privacyAccepted,
-                    onChanged: (value) => setState(() => _privacyAccepted = value ?? false),
+                    onChanged: (value) =>
+                        setState(() => _privacyAccepted = value ?? false),
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
-                    title: const Text('I agree with the HIPAA Privacy & Data Security Policy'),
+                    title: const Text(
+                        'I agree with the HIPAA Privacy & Data Security Policy'),
                   ),
                   CheckboxListTile(
                     value: _termsAccepted,
-                    onChanged: (value) => setState(() => _termsAccepted = value ?? false),
+                    onChanged: (value) =>
+                        setState(() => _termsAccepted = value ?? false),
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
                     title: const Text('I agree to the Terms of Service'),
@@ -93,7 +99,17 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                   children: [
                     Expanded(
                       child: FilledButton(
-                        onPressed: accepted ? () => context.push(Routes.signup) : null,
+                        onPressed: accepted
+                            ? () {
+                                ref
+                                    .read(
+                                      registrationTermsAcceptanceProvider
+                                          .notifier,
+                                    )
+                                    .acceptCurrentTerms();
+                                context.push(Routes.signup);
+                              }
+                            : null,
                         child: const Text('Register'),
                       ),
                     ),

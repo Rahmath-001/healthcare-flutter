@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/feature_providers.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_palette.dart';
+import '../domain/organisation_registration.dart';
 
 /// Captures the hospital/lab/home-health fields shown in the client wireframe.
-/// Organisation requests are local demo data until a backend endpoint exists.
-class OrganisationRegistrationScreen extends StatefulWidget {
+/// Submits a server-side review request, or uses a fixture receipt in fixture mode.
+class OrganisationRegistrationScreen extends ConsumerStatefulWidget {
   const OrganisationRegistrationScreen({super.key, required this.type});
 
   final String type;
 
   @override
-  State<OrganisationRegistrationScreen> createState() =>
+  ConsumerState<OrganisationRegistrationScreen> createState() =>
       _OrganisationRegistrationScreenState();
 }
 
 class _OrganisationRegistrationScreenState
-    extends State<OrganisationRegistrationScreen> {
+    extends ConsumerState<OrganisationRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _registrationNumber = TextEditingController();
@@ -32,6 +35,7 @@ class _OrganisationRegistrationScreenState
   bool _basicExpanded = true;
   bool _businessUnlocked = false;
   bool _businessExpanded = false;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -71,11 +75,40 @@ class _OrganisationRegistrationScreenState
     });
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${widget.type} registration request saved.')),
-    );
+    setState(() => _submitting = true);
+    try {
+      await ref.read(organisationRegistrationRepositoryProvider).submit(
+            OrganisationRegistrationDraft(
+              type: OrganisationTypeWire.fromLabel(widget.type),
+              name: _name.text,
+              registrationNumber: _registrationNumber.text,
+              email: _email.text,
+              phone: '+91${_mobile.text}',
+              address: _address.text,
+              city: _city.text,
+              postalCode: _zip.text,
+              state: _state.text,
+            ),
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration request submitted for review.'),
+        ),
+      );
+      context.go(Routes.landing);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not submit the request. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -145,7 +178,10 @@ class _OrganisationRegistrationScreenState
                 children: [
                   Expanded(
                       child: FilledButton(
-                          onPressed: _submit, child: const Text('Register'))),
+                          onPressed: _submitting ? null : _submit,
+                          child: Text(
+                            _submitting ? 'Submitting…' : 'Register',
+                          ))),
                   const SizedBox(width: 12),
                   Expanded(
                       child: OutlinedButton(

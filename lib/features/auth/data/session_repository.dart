@@ -1,6 +1,7 @@
 import '../../../core/network/api_client.dart';
 import '../../../core/session/session.dart';
 import '../../../core/session/user_role.dart';
+import '../domain/registration_terms_acceptance.dart';
 
 /// Exchanges Firebase identity for a MiDoctor session, and manages that
 /// session's lifetime.
@@ -19,6 +20,7 @@ abstract class SessionRepository {
     required String platform,
     required String appVersion,
     UserRole requestedRole,
+    RegistrationTermsAcceptance? termsAcceptance,
   });
 
   /// `POST /v1/auth/refresh` — rotates the refresh token and issues a new
@@ -46,6 +48,7 @@ class ApiSessionRepository implements SessionRepository {
     required String platform,
     required String appVersion,
     UserRole requestedRole = UserRole.patient,
+    RegistrationTermsAcceptance? termsAcceptance,
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       '/v1/auth/session',
@@ -57,6 +60,10 @@ class ApiSessionRepository implements SessionRepository {
         'platform': platform,
         'appVersion': appVersion,
         'requestedRole': requestedRole.name.toUpperCase(),
+        if (termsAcceptance != null) ...{
+          'privacyPolicyVersion': termsAcceptance.privacyPolicyVersion,
+          'termsOfServiceVersion': termsAcceptance.termsOfServiceVersion,
+        },
       },
       skipAuth: true,
     );
@@ -119,6 +126,7 @@ class FixtureSessionRepository implements SessionRepository {
     required String platform,
     required String appVersion,
     UserRole requestedRole = UserRole.patient,
+    RegistrationTermsAcceptance? termsAcceptance,
   }) async {
     await Future<void>.delayed(latency);
     // A staff role is provisioned, never requested: the server reads it from

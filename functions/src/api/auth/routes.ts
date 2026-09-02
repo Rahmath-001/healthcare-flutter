@@ -11,6 +11,7 @@ import {
   type ConsentGrantDoc,
   type ErasureRequestDoc,
   type PatientProfileDoc,
+  type RegistrationTermsAcceptanceDoc,
   type UserDoc,
 } from "../db";
 import { handler, Problem } from "../errors";
@@ -40,6 +41,35 @@ import {
  * substitute for one.
  */
 const CLINICAL_RETENTION_DAYS = 3 * 365;
+const TERMS_RETENTION_DAYS = 3 * 365;
+
+function termsAcceptanceFrom(
+  body: Record<string, unknown>
+): Pick<
+  RegistrationTermsAcceptanceDoc,
+  "privacyPolicyVersion" | "termsOfServiceVersion"
+> | null {
+  const privacy = body.privacyPolicyVersion;
+  const terms = body.termsOfServiceVersion;
+  if (privacy === undefined && terms === undefined) return null;
+  if (
+    typeof privacy !== "string" ||
+    typeof terms !== "string" ||
+    !privacy.trim() ||
+    !terms.trim() ||
+    privacy.length > 100 ||
+    terms.length > 100
+  ) {
+    throw Problem.validation("Accept the current privacy policy and terms to register.", {
+      privacyPolicyVersion: "required",
+      termsOfServiceVersion: "required",
+    });
+  }
+  return {
+    privacyPolicyVersion: privacy.trim(),
+    termsOfServiceVersion: terms.trim(),
+  };
+}
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -114,7 +144,9 @@ export function authRoutes(secret: () => string): Router {
     // that a user fumbling an OTP never notices it.
     rateLimit({ name: "auth_session", max: 20, windowSeconds: 300 }),
     handler(async (req, res) => {
-      const { firebaseIdToken, deviceId, platform, appVersion, requestedRole } = req.body ?? {};
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const { firebaseIdToken, deviceId, platform, appVersion, requestedRole } = body;
+      const acceptedTerms = termsAcceptanceFrom(body);
 
       if (typeof firebaseIdToken !== "string" || !firebaseIdToken) {
         throw Problem.validation("Missing sign-in token.", { firebaseIdToken: "required" });
@@ -137,6 +169,17 @@ export function authRoutes(secret: () => string): Router {
       const snap = await userRef.get();
       const at = Timestamp.now();
 
+      // New accounts can only be minted from the registration flow after both
+      // boxes in the wireframe have been accepted. Existing users may sign in
+      // without re-accepting unchanged legal copy.
+      if (!snap.exists && acceptedTerms == null) {
+        throw Problem.validation("Accept the current privacy policy and terms to register.", {
+          privacyPolicyVersion: "required",
+          termsOfServiceVersion: "required",
+        });
+      }
+
+      const writeBatch = db().batch();
       let user: UserDoc;
       if (snap.exists) {
         user = snap.data() as UserDoc;
@@ -150,7 +193,7 @@ export function authRoutes(secret: () => string): Router {
           photoUrl: decoded.picture ?? user.photoUrl ?? null,
           updatedAt: at,
         };
-        await userRef.update(patch);
+        writeBatch.update(userRef, patch);
         user = { ...user, ...patch };
       } else {
         const role = resolveRequestedRole(requestedRole);
@@ -169,8 +212,24 @@ export function authRoutes(secret: () => string): Router {
           createdAt: at,
           updatedAt: at,
         };
-        await userRef.set(user);
+        writeBatch.set(userRef, user);
       }
+
+      if (acceptedTerms != null) {
+        const acceptedAt = Timestamp.now();
+        const retentionUntil = Timestamp.fromMillis(
+          acceptedAt.toMillis() + TERMS_RETENTION_DAYS * 24 * 60 * 60 * 1000
+        );
+        const acceptance: RegistrationTermsAcceptanceDoc = {
+          userId: uid,
+          ...acceptedTerms,
+          acceptedAt,
+          retentionUntil,
+          appVersion: typeof appVersion === "string" ? appVersion : "0.0.0",
+        };
+        writeBatch.set(db().collection(C.registrationTermsAcceptances).doc(), acceptance);
+      }
+      await writeBatch.commit();
 
       const { sessionId, refreshToken } = await createSession(
         uid,

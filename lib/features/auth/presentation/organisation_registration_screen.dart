@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_palette.dart';
+
 /// Captures the hospital/lab/home-health fields shown in the client wireframe.
 /// Organisation requests are local demo data until a backend endpoint exists.
 class OrganisationRegistrationScreen extends StatefulWidget {
@@ -152,12 +154,16 @@ class _OrganisationRegistrationScreenState
   Widget _field(TextEditingController controller, String label,
           {TextInputType? type}) =>
       Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(top: 8, bottom: 12),
         child: TextFormField(
           controller: controller,
           keyboardType: type,
           onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(labelText: label),
+          decoration: InputDecoration(
+            labelText: label,
+            floatingLabelBehavior: FloatingLabelBehavior.always,
+            contentPadding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+          ),
           validator: (value) =>
               value == null || value.trim().isEmpty ? 'Enter $label' : null,
         ),
@@ -183,6 +189,7 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tones = context.tones;
     return Card(
       child: Column(
         children: [
@@ -195,13 +202,13 @@ class _Section extends StatelessWidget {
                 children: [
                   Icon(
                     enabled
-                        ? (completed
-                            ? Icons.check_circle_outline
-                            : Icons.edit_outlined)
+                        ? (completed ? Icons.check_circle : Icons.edit_outlined)
                         : Icons.lock_outline,
-                    color: enabled
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline,
+                    color: !enabled
+                        ? theme.colorScheme.outline
+                        : completed
+                            ? tones.success
+                            : theme.colorScheme.primary,
                   ),
                   const SizedBox(width: 12),
                   Expanded(

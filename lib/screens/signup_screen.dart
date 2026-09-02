@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../core/providers.dart';
 import '../core/service_providers.dart';
 import '../core/session/user_role.dart';
+import '../core/theme/app_palette.dart';
 import '../features/auth/presentation/role_selection_screen.dart';
 import '../widgets/apple_button.dart';
 import '../widgets/google_button.dart';
@@ -250,13 +251,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     String? Function(String?)? validator,
   }) =>
       Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(top: 8, bottom: 12),
         child: TextFormField(
           controller: controller,
           keyboardType: type,
           textCapitalization: capitalization,
           onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(labelText: label),
+          decoration: InputDecoration(
+            labelText: label,
+            floatingLabelBehavior: FloatingLabelBehavior.always,
+            contentPadding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+          ),
           validator:
               validator ?? (value) => _required(value, label.toLowerCase()),
         ),
@@ -283,6 +288,7 @@ class _ProgressSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tones = context.tones;
     return Card(
       child: Column(
         children: [
@@ -295,13 +301,13 @@ class _ProgressSection extends StatelessWidget {
                 children: [
                   Icon(
                     enabled
-                        ? (completed
-                            ? Icons.check_circle_outline
-                            : Icons.edit_outlined)
+                        ? (completed ? Icons.check_circle : Icons.edit_outlined)
                         : Icons.lock_outline,
-                    color: enabled
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline,
+                    color: !enabled
+                        ? theme.colorScheme.outline
+                        : completed
+                            ? tones.success
+                            : theme.colorScheme.primary,
                   ),
                   const SizedBox(width: 12),
                   Expanded(

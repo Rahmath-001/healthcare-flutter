@@ -27,7 +27,14 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     final accountLabel = isProvider ? 'Doctor / Provider' : 'Patient';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('MiDoctor')),
+      appBar: AppBar(
+        title: const Text('MiDoctor'),
+        leading: IconButton(
+          tooltip: 'Cancel registration',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => context.go(Routes.landing),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -93,7 +100,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => context.pop(),
+                        onPressed: () => context.go(Routes.landing),
                         child: const Text('Cancel'),
                       ),
                     ),

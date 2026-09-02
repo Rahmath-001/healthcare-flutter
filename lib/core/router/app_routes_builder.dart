@@ -120,8 +120,9 @@ List<RouteBase> buildRoutes() => [
       GoRoute(
         path: Routes.login,
         builder: (_, state) => LoginScreen(
-          showBookingWireframe:
-              state.uri.queryParameters.containsKey('returnTo'),
+          showWireframeSignIn:
+              state.uri.queryParameters.containsKey('returnTo') ||
+                  state.uri.queryParameters['wireframe'] == 'true',
         ),
       ),
       GoRoute(

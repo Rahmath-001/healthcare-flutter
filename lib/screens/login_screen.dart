@@ -14,10 +14,11 @@ import '../widgets/primary_button.dart';
 import '../l10n/l10n.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key, this.showBookingWireframe = false});
+  const LoginScreen({super.key, this.showWireframeSignIn = false});
 
-  /// The client wireframe's full sign-in page, used when booking as a guest.
-  final bool showBookingWireframe;
+  /// The client wireframe's full sign-in page, used from the public catalogue
+  /// and when booking as a guest.
+  final bool showWireframeSignIn;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -99,7 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final theme = Theme.of(context);
     final useFixtures = ref.watch(useFixturesProvider);
 
-    if (widget.showBookingWireframe) {
+    if (widget.showWireframeSignIn) {
       return _BookingWireframeSignIn(
         busy: _busy,
         googleLoading: _googleLoading,
@@ -108,10 +109,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         onApple: _apple,
         onMobile: () => context.push(Routes.phone),
         onRegister: () => context.go(Routes.roleSelection),
+        onCancel: () => context.go(Routes.landing),
       );
     }
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('MiDoctor'),
+        leading: IconButton(
+          tooltip: 'Cancel sign in',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => context.go(Routes.landing),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -259,6 +269,7 @@ class _BookingWireframeSignIn extends StatelessWidget {
     required this.onApple,
     required this.onMobile,
     required this.onRegister,
+    required this.onCancel,
   });
 
   final bool busy;
@@ -268,12 +279,20 @@ class _BookingWireframeSignIn extends StatelessWidget {
   final VoidCallback onApple;
   final VoidCallback onMobile;
   final VoidCallback onRegister;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('MiDoctor')),
+      appBar: AppBar(
+        title: const Text('MiDoctor'),
+        leading: IconButton(
+          tooltip: 'Cancel sign in',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: onCancel,
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(

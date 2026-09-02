@@ -79,6 +79,10 @@ void main() {
     test('everything else goes to the public catalogue', () {
       expect(redirect(location: Routes.patientHome), Routes.landing);
       expect(redirect(location: Routes.providerToday), Routes.landing);
+      // Signing out from either patient or provider settings must return to
+      // the public doctor catalogue, not leave an empty authenticated shell.
+      expect(redirect(location: Routes.settings), Routes.landing);
+      expect(redirect(location: Routes.providerProfile), Routes.landing);
       expect(redirect(location: Routes.splash), Routes.landing);
     });
   });

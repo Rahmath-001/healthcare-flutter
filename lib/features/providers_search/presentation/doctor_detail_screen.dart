@@ -56,7 +56,12 @@ class _DoctorProfile extends StatelessWidget {
                   radius: 68,
                   backgroundColor: theme.colorScheme.primaryContainer,
                   foregroundColor: theme.colorScheme.primary,
-                  child: Icon(Icons.person, size: 78),
+                  backgroundImage: doctor.photoUrl == null
+                      ? null
+                      : AssetImage(doctor.photoUrl!),
+                  child: doctor.photoUrl == null
+                      ? const Icon(Icons.person, size: 78)
+                      : null,
                 ),
               ),
               const SizedBox(height: 16),
@@ -77,7 +82,8 @@ class _DoctorProfile extends StatelessWidget {
               Text('About', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Card(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: .35),
+                color:
+                    theme.colorScheme.primaryContainer.withValues(alpha: .35),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(

@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/providers.dart';
+import '../core/router/routes.dart';
 import '../core/service_providers.dart';
 import '../core/session/user_role.dart';
 import '../core/theme/app_palette.dart';
@@ -65,7 +67,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _firstName.text.trim().isNotEmpty &&
       _lastName.text.trim().isNotEmpty &&
       _email.text.contains('@') &&
-      _mobile.text.trim().length >= 8;
+      _mobile.text.trim().length == 10;
 
   Future<void> _google() async {
     setState(() => _googleLoading = true);
@@ -144,7 +146,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('MiDoctor')),
+      appBar: AppBar(
+        title: const Text('MiDoctor'),
+        leading: IconButton(
+          tooltip: 'Cancel registration',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => context.go(Routes.landing),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -189,7 +198,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                   ? null
                                   : 'Enter a valid email'),
                       _field(_mobile, 'Mobile number',
-                          type: TextInputType.phone),
+                          type: TextInputType.phone, indiaMobile: true),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -213,7 +222,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       _field(_city, 'City'),
                       _field(_zip, 'Zip code', type: TextInputType.number),
                       _field(_state, 'State'),
-                      _field(_country, 'Country'),
+                      _field(_country, 'Country', readOnly: true),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -228,7 +237,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => context.pop(),
+                          onPressed: () => context.go(Routes.landing),
                           child: const Text('Cancel'),
                         ),
                       ),
@@ -249,6 +258,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     TextInputType? type,
     TextCapitalization capitalization = TextCapitalization.none,
     String? Function(String?)? validator,
+    bool indiaMobile = false,
+    bool readOnly = false,
   }) =>
       Padding(
         padding: const EdgeInsets.only(top: 8, bottom: 12),
@@ -256,14 +267,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           controller: controller,
           keyboardType: type,
           textCapitalization: capitalization,
-          onChanged: (_) => setState(() {}),
+          readOnly: readOnly,
+          enableInteractiveSelection: !readOnly,
+          maxLength: indiaMobile ? 10 : null,
+          inputFormatters:
+              indiaMobile ? [FilteringTextInputFormatter.digitsOnly] : null,
+          onChanged: readOnly ? null : (_) => setState(() {}),
           decoration: InputDecoration(
             labelText: label,
+            prefixText: indiaMobile ? '+91  ' : null,
+            suffixIcon: readOnly ? const Icon(Icons.lock_outline) : null,
+            counterText: indiaMobile ? '' : null,
             floatingLabelBehavior: FloatingLabelBehavior.always,
             contentPadding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
           ),
-          validator:
-              validator ?? (value) => _required(value, label.toLowerCase()),
+          validator: validator ??
+              (value) {
+                if (indiaMobile &&
+                    !RegExp(r'^[6-9]\d{9}$').hasMatch(value ?? '')) {
+                  return 'Enter a valid 10-digit Indian mobile number';
+                }
+                return _required(value, label.toLowerCase());
+              },
         ),
       );
 }

@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/providers.dart';
+import '../core/router/routes.dart';
 import '../core/service_providers.dart';
 import '../widgets/primary_button.dart';
 
@@ -109,7 +111,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     // to the session change and moves the user on, so nothing to do here.
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify')),
+      appBar: AppBar(
+        title: const Text('Verify'),
+        leading: IconButton(
+          tooltip: 'Cancel sign in',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => context.go(Routes.landing),
+        ),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

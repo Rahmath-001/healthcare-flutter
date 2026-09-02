@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/routes.dart';
 import '../../../core/theme/app_palette.dart';
 
 /// Captures the hospital/lab/home-health fields shown in the client wireframe.
@@ -52,7 +55,7 @@ class _OrganisationRegistrationScreenState
       _name.text.trim().isNotEmpty &&
       _registrationNumber.text.trim().isNotEmpty &&
       _email.text.contains('@') &&
-      _mobile.text.trim().length >= 8;
+      _mobile.text.trim().length == 10;
 
   void _continueToBusiness() {
     if (!_basicDetailsValid) {
@@ -79,7 +82,14 @@ class _OrganisationRegistrationScreenState
   Widget build(BuildContext context) {
     final title = '${widget.type} Registration';
     return Scaffold(
-      appBar: AppBar(title: const Text('MiDoctor')),
+      appBar: AppBar(
+        title: const Text('MiDoctor'),
+        leading: IconButton(
+          tooltip: 'Cancel registration',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => context.go(Routes.landing),
+        ),
+      ),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -101,7 +111,12 @@ class _OrganisationRegistrationScreenState
                   _field(_name, '${widget.type} name'),
                   _field(_registrationNumber, 'Registration number'),
                   _field(_email, 'Email', type: TextInputType.emailAddress),
-                  _field(_mobile, 'Mobile number', type: TextInputType.phone),
+                  _field(
+                    _mobile,
+                    'Mobile number',
+                    type: TextInputType.phone,
+                    indiaMobile: true,
+                  ),
                   FilledButton(
                     onPressed: _continueToBusiness,
                     child: const Text('Continue to Business Address'),
@@ -122,13 +137,7 @@ class _OrganisationRegistrationScreenState
                   _field(_city, 'City'),
                   _field(_zip, 'Zip code', type: TextInputType.number),
                   _field(_state, 'State'),
-                  TextFormField(
-                    controller: _country,
-                    decoration: const InputDecoration(labelText: 'Country'),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Enter your country'
-                        : null,
-                  ),
+                  _field(_country, 'Country', readOnly: true),
                 ],
               ),
               const SizedBox(height: 28),
@@ -140,7 +149,7 @@ class _OrganisationRegistrationScreenState
                   const SizedBox(width: 12),
                   Expanded(
                       child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: () => context.go(Routes.landing),
                           child: const Text('Cancel'))),
                 ],
               ),
@@ -151,21 +160,40 @@ class _OrganisationRegistrationScreenState
     );
   }
 
-  Widget _field(TextEditingController controller, String label,
-          {TextInputType? type}) =>
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    TextInputType? type,
+    bool indiaMobile = false,
+    bool readOnly = false,
+  }) =>
       Padding(
         padding: const EdgeInsets.only(top: 8, bottom: 12),
         child: TextFormField(
           controller: controller,
           keyboardType: type,
-          onChanged: (_) => setState(() {}),
+          readOnly: readOnly,
+          enableInteractiveSelection: !readOnly,
+          maxLength: indiaMobile ? 10 : null,
+          inputFormatters:
+              indiaMobile ? [FilteringTextInputFormatter.digitsOnly] : null,
+          onChanged: readOnly ? null : (_) => setState(() {}),
           decoration: InputDecoration(
             labelText: label,
+            prefixText: indiaMobile ? '+91  ' : null,
+            suffixIcon: readOnly ? const Icon(Icons.lock_outline) : null,
+            counterText: indiaMobile ? '' : null,
             floatingLabelBehavior: FloatingLabelBehavior.always,
             contentPadding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
           ),
-          validator: (value) =>
-              value == null || value.trim().isEmpty ? 'Enter $label' : null,
+          validator: (value) {
+            if (indiaMobile && !RegExp(r'^[6-9]\d{9}$').hasMatch(value ?? '')) {
+              return 'Enter a valid 10-digit Indian mobile number';
+            }
+            return value == null || value.trim().isEmpty
+                ? 'Enter $label'
+                : null;
+          },
         ),
       );
 }

@@ -120,10 +120,15 @@ journey, while the application retains MiDoctor's light-blue theme:
   selected doctor's booking screen.
 - Patient and independent-provider registration uses progressive accordion sections. Basic
   information completes first, the two-minute mock OTP verifies it, and Home Address opens
-  while the completed section collapses with a green completion tick.
+  while the completed section collapses with a green completion tick. Phone numbers use the
+  fixed `+91` prefix and the country/address controls remain India-only.
 - Hospital, laboratory and home-health registration follows the same sequence: Basic
   Organisation Information then Business Address. Fixture-backed data is used where no API
   endpoint exists.
+- The public directory keeps Speciality and Location side by side. Both controls accept typed
+  text as well as a compact suggestion list, use Indian fixture locations, close on their
+  arrows or a background tap, and show an explicit right-side scrollbar when doctor results
+  exceed the viewport. Local mock portraits appear on each fixture doctor card and profile.
 
 The client wireframe controls page order and content; it does not override the product's
 colour system or accessibility-focused spacing.

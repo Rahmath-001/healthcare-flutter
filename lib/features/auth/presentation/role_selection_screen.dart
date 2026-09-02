@@ -36,7 +36,14 @@ class RoleSelectionScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('MiDoctor')),
+      appBar: AppBar(
+        title: const Text('MiDoctor'),
+        leading: IconButton(
+          tooltip: 'Cancel registration',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => context.go(Routes.landing),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(

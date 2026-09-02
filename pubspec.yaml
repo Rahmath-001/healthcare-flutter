@@ -52,6 +52,7 @@ flutter:
   generate: true
   assets:
     - assets/
+    - assets/images/doctors/
     - assets/icon/
 
 flutter_native_splash:

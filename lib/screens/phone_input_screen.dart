@@ -119,7 +119,14 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
     // go next, so this screen no longer navigates on sign-in itself.
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.phoneTitle)),
+      appBar: AppBar(
+        title: Text(context.l10n.phoneTitle),
+        leading: IconButton(
+          tooltip: 'Cancel sign in',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => context.go(Routes.landing),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(

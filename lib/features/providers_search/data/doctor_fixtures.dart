@@ -26,6 +26,8 @@ abstract final class DoctorFixtures {
     Specialty(code: 'GER', name: 'Geriatrics'),
   ];
 
+  /// The marketplace is currently India-only, so location selection never
+  /// offers another country or a country picker.
   static const cities = <String>[
     'Bengaluru',
     'Hyderabad',
@@ -65,7 +67,13 @@ abstract final class DoctorFixtures {
     address: 'Parel',
   );
 
-  static const hospitals = <Hospital>[_apollo, _fortis, _kims, _manipal, _aiims];
+  static const hospitals = <Hospital>[
+    _apollo,
+    _fortis,
+    _kims,
+    _manipal,
+    _aiims
+  ];
 
   static const all = <Doctor>[
     Doctor(
@@ -82,7 +90,9 @@ abstract final class DoctorFixtures {
       hospital: _aiims,
       languages: ['English', 'Hindi'],
       modes: [ConsultationMode.inPerson, ConsultationMode.video],
-      bio: 'Oncology specialist providing compassionate, patient-centred cancer care. '
+      photoUrl: 'assets/images/doctors/doctor_rajesh.png',
+      bio:
+          'Oncology specialist providing compassionate, patient-centred cancer care. '
           'Dr Chandran combines clinical expertise with clear communication and '
           'individualised treatment planning throughout each patient\'s journey.',
     ),
@@ -100,6 +110,7 @@ abstract final class DoctorFixtures {
       hospital: _manipal,
       languages: ['English', 'Tamil'],
       modes: [ConsultationMode.inPerson, ConsultationMode.video],
+      photoUrl: 'assets/images/doctors/doctor_ananya.png',
       bio: 'Endocrinologist focused on diabetes, thyroid and metabolic health.',
     ),
     Doctor(
@@ -116,7 +127,9 @@ abstract final class DoctorFixtures {
       hospital: _aiims,
       languages: ['English', 'Hindi', 'Malayalam'],
       modes: [ConsultationMode.video, ConsultationMode.audio],
-      bio: 'Psychiatrist supporting patients with anxiety, mood and sleep concerns.',
+      photoUrl: 'assets/images/doctors/doctor_khalil.png',
+      bio:
+          'Psychiatrist supporting patients with anxiety, mood and sleep concerns.',
     ),
     Doctor(
       id: 'd-khalil',
@@ -132,7 +145,9 @@ abstract final class DoctorFixtures {
       hospital: _apollo,
       languages: ['English', 'Hindi', 'Urdu'],
       modes: [ConsultationMode.inPerson, ConsultationMode.video],
-      bio: 'Cardiologist specialising in preventive care and complex heart disease.',
+      photoUrl: 'assets/images/doctors/doctor_khalil.png',
+      bio:
+          'Cardiologist specialising in preventive care and complex heart disease.',
     ),
     Doctor(
       id: 'd-ronish',
@@ -148,7 +163,9 @@ abstract final class DoctorFixtures {
       hospital: _fortis,
       languages: ['English', 'Hindi', 'Bengali'],
       modes: [ConsultationMode.inPerson, ConsultationMode.video],
-      bio: 'Nephrologist with extensive experience in kidney care and dialysis.',
+      photoUrl: 'assets/images/doctors/doctor_rajesh.png',
+      bio:
+          'Nephrologist with extensive experience in kidney care and dialysis.',
     ),
     Doctor(
       id: 'd1',
@@ -168,6 +185,7 @@ abstract final class DoctorFixtures {
         ConsultationMode.video,
         ConsultationMode.audio,
       ],
+      photoUrl: 'assets/images/doctors/doctor_ananya.png',
       bio: 'Interventional cardiologist with a focus on preventive care and '
           'management of hypertension and heart failure.',
     ),
@@ -189,6 +207,7 @@ abstract final class DoctorFixtures {
         ConsultationMode.video,
         ConsultationMode.audio,
       ],
+      photoUrl: 'assets/images/doctors/doctor_rajesh.png',
       bio: 'General physician treating everyday illness, diabetes and thyroid '
           'conditions.',
     ),
@@ -206,6 +225,7 @@ abstract final class DoctorFixtures {
       hospital: _kims,
       languages: ['English', 'Telugu', 'Tamil'],
       modes: [ConsultationMode.video, ConsultationMode.audio],
+      photoUrl: 'assets/images/doctors/doctor_meera.png',
       bio: 'Dermatologist specialising in acne, pigmentation and hair loss.',
     ),
     Doctor(
@@ -222,6 +242,7 @@ abstract final class DoctorFixtures {
       hospital: _manipal,
       languages: ['English', 'Malayalam', 'Tamil'],
       modes: [ConsultationMode.inPerson, ConsultationMode.video],
+      photoUrl: 'assets/images/doctors/doctor_khalil.png',
       bio: 'Joint replacement and sports injury specialist.',
     ),
     Doctor(
@@ -242,6 +263,7 @@ abstract final class DoctorFixtures {
         ConsultationMode.video,
         ConsultationMode.audio,
       ],
+      photoUrl: 'assets/images/doctors/doctor_ananya.png',
       bio: 'Paediatrician with a focus on newborn care, vaccination schedules '
           'and childhood nutrition.',
     ),
@@ -259,6 +281,7 @@ abstract final class DoctorFixtures {
       hospital: _fortis,
       languages: ['English', 'Malayalam'],
       modes: [ConsultationMode.video, ConsultationMode.audio],
+      photoUrl: 'assets/images/doctors/doctor_rajesh.png',
       bio: 'Psychiatrist working with anxiety, depression and sleep disorders.',
     ),
     Doctor(
@@ -275,6 +298,7 @@ abstract final class DoctorFixtures {
       hospital: _apollo,
       languages: ['English', 'Kannada', 'Hindi'],
       modes: [ConsultationMode.inPerson, ConsultationMode.video],
+      photoUrl: 'assets/images/doctors/doctor_meera.png',
       bio: 'Obstetrician and gynaecologist with two decades of experience in '
           'high-risk pregnancy care.',
     ),
@@ -296,6 +320,7 @@ abstract final class DoctorFixtures {
         ConsultationMode.video,
         ConsultationMode.audio,
       ],
+      photoUrl: 'assets/images/doctors/doctor_khalil.png',
       bio: 'ENT surgeon treating sinus disease, hearing loss and voice '
           'disorders.',
     ),

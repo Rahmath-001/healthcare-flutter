@@ -107,6 +107,27 @@ must be hashed for Apple and raw for Firebase, the display name arrives exactly 
 token revocation on account deletion is mandatory. See the Sign-in section of
 [CLAUDE.md](CLAUDE.md) before touching `lib/services/auth_service.dart`.
 
+### Client wireframe flows
+
+The client wireframes in `docs/Wireframes (midoctor.in) - Set 2.pdf` define the public
+journey, while the application retains MiDoctor's light-blue theme:
+
+- Guests can browse fixture doctors, open the full doctor profile, and enter the appointment
+  flow without an account.
+- Selecting an available guest slot opens the full **Sign In with** page from wireframe page 6
+  (Google, Apple, Mobile, Register and Login), rather than a bottom sheet. The router only
+  accepts an internal booking return path, then returns a successful patient sign-in to the
+  selected doctor's booking screen.
+- Patient and independent-provider registration uses progressive accordion sections. Basic
+  information completes first, the two-minute mock OTP verifies it, and Home Address opens
+  while the completed section collapses with a green completion tick.
+- Hospital, laboratory and home-health registration follows the same sequence: Basic
+  Organisation Information then Business Address. Fixture-backed data is used where no API
+  endpoint exists.
+
+The client wireframe controls page order and content; it does not override the product's
+colour system or accessibility-focused spacing.
+
 ### Phone OTP notes
 
 - Twilio Lookup `line_type_intelligence` returns the current carrier and line type

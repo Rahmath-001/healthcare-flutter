@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../l10n/l10n.dart';
-
-/// Full-width outlined "Continue with Google" button with loading state.
+/// Full-width outlined Google sign-in button with loading state.
 ///
 /// Sized by `outlinedButtonTheme` so it matches [PrimaryButton] and
 /// [AppleButton] exactly — the three stack directly on top of each other on
@@ -22,19 +20,18 @@ class GoogleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      child: OutlinedButton.icon(
+      child: OutlinedButton(
         onPressed: loading ? null : onPressed,
-        icon: loading
+        child: loading
             ? const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2.4),
               )
-            : const Icon(Icons.g_mobiledata, size: 28),
-        label: Text(
-          context.l10n.authContinueWithGoogle,
-          overflow: TextOverflow.ellipsis,
-        ),
+            : const Text(
+                'Google Sign in',
+                overflow: TextOverflow.ellipsis,
+              ),
       ),
     );
   }

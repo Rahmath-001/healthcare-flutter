@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../l10n/l10n.dart';
-
-/// Full-width "Continue with Apple" button with a loading state.
+/// Full-width Apple sign-in button with a loading state.
 ///
-/// Apple's Human Interface Guidelines constrain this button far more than a
-/// generic OAuth one: it must carry the Apple logo, use the exact wording
-/// "Continue with Apple" (or "Sign in with Apple"), and be black on light
-/// backgrounds / white on dark ones. It must also be no less prominent than
-/// the other sign-in options, which is why it matches [GoogleButton]'s height
-/// and full width rather than being tucked away as a text link.
+/// It remains visually aligned with [GoogleButton] while keeping the product's
+/// concise client-specified sign-in wording.
 class AppleButton extends StatelessWidget {
   const AppleButton({super.key, required this.onPressed, this.loading = false});
 
@@ -24,7 +18,7 @@ class AppleButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      child: FilledButton.icon(
+      child: FilledButton(
         onPressed: loading ? null : onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: background,
@@ -32,7 +26,7 @@ class AppleButton extends StatelessWidget {
           disabledBackgroundColor: background.withValues(alpha: 0.6),
           disabledForegroundColor: foreground.withValues(alpha: 0.8),
         ),
-        icon: loading
+        child: loading
             ? SizedBox(
                 width: 20,
                 height: 20,
@@ -41,13 +35,10 @@ class AppleButton extends StatelessWidget {
                   color: foreground,
                 ),
               )
-            : const Icon(Icons.apple, size: 26),
-        // Apple's own wording, from their approved list, and localised by
-        // them: substituting our own phrasing here is a review rejection.
-        label: Text(
-          context.l10n.authContinueWithApple,
-          overflow: TextOverflow.ellipsis,
-        ),
+            : const Text(
+                'Apple Sign in',
+                overflow: TextOverflow.ellipsis,
+              ),
       ),
     );
   }

@@ -14,7 +14,10 @@ import '../widgets/primary_button.dart';
 import '../l10n/l10n.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.showBookingWireframe = false});
+
+  /// The client wireframe's full sign-in page, used when booking as a guest.
+  final bool showBookingWireframe;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -95,6 +98,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final useFixtures = ref.watch(useFixturesProvider);
+
+    if (widget.showBookingWireframe) {
+      return _BookingWireframeSignIn(
+        busy: _busy,
+        googleLoading: _googleLoading,
+        appleLoading: _appleLoading,
+        onGoogle: _google,
+        onApple: _apple,
+        onMobile: () => context.push(Routes.phone),
+        onRegister: () => context.go(Routes.roleSelection),
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -224,6 +239,167 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-page guest booking sign-in, matching page 6 of the client wireframe.
+/// It deliberately uses the existing login route so [returnTo] remains
+/// allow-listed by the router after the user authenticates.
+class _BookingWireframeSignIn extends StatelessWidget {
+  const _BookingWireframeSignIn({
+    required this.busy,
+    required this.googleLoading,
+    required this.appleLoading,
+    required this.onGoogle,
+    required this.onApple,
+    required this.onMobile,
+    required this.onRegister,
+  });
+
+  final bool busy;
+  final bool googleLoading;
+  final bool appleLoading;
+  final VoidCallback onGoogle;
+  final VoidCallback onApple;
+  final VoidCallback onMobile;
+  final VoidCallback onRegister;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('MiDoctor')),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints:
+                const BoxConstraints(maxWidth: Breakpoints.readableWidth),
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  color: theme.colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: Insets.md),
+                  child: Text(
+                    'Sign In with',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                        Insets.xl, Insets.xxl, Insets.xl, Insets.xl),
+                    children: [
+                      _SignInOption(
+                        label: 'Google Sign in',
+                        icon: Icons.g_mobiledata,
+                        loading: googleLoading,
+                        onTap: busy ? null : onGoogle,
+                      ),
+                      const SizedBox(height: Insets.md),
+                      _SignInOption(
+                        label: 'Apple Sign in',
+                        icon: Icons.apple,
+                        loading: appleLoading,
+                        onTap: busy ? null : onApple,
+                      ),
+                      const SizedBox(height: Insets.md),
+                      _SignInOption(
+                        label: 'Mobile Sign in',
+                        icon: Icons.phone_android_outlined,
+                        onTap: busy ? null : onMobile,
+                      ),
+                    ],
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        Insets.xl, Insets.sm, Insets.xl, Insets.xl),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: busy ? null : onRegister,
+                            child: const Text('Register'),
+                          ),
+                        ),
+                        const SizedBox(width: Insets.md),
+                        Expanded(
+                          child: OutlinedButton(
+                            // This screen is the Login destination; keeping
+                            // the visible Login action mirrors the client
+                            // wireframe without changing the active route.
+                            onPressed: () => FocusScope.of(context).unfocus(),
+                            child: const Text('Login'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SignInOption extends StatelessWidget {
+  const _SignInOption({
+    required this.label,
+    required this.icon,
+    this.loading = false,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool loading;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: theme.colorScheme.surface,
+        borderRadius: Radii.mdAll,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: Radii.mdAll,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Insets.lg,
+              vertical: Insets.md,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(label, style: theme.textTheme.titleLarge),
+                ),
+                if (loading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  )
+                else
+                  Icon(icon, size: 30, color: theme.colorScheme.primary),
+              ],
             ),
           ),
         ),

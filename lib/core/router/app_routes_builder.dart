@@ -117,7 +117,13 @@ List<RouteBase> buildRoutes() => [
       ),
 
       // --- Auth ------------------------------------------------------------
-      GoRoute(path: Routes.login, builder: (_, __) => const LoginScreen()),
+      GoRoute(
+        path: Routes.login,
+        builder: (_, state) => LoginScreen(
+          showBookingWireframe:
+              state.uri.queryParameters.containsKey('returnTo'),
+        ),
+      ),
       GoRoute(
         path: Routes.roleSelection,
         builder: (_, __) => const RoleSelectionScreen(),

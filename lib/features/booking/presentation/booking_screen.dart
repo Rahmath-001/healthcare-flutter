@@ -18,7 +18,8 @@ import 'booking_controller.dart';
 import 'waitlist_button.dart';
 
 class BookingScreen extends ConsumerWidget {
-  const BookingScreen({super.key, required this.doctorId, this.requiresSignIn = false});
+  const BookingScreen(
+      {super.key, required this.doctorId, this.requiresSignIn = false});
 
   final String doctorId;
   final bool requiresSignIn;
@@ -92,10 +93,13 @@ class _BookingBodyState extends ConsumerState<_BookingBody> {
   }
 
   void _showSignInPrompt() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => _SignInToBookSheet(doctorId: widget.doctor.id),
+    context.go(
+      Uri(
+        path: '/auth/login',
+        queryParameters: {
+          'returnTo': '/patient/doctors/${widget.doctor.id}/book',
+        },
+      ).toString(),
     );
   }
 
@@ -160,7 +164,8 @@ class _BookingBodyState extends ConsumerState<_BookingBody> {
                   child: const ListTile(
                     leading: Icon(Icons.lock_outline),
                     title: Text('Sign in to add a reason for your visit'),
-                    subtitle: Text('Your health information is collected only in your secure account.'),
+                    subtitle: Text(
+                        'Your health information is collected only in your secure account.'),
                   ),
                 )
               else
@@ -382,43 +387,6 @@ class _SlotGrid extends ConsumerWidget {
       },
     );
   }
-}
-
-class _SignInToBookSheet extends StatelessWidget {
-  const _SignInToBookSheet({required this.doctorId});
-
-  final String doctorId;
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Sign in to continue', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              const Text('Create an account or sign in to reserve this appointment time.'),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () => context.go(
-                  Uri(
-                    path: '/auth/login',
-                    queryParameters: {'returnTo': '/patient/doctors/$doctorId/book'},
-                  ).toString(),
-                ),
-                child: const Text('Sign in'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () => context.go('/auth/role'),
-                child: const Text('Create account'),
-              ),
-            ],
-          ),
-        ),
-      );
 }
 
 /// Bottom bar showing the hold countdown and the confirm action.

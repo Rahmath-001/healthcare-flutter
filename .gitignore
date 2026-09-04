@@ -35,6 +35,8 @@ functions/lib/
 
 # Local overrides for Cloud Functions secrets (never commit)
 functions/.secret.local
+functions/service-account.local.json
+functions/.local-documents/
 
 # Firebase emulator logs. Local noise; `firestore-debug.log` was previously
 # untracked *and* unignored, so a `git add .` committed it.

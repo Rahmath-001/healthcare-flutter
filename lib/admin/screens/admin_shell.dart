@@ -41,6 +41,13 @@ class AdminShell extends ConsumerWidget {
           selectedIcon: Icons.fact_check,
           label: 'Verification',
         ),
+      if (scopes.canDecideProviders)
+        const _Destination(
+          path: AdminRoutes.hospitals,
+          icon: Icons.local_hospital_outlined,
+          selectedIcon: Icons.local_hospital,
+          label: 'Hospitals',
+        ),
       if (scopes.canSuspendAccounts)
         const _Destination(
           path: AdminRoutes.users,

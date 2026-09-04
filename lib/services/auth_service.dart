@@ -9,7 +9,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../models/app_user.dart';
 
-/// Firebase-facing identity operations: Google, Apple, and India phone OTP.
+/// Firebase-facing identity operations: Google, Apple, email/password, and India phone OTP.
 ///
 /// This class proves *who* the user is and nothing more. Authorization — role,
 /// provider status, scopes — is owned by the MiDoctor API and lives on the
@@ -50,6 +50,18 @@ class AuthService {
       idToken: googleAuth.idToken,
     );
     await _auth.signInWithCredential(credential);
+  }
+
+  /// Used for provisioned organisation accounts. Registration never exposes
+  /// this path, so a hospital cannot self-create a privileged account.
+  Future<void> signInWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    await _auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
   }
 
   // --- Apple ----------------------------------------------------------------

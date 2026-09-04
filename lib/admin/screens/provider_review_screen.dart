@@ -9,6 +9,8 @@ import '../../core/error/failure.dart';
 import '../../core/files/blob_client.dart';
 import '../../core/session/user_role.dart';
 import '../../features/credentials/domain/credential.dart';
+import '../../features/hospitals/domain/hospital.dart';
+import '../../features/hospitals/presentation/hospital_controller.dart';
 import '../../shared/formatters.dart';
 import '../../shared/widgets/async_view.dart';
 import '../admin_app.dart';
@@ -654,24 +656,25 @@ class _RejectApplicationDialogState extends State<_RejectApplicationDialog> {
 /// Approval is what puts a doctor in front of patients, so this is where the
 /// public listing is composed — fee, specialty, hospital. It is deliberately a
 /// reviewer's decision rather than the doctor's own free text.
-class _ApproveDialog extends StatefulWidget {
+class _ApproveDialog extends ConsumerStatefulWidget {
   const _ApproveDialog({required this.dossier});
 
   final ProviderDossier dossier;
 
   @override
-  State<_ApproveDialog> createState() => _ApproveDialogState();
+  ConsumerState<_ApproveDialog> createState() => _ApproveDialogState();
 }
 
-class _ApproveDialogState extends State<_ApproveDialog> {
-  final _specialtyCode = TextEditingController(text: 'GEN');
-  final _specialtyName = TextEditingController(text: 'General Physician');
-  final _qualification = TextEditingController(text: 'MBBS');
-  final _hospital = TextEditingController();
-  final _city = TextEditingController();
-  final _fee = TextEditingController(text: '500');
-  final _videoFee = TextEditingController(text: '400');
-  final _years = TextEditingController(text: '1');
+class _ApproveDialogState extends ConsumerState<_ApproveDialog> {
+  final _specialtyCode = TextEditingController();
+  final _specialtyName = TextEditingController();
+  final _qualification = TextEditingController();
+  final _fee = TextEditingController();
+  final _videoFee = TextEditingController();
+  final _years = TextEditingController();
+  final _languages = TextEditingController();
+  final Set<String> _modes = <String>{};
+  String? _hospitalId;
 
   @override
   void dispose() {
@@ -679,11 +682,10 @@ class _ApproveDialogState extends State<_ApproveDialog> {
       _specialtyCode,
       _specialtyName,
       _qualification,
-      _hospital,
-      _city,
       _fee,
       _videoFee,
       _years,
+      _languages,
     ]) {
       c.dispose();
     }
@@ -691,13 +693,21 @@ class _ApproveDialogState extends State<_ApproveDialog> {
   }
 
   bool get _valid =>
-      _hospital.text.trim().isNotEmpty &&
-      _city.text.trim().isNotEmpty &&
+      _specialtyCode.text.trim().isNotEmpty &&
+      _specialtyName.text.trim().isNotEmpty &&
+      _qualification.text.trim().isNotEmpty &&
+      _hospitalId != null &&
       int.tryParse(_fee.text) != null &&
-      int.tryParse(_videoFee.text) != null;
+      int.tryParse(_videoFee.text) != null &&
+      _languages.text.trim().isNotEmpty &&
+      _modes.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
+    final hospitals = ref.watch(hospitalDirectoryProvider).value ??
+        const <HospitalDirectoryEntry>[];
+    final selectedHospital =
+        hospitals.where((hospital) => hospital.id == _hospitalId).firstOrNull;
     return AlertDialog(
       title: const Text('Approve and publish'),
       content: SizedBox(
@@ -717,12 +727,63 @@ class _ApproveDialogState extends State<_ApproveDialog> {
                 _field(_specialtyCode, 'Specialty code'),
                 _field(_specialtyName, 'Specialty name'),
               ),
-              _pair(_field(_hospital, 'Hospital'), _field(_city, 'City')),
+              DropdownButtonFormField<String>(
+                value: _hospitalId,
+                isExpanded: true,
+                decoration:
+                    const InputDecoration(labelText: 'Approved hospital'),
+                hint: const Text('Choose an approved hospital'),
+                items: [
+                  for (final hospital in hospitals)
+                    DropdownMenuItem(
+                      value: hospital.id,
+                      child: Text('${hospital.name} · ${hospital.city}'),
+                    ),
+                ],
+                onChanged: hospitals.isEmpty
+                    ? null
+                    : (value) => setState(() => _hospitalId = value),
+              ),
+              if (hospitals.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8, bottom: 12),
+                  child: Text(
+                    'No approved hospitals are available. Review a real hospital application before publishing this provider.',
+                  ),
+                )
+              else
+                const SizedBox(height: 12),
               _pair(
                 _field(_fee, 'In-person fee (₹)', number: true),
                 _field(_videoFee, 'Video fee (₹)', number: true),
               ),
               _field(_years, 'Years of experience', number: true),
+              _field(_languages, 'Languages (comma separated)'),
+              Text('Consultation modes',
+                  style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final mode in const <(String, String)>[
+                    ('VIDEO', 'Video'),
+                    ('AUDIO', 'Audio'),
+                    ('IN_PERSON', 'In person'),
+                  ])
+                    FilterChip(
+                      label: Text(mode.$2),
+                      selected: _modes.contains(mode.$1),
+                      onSelected: (selected) => setState(() {
+                        if (selected) {
+                          _modes.add(mode.$1);
+                        } else {
+                          _modes.remove(mode.$1);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -744,19 +805,20 @@ class _ApproveDialogState extends State<_ApproveDialog> {
                       }
                     ],
                     'hospital': {
-                      'id': _hospital.text
-                          .trim()
-                          .toLowerCase()
-                          .replaceAll(RegExp('[^a-z0-9]+'), '-'),
-                      'name': _hospital.text.trim(),
-                      'city': _city.text.trim(),
+                      'id': selectedHospital!.id,
+                      'name': selectedHospital.name,
+                      'city': selectedHospital.city,
+                      'address': selectedHospital.address,
                     },
-                    'city': _city.text.trim(),
                     'consultationFeeInr': int.parse(_fee.text),
                     'videoFeeInr': int.parse(_videoFee.text),
                     'yearsExperience': int.tryParse(_years.text) ?? 0,
-                    'modes': ['VIDEO', 'IN_PERSON'],
-                    'languages': ['English'],
+                    'modes': _modes.toList(growable: false),
+                    'languages': _languages.text
+                        .split(',')
+                        .map((value) => value.trim())
+                        .where((value) => value.isNotEmpty)
+                        .toList(growable: false),
                   }),
           child: const Text('Approve'),
         ),

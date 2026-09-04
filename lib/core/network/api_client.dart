@@ -12,17 +12,9 @@ import 'problem_json.dart';
 /// Everything above this class — repositories, providers, widgets — is written
 /// against [Failure] and knows nothing about HTTP or Dio.
 class ApiClient {
-  ApiClient({required this.dio, this.onServiceUnavailable});
+  ApiClient({required this.dio});
 
   final Dio dio;
-
-  /// Called after a request proves that the live service is unavailable.
-  ///
-  /// The callback belongs to the composition root, where it can switch the
-  /// whole repository graph to the fixture backend. It intentionally excludes
-  /// authorization and validation failures: showing invented records after an
-  /// access revocation would be unsafe and misleading.
-  final void Function()? onServiceUnavailable;
 
   Future<T> get<T>(
     String path, {
@@ -70,10 +62,6 @@ class ApiClient {
       return data;
     } on DioException catch (e) {
       final failure = ProblemJson.fromDioException(e);
-      if (failure.kind == FailureKind.network ||
-          failure.kind == FailureKind.server) {
-        onServiceUnavailable?.call();
-      }
       throw failure;
     }
   }

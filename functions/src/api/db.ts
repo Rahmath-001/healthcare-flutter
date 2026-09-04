@@ -44,6 +44,9 @@ export const C = {
   medicationDoses: "medicationDoses",
   prescriptionTemplates: "prescriptionTemplates",
   organisationRegistrations: "organisationRegistrations",
+  hospitals: "hospitals",
+  hospitalChangeRequests: "hospitalChangeRequests",
+  hospitalAffiliationRequests: "hospitalAffiliationRequests",
   registrationTermsAcceptances: "registrationTermsAcceptances",
 } as const;
 
@@ -100,6 +103,7 @@ export interface DeviceDoc {
 export type Role =
   | "PATIENT"
   | "PROVIDER"
+  | "HOSPITAL"
   | "SUPERVISOR"
   | "SUPPORT_L1"
   | "SUPPORT_L2"
@@ -135,6 +139,8 @@ export interface UserDoc {
   photoUrl?: string | null;
   /** Set once the user is a provider; links to their `doctors` document. */
   doctorId?: string | null;
+  /** Set for a provisioned hospital account; never accepted from a client. */
+  hospitalId?: string | null;
   /** Why the account was suspended. Shown to the user on the blocked screen. */
   suspensionReason?: string | null;
   /** Reviewer who moved this application into UNDER_REVIEW. */
@@ -160,8 +166,51 @@ export interface OrganisationRegistrationDoc {
   postalCode: string;
   state: string;
   country: "India";
-  status: "SUBMITTED";
+  status: "SUBMITTED" | "APPROVED" | "REJECTED";
   submittedAt: Timestamp;
+  reviewedAt?: Timestamp | null;
+  reviewedBy?: string | null;
+  rejectionReason?: string | null;
+}
+
+/** A real hospital that an operator has verified from a submitted application. */
+export interface HospitalDoc {
+  name: string;
+  registrationNumber: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  state: string;
+  country: "India";
+  registrationId: string;
+  approvedAt: Timestamp;
+}
+
+/** A hospital administrator's proposed amendment to a verified directory record. */
+export interface HospitalChangeRequestDoc {
+  hospitalId: string;
+  requestedBy: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  patch: Pick<HospitalDoc, "name" | "address" | "city" | "postalCode" | "state">;
+  requestedAt: Timestamp;
+  reviewedAt?: Timestamp | null;
+  reviewedBy?: string | null;
+  rejectionReason?: string | null;
+}
+
+/**
+ * A hospital's request to associate an already-approved provider with it.
+ * The provider directory record is changed only after an operations decision.
+ */
+export interface HospitalAffiliationRequestDoc {
+  hospitalId: string;
+  doctorId: string;
+  requestedBy: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  requestedAt: Timestamp;
+  reviewedAt?: Timestamp | null;
+  reviewedBy?: string | null;
+  rejectionReason?: string | null;
 }
 
 /** Immutable evidence of the policy and terms revisions a new user accepted. */

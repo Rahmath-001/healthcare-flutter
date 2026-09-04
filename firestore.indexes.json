@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "organisationRegistrations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "doctors",
       "queryScope": "COLLECTION",
       "fields": [

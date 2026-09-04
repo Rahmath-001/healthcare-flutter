@@ -2,7 +2,14 @@ import { Router } from "express";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import { requireAuth, requireScope } from "../auth/middleware";
-import { C, db, type DoctorDoc, type ProviderStatus, type UserDoc } from "../db";
+import {
+  C,
+  db,
+  type DoctorDoc,
+  type HospitalDoc,
+  type ProviderStatus,
+  type UserDoc,
+} from "../db";
 import { handler, Problem } from "../errors";
 
 /**
@@ -114,6 +121,20 @@ export function providerRoutes(secret: () => string): Router {
 
       const doctorId = user.doctorId ?? req.params.userId;
       const specialties = Array.isArray(profile.specialties) ? profile.specialties : [];
+      const requestedHospitalId =
+        typeof profile.hospital?.id === "string" ? profile.hospital.id : "";
+      if (!requestedHospitalId) {
+        throw Problem.validation("Choose an approved hospital for the directory profile.", {
+          hospital: "required",
+        });
+      }
+      const hospitalSnap = await firestore.collection(C.hospitals).doc(requestedHospitalId).get();
+      if (!hospitalSnap.exists) {
+        throw Problem.validation("Choose a hospital from the approved directory.", {
+          hospital: "not approved",
+        });
+      }
+      const hospital = hospitalSnap.data() as HospitalDoc;
 
       const doctor: DoctorDoc = {
         name: String(profile.name ?? user.displayName ?? ""),
@@ -125,14 +146,22 @@ export function providerRoutes(secret: () => string): Router {
         videoFeeInr: Number(profile.videoFeeInr ?? profile.consultationFeeInr ?? 0),
         rating: 0,
         ratingCount: 0,
-        hospital: profile.hospital ?? { id: doctorId, name: "", city: "" },
+        // Never trust the reviewer client's display copy. The affiliation is a
+        // stable reference to an approved hospital, and all patient-facing
+        // values are read from that record.
+        hospital: {
+          id: hospitalSnap.id,
+          name: hospital.name,
+          city: hospital.city,
+          address: hospital.address,
+        },
         languages: Array.isArray(profile.languages) ? profile.languages.map(String) : [],
         modes: Array.isArray(profile.modes) ? profile.modes : ["VIDEO"],
         photoUrl: user.photoUrl ?? null,
         bio: profile.bio ?? null,
         providerStatus: "APPROVED",
         userId: req.params.userId,
-        city: String(profile.hospital?.city ?? ""),
+        city: hospital.city,
         specialtyCodes: specialties.map((s: { code: string }) => String(s.code)),
       };
 

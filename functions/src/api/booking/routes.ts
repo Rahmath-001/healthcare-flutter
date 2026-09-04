@@ -290,10 +290,15 @@ async function bookableRule(
 export function bookingRoutes(secret: () => string): Router {
   const r = Router();
 
+  /**
+   * Availability is part of the public doctor catalogue. A person may inspect
+   * a doctor's open times before deciding to create an account; holding or
+   * booking a time remains authenticated below. Keeping these distinct also
+   * prevents the guest booking screen from waiting for an auth refresh before
+   * it can show the calendar.
+   */
   r.get(
     "/doctors/:id/slots",
-    requireAuth(secret),
-    requireScope("doctor:search"),
     handler(async (req, res) => {
       const { date, mode } = req.query;
       if (typeof date !== "string" || typeof mode !== "string") {

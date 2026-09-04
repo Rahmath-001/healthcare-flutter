@@ -16,6 +16,7 @@ abstract final class Routes {
   static const phone = '/auth/phone';
   static const otp = '/auth/otp';
   static const consent = '/auth/consent';
+  static const organisationSignIn = '/auth/organisation-sign-in';
   static const organisationRegistration = '/auth/organisation';
 
   // --- Onboarding ----------------------------------------------------------
@@ -29,6 +30,7 @@ abstract final class Routes {
 
   /// Doctor search lives under the Home branch so "Book" keeps the bottom nav.
   static const doctorSearch = '/patient/doctors';
+  static const hospitalSearch = '/patient/hospitals';
 
   // --- Patient: pushed routes ---------------------------------------------
   static const bookingConfirmed = '/patient/booking-confirmed';
@@ -51,6 +53,8 @@ abstract final class Routes {
 
   static String doctorDetail(String id) => '$doctorSearch/$id';
   static String publicDoctorDetail(String id) => '/doctors/$id';
+  static String publicHospitalDetail(String id) => '/hospitals/$id';
+  static String hospitalDetail(String id) => '$hospitalSearch/$id';
   static String publicBooking(String id) => '${publicDoctorDetail(id)}/book';
   static String booking(String id) => '$doctorSearch/$id/book';
   static String appointmentDetail(String id) => '$patientAppointments/$id';
@@ -66,6 +70,10 @@ abstract final class Routes {
   static const providerProfile = '/provider/profile';
   static const providerRatings = '/provider/ratings';
   static const providerRefills = '/provider/refills';
+
+  // --- Hospital ------------------------------------------------------------
+  static const hospitalHome = '/hospital/home';
+  static const hospitalManage = '/hospital/manage';
 
   /// One patient's history with this doctor.
   static String providerPatient(String patientId) =>

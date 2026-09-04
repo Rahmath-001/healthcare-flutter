@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/error/failure.dart';
 import '../core/providers.dart';
 import '../core/router/routes.dart';
 import '../core/service_providers.dart';
-import '../core/session/user_role.dart';
 import '../core/theme/app_tokens.dart';
 import '../shared/widgets/app_motion.dart';
 import '../widgets/apple_button.dart';
@@ -26,25 +26,9 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _googleLoading = false;
-  bool _sampleLoading = false;
   bool _appleLoading = false;
 
-  bool get _busy => _googleLoading || _sampleLoading || _appleLoading;
-
-  Future<void> _sampleSignIn({
-    UserRole role = UserRole.patient,
-    ProviderStatus? providerStatus,
-  }) async {
-    setState(() => _sampleLoading = true);
-    try {
-      await ref.read(sessionControllerProvider.notifier).signInWithSampleData(
-            requestedRole: role,
-            providerStatus: providerStatus,
-          );
-    } finally {
-      if (mounted) setState(() => _sampleLoading = false);
-    }
-  }
+  bool get _busy => _googleLoading || _appleLoading;
 
   Future<void> _google() async {
     // Resolved before the first await: after it, this `State`'s context may be
@@ -53,13 +37,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final l10n = context.l10n;
     setState(() => _googleLoading = true);
     try {
-      await ref.read(authServiceProvider).signInWithGoogle();
+      // Firebase persists Google identity across app launches. Reuse it when
+      // present instead of reopening an account chooser that can leave the
+      // person apparently signed in but still on the public route.
+      final auth = ref.read(authServiceProvider);
+      if (!auth.isSignedIn) await auth.signInWithGoogle();
       // Firebase proved who they are; this turns that into a session
       // that says what they may do. Without it the router sees no
       // session and bounces straight back to sign-in.
       await ref
           .read(sessionControllerProvider.notifier)
           .completeFirebaseSignIn();
+    } on Failure catch (error) {
+      // Firebase authentication can legitimately succeed before this person
+      // has a MiDoctor account. The API correctly refuses to create that
+      // account until the privacy policy and terms have been accepted; route
+      // them into that flow instead of leaving Firebase signed in while every
+      // protected API call says "Please sign in again".
+      if (error.kind == FailureKind.validation &&
+          error.fieldErrors.containsKey('privacyPolicyVersion')) {
+        if (mounted) context.go(Routes.roleSelection);
+        return;
+      }
+      _showError(l10n.authGoogleFailed);
     } catch (_) {
       // The exception text is not shown. It is a Firebase/Dio message written
       // for a developer, and on a failed sign-in it can carry the identifier
@@ -79,6 +79,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref
           .read(sessionControllerProvider.notifier)
           .completeFirebaseSignIn();
+    } on Failure catch (error) {
+      if (error.kind == FailureKind.validation &&
+          error.fieldErrors.containsKey('privacyPolicyVersion')) {
+        if (mounted) context.go(Routes.roleSelection);
+        return;
+      }
+      _showError(l10n.authAppleFailed);
     } catch (_) {
       _showError(l10n.authAppleFailed);
     } finally {
@@ -98,8 +105,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final useFixtures = ref.watch(useFixturesProvider);
-
     if (widget.showWireframeSignIn) {
       return _BookingWireframeSignIn(
         busy: _busy,
@@ -108,6 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         onGoogle: _google,
         onApple: _apple,
         onMobile: () => context.push(Routes.phone),
+        onOrganisation: () => context.push(Routes.organisationSignIn),
         onRegister: () => context.go(Routes.roleSelection),
         onCancel: () => context.go(Routes.landing),
       );
@@ -130,10 +136,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             constraints:
                 const BoxConstraints(maxWidth: Breakpoints.readableWidth),
             child: SingleChildScrollView(
-              // Scrollable, not a centred Column. With the sample-data block,
-              // phone, Google and Apple all present this content is taller
-              // than a 4.7" screen in landscape, and the old layout answered
-              // that with a yellow overflow stripe.
+              // Scrollable so every real sign-in method remains usable on a
+              // small screen with the keyboard open.
               padding: const EdgeInsets.symmetric(
                 horizontal: Insets.xl,
                 vertical: Insets.xxl,
@@ -164,34 +168,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: Insets.xxl),
-
-                  // Sample data has no identity provider behind it, so every
-                  // other button here would die at a Google consent sheet that
-                  // cannot return. Without this the mock data is unreachable:
-                  // the app opens on a sign-in screen it cannot get past.
-                  if (useFixtures) ...[
-                    FadeSlideIn(
-                        index: 2,
-                        child: _SampleDataPanel(
-                          loading: _sampleLoading,
-                          busy: _busy,
-                          onPatient: _sampleSignIn,
-                          onDoctor: () => _sampleSignIn(
-                            role: UserRole.provider,
-                            providerStatus: ProviderStatus.approved,
-                          ),
-                          onPendingDoctor: () => _sampleSignIn(
-                            role: UserRole.provider,
-                            providerStatus: ProviderStatus.draft,
-                          ),
-                        )),
-                    const SizedBox(height: Insets.xl),
-                    const _OrDivider(),
-                    const SizedBox(height: Insets.xl),
-                  ],
-
                   FadeSlideIn(
-                    index: 3,
+                    index: 2,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -220,10 +198,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onPressed:
                               _busy ? null : () => context.push(Routes.phone),
                         ),
+                        const SizedBox(height: Insets.md),
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => context.push(Routes.organisationSignIn),
+                          child: const Text('Organisation sign in'),
+                        ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: Insets.xl),
                   FadeSlideIn(
                     index: 4,
@@ -268,6 +252,7 @@ class _BookingWireframeSignIn extends StatelessWidget {
     required this.onGoogle,
     required this.onApple,
     required this.onMobile,
+    required this.onOrganisation,
     required this.onRegister,
     required this.onCancel,
   });
@@ -278,6 +263,7 @@ class _BookingWireframeSignIn extends StatelessWidget {
   final VoidCallback onGoogle;
   final VoidCallback onApple;
   final VoidCallback onMobile;
+  final VoidCallback onOrganisation;
   final VoidCallback onRegister;
   final VoidCallback onCancel;
 
@@ -335,6 +321,12 @@ class _BookingWireframeSignIn extends StatelessWidget {
                         label: 'Mobile Sign in',
                         icon: Icons.phone_android_outlined,
                         onTap: busy ? null : onMobile,
+                      ),
+                      const SizedBox(height: Insets.sm),
+                      TextButton.icon(
+                        onPressed: busy ? null : onOrganisation,
+                        icon: const Icon(Icons.local_hospital_outlined),
+                        label: const Text('Hospital administrator sign in'),
                       ),
                     ],
                   ),
@@ -471,88 +463,6 @@ class _Wordmark extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// The sample-data entry points, grouped so they read as one thing that is not
-/// a real sign-in method.
-class _SampleDataPanel extends StatelessWidget {
-  const _SampleDataPanel({
-    required this.loading,
-    required this.busy,
-    required this.onPatient,
-    required this.onDoctor,
-    required this.onPendingDoctor,
-  });
-
-  final bool loading;
-  final bool busy;
-  final VoidCallback onPatient;
-  final VoidCallback onDoctor;
-  final VoidCallback onPendingDoctor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Insets.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            PrimaryButton(
-              label: context.l10n.authSampleData,
-              loading: loading,
-              onPressed: busy && !loading ? null : onPatient,
-            ),
-            const SizedBox(height: Insets.md),
-            Text(
-              context.l10n.authSampleDataHint,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: Insets.sm),
-            const Divider(),
-            // The provider half of the binary is otherwise unreachable on
-            // sample data: signing up as a doctor needs Firebase, and the
-            // approval that opens the provider shell is an operator decision
-            // taken in a console that does not share this process.
-            TextButton(
-              onPressed: busy ? null : onDoctor,
-              child: Text(context.l10n.authExploreAsDoctor),
-            ),
-            TextButton(
-              onPressed: busy ? null : onPendingDoctor,
-              child: Text(context.l10n.authExploreAsPendingDoctor),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        const Expanded(child: Divider()),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Insets.md),
-          child: Text(
-            context.l10n.authOr,
-            style: theme.textTheme.labelMedium,
-          ),
-        ),
-        const Expanded(child: Divider()),
-      ],
     );
   }
 }

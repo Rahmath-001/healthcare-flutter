@@ -15,8 +15,9 @@ import '../widgets/primary_button.dart';
 
 class PhoneInputScreen extends ConsumerStatefulWidget {
   final String? displayName;
+  final String? initialPhone;
 
-  const PhoneInputScreen({super.key, this.displayName});
+  const PhoneInputScreen({super.key, this.displayName, this.initialPhone});
 
   @override
   ConsumerState<PhoneInputScreen> createState() => _PhoneInputScreenState();
@@ -33,7 +34,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
   @override
   void initState() {
     super.initState();
+    _ctrl.text = widget.initialPhone ?? '';
     _ctrl.addListener(_onPhoneChanged);
+    _onPhoneChanged();
   }
 
   void _onPhoneChanged() {

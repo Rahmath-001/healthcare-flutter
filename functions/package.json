@@ -9,6 +9,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "serve": "pnpm run build && firebase emulators:start --only functions,firestore",
+    "serve:live-firestore": "pnpm run build && node local_live_server.cjs",
     "seed": "pnpm run build && node lib/seed.js",
     "grant-role": "pnpm run build && node lib/grant-role.js",
     "test": "vitest run",

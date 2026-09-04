@@ -17,8 +17,11 @@ import { waitlistRoutes } from "./booking/waitlist_routes";
 import { consultationRoutes } from "./consultations/routes";
 import { credentialRoutes } from "./credentials/routes";
 import { doctorRoutes } from "./doctors/routes";
+import { hospitalRoutes } from "./hospitals/routes";
+import { localDocumentRoutes } from "./local_document_routes";
 import { notificationRoutes } from "./notifications/routes";
 import { organisationRegistrationRoutes } from "./organisation/routes";
+import { organisationReviewRoutes } from "./organisation/review_routes";
 import { problemHandler, Problem, requestId } from "./errors";
 import {
   prescriptionRoutes,
@@ -84,6 +87,10 @@ export function buildApp(deps: AppDependencies | (() => string)) {
         })
   );
 
+  // Only active in the local live-Firestore server. Production uploads go
+  // directly to Cloud Storage through v4 signed URLs.
+  app.use("/v1/local-documents", localDocumentRoutes());
+
   app.get("/v1/health", (_req, res) => res.json({ ok: true }));
 
   // Before the auth router, whose own paths are literals but which
@@ -92,10 +99,12 @@ export function buildApp(deps: AppDependencies | (() => string)) {
   app.use("/v1/auth", authRoutes(secret));
   app.use("/v1/me", meRoutes(secret));
   app.use("/v1/doctors", doctorRoutes(secret));
+  app.use("/v1/hospitals", hospitalRoutes(secret));
   app.use("/v1/consent", consentRoutes(secret));
   app.use("/v1/provider", providerRoutes(secret));
   app.use("/v1/admin", overviewRoutes(secret));
   app.use("/v1/admin", adminRoutes(secret));
+  app.use("/v1/admin", organisationReviewRoutes(secret));
   app.use("/v1/review", reviewRoutes(secret));
   app.use("/v1/records", recordRoutes(secret));
   app.use("/v1/availability", availabilityRoutes(secret));

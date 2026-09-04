@@ -60,6 +60,13 @@ describe("scopesFor", () => {
     }
   });
 
+  it("limits a hospital account to its own organisation record", () => {
+    const scopes = scopesFor("HOSPITAL", "NOT_APPLICABLE");
+    expect(scopes).toEqual(["profile:read", "hospital:read_own"]);
+    expect(scopes).not.toContain("provider:approve");
+    expect(scopes).not.toContain("records:read_granted");
+  });
+
   it("lets a supervisor act on providers but not on patient data", () => {
     const scopes = scopesFor("SUPERVISOR", "NOT_APPLICABLE");
     expect(scopes).toContain("provider:approve");

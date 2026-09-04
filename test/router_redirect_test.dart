@@ -25,13 +25,11 @@ String? redirect({
   required String location,
   bool loading = false,
   Session? current,
-  bool onboardingComplete = true,
 }) =>
     resolveRedirect(
       location: location,
       sessionLoading: loading,
       session: current,
-      onboardingComplete: onboardingComplete,
     );
 
 void main() {
@@ -85,6 +83,11 @@ void main() {
       expect(redirect(location: Routes.providerProfile), Routes.landing);
       expect(redirect(location: Routes.splash), Routes.landing);
     });
+
+    test('allows the public hospital directory and details', () {
+      expect(redirect(location: '/hospitals'), isNull);
+      expect(redirect(location: '/hospitals/test-hospital'), isNull);
+    });
   });
 
   group('account status', () {
@@ -122,27 +125,18 @@ void main() {
   });
 
   group('patient', () {
-    test('is sent to onboarding until it is complete', () {
+    test('bypasses the retired onboarding journey', () {
       final s = session();
       expect(
         redirect(
             location: Routes.patientHome,
-            current: s,
-            onboardingComplete: false),
-        Routes.onboardingPatient,
+            current: s),
+        isNull,
       );
       expect(
         redirect(
             location: Routes.onboardingPatient,
-            current: s,
-            onboardingComplete: false),
-        isNull,
-      );
-    });
-
-    test('leaves onboarding once complete', () {
-      expect(
-        redirect(location: Routes.onboardingPatient, current: session()),
+            current: s),
         Routes.patientHome,
       );
     });
@@ -229,8 +223,7 @@ void main() {
       expect(
         redirect(
             location: Routes.providerToday,
-            current: s,
-            onboardingComplete: false),
+            current: s),
         isNull,
       );
     });
@@ -245,6 +238,17 @@ void main() {
       ]) {
         expect(redirect(location: route, current: s), isNull, reason: route);
       }
+    });
+  });
+
+  group('hospital', () {
+    final hospital = session(role: UserRole.hospital);
+
+    test('lands in and remains within its own portal', () {
+      expect(redirect(location: Routes.hospitalHome, current: hospital), isNull);
+      expect(redirect(location: Routes.landing, current: hospital), Routes.hospitalHome);
+      expect(redirect(location: Routes.patientHome, current: hospital), Routes.hospitalHome);
+      expect(redirect(location: Routes.providerToday, current: hospital), Routes.hospitalHome);
     });
   });
 }

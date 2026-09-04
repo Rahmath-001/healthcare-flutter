@@ -28,6 +28,11 @@ final reviewQueueProvider =
   return ref.watch(operationsRepositoryProvider).reviewQueue();
 });
 
+final hospitalApplicationsProvider =
+    FutureProvider<List<HospitalApplication>>((ref) async {
+  return ref.watch(operationsRepositoryProvider).hospitalApplications();
+});
+
 final providerDossierProvider =
     FutureProvider.family<ProviderDossier, String>((ref, userId) async {
   return ref.watch(operationsRepositoryProvider).dossier(userId);

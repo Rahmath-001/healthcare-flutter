@@ -1,4 +1,4 @@
-package com.healthcare.healthcare_mobile
+package midoctor.`in`
 
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity

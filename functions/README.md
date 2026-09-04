@@ -64,11 +64,16 @@ part of the attack surface and easy to miss when reading the table below.
 | GET | `/v1/health` | — |
 | POST | `/v1/auth/session` | — (Firebase ID token in body) |
 | POST | `/v1/organisation-registrations` | — public prospect form, rate-limited; never creates an account or role |
+| GET | `/v1/hospitals`, `/:id`, `/:id/doctors` | — public, operator-approved hospital directory and providers |
+| GET | `/v1/hospitals/mine`, `/mine/requests` | `hospital:read_own` — assigned hospital and its own review history |
+| POST | `/v1/hospitals/mine/change-requests` | `hospital:request_change` — creates a review request; never directly edits the directory |
+| POST | `/v1/hospitals/mine/affiliation-requests` | `hospital:request_affiliation` — requests operations verification of an approved provider affiliation |
+| GET/POST | `/v1/admin/organisations`, `/:id/{approve,reject}` | `provider:approve` — hospital review and publication |
 | POST | `/v1/auth/refresh` | — (refresh token in body) |
 | POST | `/v1/auth/logout` | authenticated |
 | GET/PUT | `/v1/me` | authenticated |
-| GET | `/v1/doctors` | `doctor:search` |
-| GET | `/v1/doctors/specialties`, `/cities`, `/:id` | `doctor:search` |
+| GET | `/v1/doctors` | public — approved providers only |
+| GET | `/v1/doctors/specialties`, `/cities`, `/:id` | public — directory facets/profile only |
 | GET | `/v1/doctors/:id/slots?date=&mode=` | `doctor:search` |
 | POST/DELETE | `/v1/slots/:slotId/hold` | `appointment:create` |
 | POST | `/v1/appointments` | `appointment:create` |
@@ -340,6 +345,63 @@ flutter run \
 
 `10.0.2.2` is the host loopback as seen from the Android emulator.
 
+### Android test against hosted Firestore (no deployment)
+
+Use this only when a project owner has supplied an **Admin SDK service-account
+JSON key** for the intended Firebase project. It runs the same Express API on
+the developer machine while reading and writing that project's hosted
+Firestore database; it does **not** deploy Cloud Functions or enable billing.
+
+Keep the key at `functions/service-account.local.json`. It is ignored by Git;
+never commit it or send it in chat.
+
+```powershell
+cd functions
+pnpm run serve:live-firestore
+
+# If port 5001 is occupied:
+$env:PORT = '5002'
+pnpm run serve:live-firestore
+
+# From the repository root, for an Android emulator:
+flutter run -d emulator-5554 --dart-define=USE_FIXTURES=false `
+  --dart-define=API_BASE_URL=http://10.0.2.2:5002 `
+  --dart-define=SKIP_CARRIER_CHECK=true
+```
+
+`local_live_server.cjs` derives the default bucket as
+`<project-id>.firebasestorage.app` from the service-account project. Set
+`FIREBASE_STORAGE_BUCKET` before starting it only for an older project with a
+different default bucket. The service account and Cloud Functions runtime must
+both be allowed to create/read/delete the required objects; signed URLs alone
+do not grant those server-side permissions.
+
+### No-cost local document uploads
+
+When Firebase Storage is unavailable (for example, while the project remains
+on Spark), `serve:live-firestore` automatically stores **development test
+files** in `functions/.local-documents/`, which is ignored by Git. Firestore
+metadata, API authorization, quarantine handling, file-type validation and
+image metadata removal still use the real project; only the object bytes stay
+on the developer machine. The server gives the Android emulator expiring,
+capability-signed URLs at `10.0.2.2`, so the Flutter upload/download path is
+tested without a bucket or a deployed function.
+
+This is deliberately unavailable in Cloud Functions and must never receive
+clinical or client documents. To test from a physical device, set
+`LOCAL_DOCUMENT_STORAGE_BASE_URL` to the host computer's reachable HTTPS/LAN
+address before launching the local API; do not expose it to the public internet.
+
+For this mode, records created through the app or the API appear in Firebase
+Console → Firestore Database → **Data**. Seeded directory data uses
+`specialties`, `doctors`, `drugs`, and `availabilityRules`; the public
+organisation form writes `organisationRegistrations`. Authentication users
+appear separately in Firebase Console → Authentication → Users.
+
+This is a live-data integration test, not a production backend deployment.
+Cloud Storage uploads, the deployed Functions endpoint, 100ms video, and
+Twilio carrier lookup each require their own production configuration.
+
 ## Deploy
 
 ```bash
@@ -380,3 +442,10 @@ join-token endpoint. What is still missing:
 
 Also untested: the Firestore transactions — double-booking and refresh rotation
 — which need the emulator. `pnpm test` covers everything that does not.
+## Explicit test hospital
+
+To test the organisation sign-in path against the configured Firebase project,
+run `HOSPITAL_DEMO_PASSWORD=<unique password> pnpm run seed:demo-hospital` with
+`GOOGLE_APPLICATION_CREDENTIALS` set. It creates only the clearly labelled
+`MiDoctor Test Hospital` and `hospital.test@midoctor.example`; it is idempotent
+and never runs during a normal seed or deploy.

@@ -7,12 +7,11 @@ import '../../../shared/formatters.dart';
 import '../../../shared/widgets/async_view.dart';
 import '../../../shared/widgets/app_motion.dart';
 import '../../../shared/widgets/skeleton.dart';
-import '../data/doctor_fixtures.dart';
 import '../domain/doctor.dart';
 import 'doctor_search_controller.dart';
 
-/// The client wireframe's speciality/location catalogue. It is available both
-/// before sign-in and inside the signed-in patient experience.
+/// The client wireframe's live speciality/location directory. It is available
+/// both before sign-in and inside the signed-in patient experience.
 class DoctorSearchScreen extends ConsumerWidget {
   const DoctorSearchScreen({super.key, this.publicBrowse = false});
 
@@ -22,6 +21,9 @@ class DoctorSearchScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final filters = ref.watch(doctorSearchFiltersProvider);
     final results = ref.watch(doctorSearchResultsProvider);
+    final specialties =
+        ref.watch(doctorSpecialtiesProvider).value ?? const <Specialty>[];
+    final cities = ref.watch(doctorCitiesProvider).value ?? const <String>[];
     final controller = ref.read(doctorSearchFiltersProvider.notifier);
     final theme = Theme.of(context);
 
@@ -31,6 +33,10 @@ class DoctorSearchScreen extends ConsumerWidget {
         title: const Text('MiDoctor'),
         actions: publicBrowse
             ? [
+                TextButton(
+                  onPressed: () => context.push('/hospitals'),
+                  child: const Text('Hospitals'),
+                ),
                 TextButton(
                   onPressed: () =>
                       context.push('${Routes.login}?wireframe=true'),
@@ -64,14 +70,14 @@ class DoctorSearchScreen extends ConsumerWidget {
                             allLabel: 'All specialities',
                             value: filters.specialtyCode == null
                                 ? null
-                                : DoctorFixtures.specialties
+                                : specialties
                                     .where(
                                       (specialty) =>
                                           specialty.code ==
                                           filters.specialtyCode,
                                     )
                                     .firstOrNull,
-                            options: DoctorFixtures.specialties,
+                            options: specialties,
                             optionLabel: (specialty) => specialty.name,
                             onSelected: (specialty) {
                               controller.setQuery('');
@@ -89,7 +95,7 @@ class DoctorSearchScreen extends ConsumerWidget {
                             label: 'Location',
                             allLabel: 'All locations',
                             value: filters.city,
-                            options: DoctorFixtures.cities,
+                            options: cities,
                             optionLabel: (city) => city,
                             onSelected: controller.setCity,
                             onTyped: (query) {
@@ -121,20 +127,31 @@ class DoctorSearchScreen extends ConsumerWidget {
                         ),
                       );
                     }
-                    return Scrollbar(
-                      thumbVisibility: true,
-                      interactive: true,
-                      thickness: 5,
-                      radius: const Radius.circular(8),
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 12, 24),
-                        itemCount: doctors.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (_, index) => FadeSlideIn(
-                          index: index,
-                          child: DoctorCard(
-                            doctor: doctors[index],
-                            publicBrowse: publicBrowse,
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        await Future.wait([
+                          ref.refresh(doctorSearchResultsProvider.future),
+                          ref.refresh(doctorSpecialtiesProvider.future),
+                          ref.refresh(doctorCitiesProvider.future),
+                        ]);
+                      },
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        interactive: true,
+                        thickness: 5,
+                        radius: const Radius.circular(8),
+                        child: ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 12, 24),
+                          itemCount: doctors.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (_, index) => FadeSlideIn(
+                            index: index,
+                            child: DoctorCard(
+                              doctor: doctors[index],
+                              publicBrowse: publicBrowse,
+                            ),
                           ),
                         ),
                       ),

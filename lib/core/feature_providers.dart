@@ -21,6 +21,7 @@ import '../features/credentials/data/credentials_repository.dart';
 import '../features/prescriptions/data/api_prescription_repository.dart';
 import '../features/prescriptions/data/cached_prescription_repository.dart';
 import '../features/medications/data/medication_repository.dart';
+import '../features/hospitals/data/hospital_repository.dart';
 import '../features/prescriptions/data/prescription_repository.dart';
 import '../features/prescriptions/data/prescription_template_repository.dart';
 import '../features/providers_search/data/api_doctor_repository.dart';
@@ -55,6 +56,12 @@ import 'storage/clinical_cache.dart';
 final doctorRepositoryProvider = Provider<DoctorRepository>((ref) {
   if (ref.watch(useFixturesProvider)) return FixtureDoctorRepository();
   return ApiDoctorRepository(ref.watch(apiClientProvider));
+});
+
+/// The hospital directory is always API-backed. It contains only organisation
+/// records that a MiDoctor operator has actually approved.
+final hospitalRepositoryProvider = Provider<HospitalRepository>((ref) {
+  return ApiHospitalRepository(ref.watch(apiClientProvider));
 });
 
 /// Public registration requests for hospitals, labs, and home-health services.

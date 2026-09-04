@@ -2,7 +2,6 @@ import { Router } from "express";
 
 import { C, db, type DoctorDoc } from "../db";
 import { handler, Problem } from "../errors";
-import { requireAuth, requireScope } from "../auth/middleware";
 
 export function doctorJson(id: string, d: DoctorDoc) {
   return {
@@ -26,10 +25,13 @@ export function doctorJson(id: string, d: DoctorDoc) {
 
 export function doctorRoutes(secret: () => string): Router {
   const r = Router();
-  r.use(requireAuth(secret));
 
   /**
-   * `GET /v1/doctors` — FR-SRCH-001/002.
+   * `GET /v1/doctors` — public approved-provider directory (FR-SRCH-001/002).
+   *
+   * The client wireframe makes doctor discovery available before sign-in. Only
+   * approved, deliberately public provider-profile fields are returned; every
+   * booking, record, and account action remains authenticated.
    *
    * Firestore cannot express "name contains X" or combine several range
    * filters, so the query narrows on the dimensions it *can* index
@@ -41,7 +43,6 @@ export function doctorRoutes(secret: () => string): Router {
    */
   r.get(
     "/",
-    requireScope("doctor:search"),
     handler(async (req, res) => {
       const { query, specialtyCode, city, maxFeeInr, minRating, mode } = req.query;
 
@@ -94,7 +95,6 @@ export function doctorRoutes(secret: () => string): Router {
 
   r.get(
     "/specialties",
-    requireScope("doctor:search"),
     handler(async (_req, res) => {
       const snap = await db().collection(C.specialties).orderBy("name").get();
       res.json({
@@ -106,7 +106,6 @@ export function doctorRoutes(secret: () => string): Router {
   /** Distinct cities that have at least one approved doctor. */
   r.get(
     "/cities",
-    requireScope("doctor:search"),
     handler(async (_req, res) => {
       const snap = await db()
         .collection(C.doctors)
@@ -120,7 +119,6 @@ export function doctorRoutes(secret: () => string): Router {
 
   r.get(
     "/:id",
-    requireScope("doctor:search"),
     handler(async (req, res) => {
       const snap = await db().collection(C.doctors).doc(req.params.id).get();
       if (!snap.exists) throw Problem.notFound("DOCTOR_NOT_FOUND", "Doctor not found.");

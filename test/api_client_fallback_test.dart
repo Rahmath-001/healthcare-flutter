@@ -5,15 +5,10 @@ import 'package:healthcare_mobile/core/network/api_client.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 
 void main() {
-  test('notifies the composition root when the API returns a 5xx response',
-      () async {
+  test('surfaces a 5xx response without substituting local records', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'));
     final adapter = DioAdapter(dio: dio);
-    var usedFixtureFallback = false;
-    final api = ApiClient(
-      dio: dio,
-      onServiceUnavailable: () => usedFixtureFallback = true,
-    );
+    final api = ApiClient(dio: dio);
     adapter.onGet(
       '/v1/health',
       (server) => server.reply(503, {
@@ -28,18 +23,12 @@ void main() {
       throwsA(isA<Failure>().having((f) => f.kind, 'kind', FailureKind.server)),
     );
 
-    expect(usedFixtureFallback, isTrue);
   });
 
-  test('does not replace a real authorization refusal with sample data',
-      () async {
+  test('surfaces a real authorization refusal', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'));
     final adapter = DioAdapter(dio: dio);
-    var usedFixtureFallback = false;
-    final api = ApiClient(
-      dio: dio,
-      onServiceUnavailable: () => usedFixtureFallback = true,
-    );
+    final api = ApiClient(dio: dio);
     adapter.onGet(
       '/v1/records',
       (server) => server.reply(403, {
@@ -56,6 +45,5 @@ void main() {
       ),
     );
 
-    expect(usedFixtureFallback, isFalse);
   });
 }

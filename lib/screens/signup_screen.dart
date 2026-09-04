@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +35,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _country = TextEditingController(text: 'India');
   bool _googleLoading = false;
   bool _appleLoading = false;
-  bool _otpVerified = false;
   bool _basicExpanded = true;
   bool _addressExpanded = false;
 
@@ -72,7 +69,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _google() async {
     setState(() => _googleLoading = true);
     try {
-      await ref.read(authServiceProvider).signInWithGoogle();
+      // A person sent here from Login has already completed Google's account
+      // chooser. Reuse that Firebase identity so accepting the terms creates
+      // the MiDoctor user/session without a second, confusing sign-in prompt.
+      final auth = ref.read(authServiceProvider);
+      if (!auth.isSignedIn) await auth.signInWithGoogle();
       await ref
           .read(sessionControllerProvider.notifier)
           .completeFirebaseSignIn();
@@ -90,7 +91,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _apple() async {
     setState(() => _appleLoading = true);
     try {
-      await ref.read(authServiceProvider).signInWithApple();
+      final auth = ref.read(authServiceProvider);
+      if (!auth.isSignedIn) await auth.signInWithApple();
       await ref
           .read(sessionControllerProvider.notifier)
           .completeFirebaseSignIn();
@@ -105,36 +107,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
   }
 
-  Future<void> _sendOtp() async {
-    if (!_basicDetailsValid) {
+  void _register() {
+    if (!_basicDetailsValid || !_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete your basic information first.')),
+        const SnackBar(content: Text('Complete your registration details first.')),
       );
       return;
     }
-    final verified = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const _OtpVerificationSheet(),
-    );
-    if (verified == true && mounted) {
-      setState(() {
-        _otpVerified = true;
-        _basicExpanded = false;
-        _addressExpanded = true;
-      });
-    }
-  }
-
-  void _register() {
-    if (!_otpVerified) {
-      unawaited(_sendOtp());
-      return;
-    }
-    if (!_formKey.currentState!.validate()) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registration details saved.')),
+    // This is real Firebase phone verification, not the old local OTP sheet.
+    // The terms and requested role are already held by the registration flow;
+    // OtpScreen will exchange the verified Firebase identity with MiDoctor.
+    context.push(
+      Uri(
+        path: Routes.phone,
+        queryParameters: {
+          'name': '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim(),
+          'phone': _mobile.text.trim(),
+        },
+      ).toString(),
     );
   }
 
@@ -183,7 +173,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   _ProgressSection(
                     title: 'Basic Information',
                     expanded: _basicExpanded,
-                    completed: _otpVerified,
+                    completed: false,
                     onToggle: () =>
                         setState(() => _basicExpanded = !_basicExpanded),
                     children: [
@@ -201,21 +191,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           type: TextInputType.phone, indiaMobile: true),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  FilledButton.icon(
-                    onPressed: _sendOtp,
-                    icon: const Icon(Icons.sms_outlined),
-                    label: const Text('Send OTP'),
-                  ),
                   const SizedBox(height: 24),
                   _ProgressSection(
                     title: 'Home Address',
                     expanded: _addressExpanded,
-                    enabled: _otpVerified,
-                    onToggle: _otpVerified
-                        ? () =>
-                            setState(() => _addressExpanded = !_addressExpanded)
-                        : null,
+                    onToggle: () =>
+                        setState(() => _addressExpanded = !_addressExpanded),
                     children: [
                       _field(_house, 'House number'),
                       _field(_street, 'Street'),
@@ -366,83 +347,6 @@ class _ProgressSection extends StatelessWidget {
             duration: const Duration(milliseconds: 220),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _OtpVerificationSheet extends StatefulWidget {
-  const _OtpVerificationSheet();
-
-  @override
-  State<_OtpVerificationSheet> createState() => _OtpVerificationSheetState();
-}
-
-class _OtpVerificationSheetState extends State<_OtpVerificationSheet> {
-  final _code = TextEditingController();
-  late DateTime _expiresAt;
-  Timer? _ticker;
-
-  @override
-  void initState() {
-    super.initState();
-    _expiresAt = DateTime.now().add(const Duration(minutes: 2));
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    _code.dispose();
-    super.dispose();
-  }
-
-  int get _secondsLeft =>
-      _expiresAt.difference(DateTime.now()).inSeconds.clamp(0, 120).toInt();
-
-  @override
-  Widget build(BuildContext context) {
-    final seconds = _secondsLeft;
-    final time =
-        '${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-            24, 0, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Verify mobile number',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-                'Enter the six-digit code sent to your mobile number. Expires in $time.'),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _code,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              onChanged: (_) => setState(() {}),
-              decoration:
-                  const InputDecoration(labelText: 'OTP', counterText: ''),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: seconds == 0 || _code.text.trim().length != 6
-                  ? null
-                  : () => Navigator.of(context).pop(true),
-              child: const Text('Verify OTP'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
       ),
     );
   }

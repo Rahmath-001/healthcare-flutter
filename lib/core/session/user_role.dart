@@ -7,6 +7,7 @@
 enum UserRole {
   patient,
   provider,
+  hospital,
   supervisor,
   supportL1,
   supportL2,
@@ -18,6 +19,7 @@ enum UserRole {
   static UserRole fromWire(String? raw) => switch (raw?.toUpperCase()) {
         'PATIENT' => UserRole.patient,
         'PROVIDER' => UserRole.provider,
+        'HOSPITAL' => UserRole.hospital,
         'SUPERVISOR' => UserRole.supervisor,
         'SUPPORT_L1' => UserRole.supportL1,
         'SUPPORT_L2' => UserRole.supportL2,
@@ -31,11 +33,14 @@ enum UserRole {
   /// and admin are served by the operator console, which is a separate entry
   /// point (`lib/admin/`), not a hidden tab in this binary.
   bool get isSupportedOnMobile =>
-      this == UserRole.patient || this == UserRole.provider;
+      this == UserRole.patient ||
+      this == UserRole.provider ||
+      this == UserRole.hospital;
 
   String get wire => switch (this) {
         UserRole.patient => 'PATIENT',
         UserRole.provider => 'PROVIDER',
+        UserRole.hospital => 'HOSPITAL',
         UserRole.supervisor => 'SUPERVISOR',
         UserRole.supportL1 => 'SUPPORT_L1',
         UserRole.supportL2 => 'SUPPORT_L2',
@@ -46,6 +51,7 @@ enum UserRole {
   String get label => switch (this) {
         UserRole.patient => 'Patient',
         UserRole.provider => 'Doctor',
+        UserRole.hospital => 'Hospital',
         UserRole.supervisor => 'Supervisor',
         UserRole.supportL1 => 'Support (L1)',
         UserRole.supportL2 => 'Support (L2)',

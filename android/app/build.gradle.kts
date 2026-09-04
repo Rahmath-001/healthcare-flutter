@@ -25,12 +25,9 @@ val hasReleaseSigning = keystorePropertiesFile.exists()
 val allowDebugSigning = (project.findProperty("allowDebugSigning") as String?) == "true"
 
 android {
-    // TODO(phase-0): rename to "in.midoctor.app" at the same time as creating the
-    // fresh midoctor-prod Firebase project. Changing it before then breaks the
-    // google-services plugin, which matches on package name, and requires moving
-    // the MainActivity Kotlin package. Android applicationIds are immutable once
-    // published to Play, so this must happen before the first release.
-    namespace = "com.healthcare.healthcare_mobile"
+    // Matches the registered Android application in Firebase project midoctor-3dbdb.
+    // Android application IDs are immutable once published to Play.
+    namespace = "midoctor.in"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -40,7 +37,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.healthcare.healthcare_mobile"
+        applicationId = "midoctor.in"
         // firebase_auth requires 23; 24 is the practical floor and covers >99% of
         // the Indian Android install base.
         minSdk = 24

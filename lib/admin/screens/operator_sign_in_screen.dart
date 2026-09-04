@@ -27,23 +27,6 @@ class _OperatorSignInScreenState extends ConsumerState<OperatorSignInScreen> {
   bool _busy = false;
   String? _error;
 
-  /// Signs in against the fixture backend, with no identity provider involved.
-  Future<void> _sampleSignIn() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await ref.read(sessionControllerProvider.notifier).signInWithSampleData();
-    } on Failure catch (f) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = f.message;
-      });
-    }
-  }
-
   Future<void> _signIn() async {
     setState(() {
       _busy = true;
@@ -134,32 +117,10 @@ class _OperatorSignInScreenState extends ConsumerState<OperatorSignInScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  if (ref.watch(useFixturesProvider)) ...[
-                    SizedBox(
-                      height: 48,
-                      child: FilledButton.icon(
-                        onPressed: _busy ? null : _sampleSignIn,
-                        icon: const Icon(Icons.science_outlined),
-                        label: const Text('Open with sample data'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Running on sample data. Actions that would change a real '
-                      'account are refused rather than faked.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                  ],
                   SizedBox(
                     height: 48,
                     child: FilledButton.icon(
-                      onPressed: _busy || ref.watch(useFixturesProvider)
-                          ? null
-                          : _signIn,
+                      onPressed: _busy ? null : _signIn,
                       icon: _busy
                           ? const SizedBox(
                               width: 18,

@@ -41,6 +41,36 @@ class ProviderApplication {
       );
 }
 
+/// A real hospital application submitted from the public organisation form.
+@immutable
+class HospitalApplication {
+  const HospitalApplication({
+    required this.id,
+    required this.name,
+    required this.registrationNumber,
+    required this.city,
+    required this.state,
+    required this.submittedAt,
+  });
+
+  final String id;
+  final String name;
+  final String registrationNumber;
+  final String city;
+  final String state;
+  final DateTime submittedAt;
+
+  factory HospitalApplication.fromJson(Map<String, dynamic> json) =>
+      HospitalApplication(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        registrationNumber: json['registrationNumber'] as String,
+        city: json['city'] as String,
+        state: json['state'] as String,
+        submittedAt: DateTime.parse(json['submittedAt'] as String).toLocal(),
+      );
+}
+
 /// One uploaded credential document, as a reviewer sees it.
 @immutable
 class ReviewDocument {
@@ -394,6 +424,10 @@ class OperationsSummary {
 }
 
 abstract class OperationsRepository {
+  Future<List<HospitalApplication>> hospitalApplications();
+  Future<void> approveHospitalApplication(String id);
+  Future<void> rejectHospitalApplication(String id, {required String reason});
+
   Future<List<ProviderApplication>> reviewQueue();
   Future<ProviderDossier> dossier(String userId);
   Future<void> claimForReview(String userId);
@@ -455,6 +489,25 @@ class ApiOperationsRepository implements OperationsRepository {
   ApiOperationsRepository(this._api);
 
   final ApiClient _api;
+
+  @override
+  Future<List<HospitalApplication>> hospitalApplications() async {
+    final json =
+        await _api.get<Map<String, dynamic>>('/v1/admin/organisations');
+    return (json['items'] as List<dynamic>)
+        .map((item) =>
+            HospitalApplication.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> approveHospitalApplication(String id) =>
+      _api.post<Map<String, dynamic>>('/v1/admin/organisations/$id/approve');
+
+  @override
+  Future<void> rejectHospitalApplication(String id, {required String reason}) =>
+      _api.post<Map<String, dynamic>>('/v1/admin/organisations/$id/reject',
+          body: {'reason': reason});
 
   @override
   Future<List<ProviderApplication>> reviewQueue() async {

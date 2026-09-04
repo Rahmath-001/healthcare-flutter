@@ -8,6 +8,7 @@ import '../admin_app.dart';
 import '../screens/admin_shell.dart';
 import '../screens/audit_screen.dart';
 import '../screens/dashboard_screen.dart';
+import '../screens/hospital_review_screen.dart';
 import '../screens/operator_sign_in_screen.dart';
 import '../screens/provider_review_screen.dart';
 import '../screens/rating_moderation_screen.dart';
@@ -21,6 +22,7 @@ abstract final class AdminRoutes {
   static const dashboard = '/';
   static const audit = '/audit';
   static const queue = '/queue';
+  static const hospitals = '/hospitals';
   static const users = '/users';
   static const ratings = '/ratings';
   static const tickets = '/tickets';
@@ -118,6 +120,10 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
                 ),
               ),
             ],
+          ),
+          GoRoute(
+            path: AdminRoutes.hospitals,
+            builder: (_, __) => const HospitalReviewScreen(),
           ),
           GoRoute(
             path: AdminRoutes.users,

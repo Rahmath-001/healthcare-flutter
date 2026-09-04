@@ -92,7 +92,7 @@ class AppConfig {
 
   static String _defaultBaseUrl(AppEnv env) => switch (env) {
         // 10.0.2.2 is the host loopback as seen from the Android emulator.
-        AppEnv.dev => 'http://10.0.2.2:8080',
+        AppEnv.dev => 'http://10.0.2.2:5002',
         AppEnv.staging => 'https://api-staging.midoctor.in',
         AppEnv.prod => 'https://api.midoctor.in',
       };

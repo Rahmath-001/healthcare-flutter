@@ -106,6 +106,12 @@ class _BookingBodyState extends ConsumerState<_BookingBody> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(bookingControllerProvider);
+    // The public catalogue route is deliberately reachable before sign-in, but
+    // the same route may still be on the navigation stack after Google sign-in
+    // completes. Do not keep treating that person as a guest merely because
+    // they entered through the public URL.
+    final requiresSignIn =
+        widget.requiresSignIn && ref.watch(currentSessionProvider) == null;
     final theme = Theme.of(context);
     final date = state.selectedDate ?? DateTime.now();
 
@@ -154,12 +160,12 @@ class _BookingBodyState extends ConsumerState<_BookingBody> {
                 selected: state.selectedSlot,
                 doctor: widget.doctor,
                 onSignInRequired:
-                    widget.requiresSignIn ? _showSignInPrompt : null,
+                    requiresSignIn ? _showSignInPrompt : null,
               ),
               const SizedBox(height: 20),
               // The reason for visit is a symptom list. See
               // `edit_profile_screen.dart`.
-              if (widget.requiresSignIn)
+              if (requiresSignIn)
                 Card(
                   child: const ListTile(
                     leading: Icon(Icons.lock_outline),

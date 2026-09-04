@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../observability/crash_reporting.dart';
 import '../providers.dart';
-import '../session/onboarding_controller.dart';
 import '../session/session.dart';
 import '../session/user_role.dart';
 import 'app_routes_builder.dart';
@@ -17,7 +16,6 @@ import 'routes.dart';
 class _RouterRefresh extends ChangeNotifier {
   _RouterRefresh(Ref ref) {
     ref.listen(sessionControllerProvider, (_, __) => notifyListeners());
-    ref.listen(onboardingControllerProvider, (_, __) => notifyListeners());
   }
 }
 
@@ -37,7 +35,6 @@ String? resolveRedirect({
   required String location,
   required bool sessionLoading,
   required Session? session,
-  required bool onboardingComplete,
 }) {
   final isAuthRoute = location.startsWith('/auth');
   final isSplash = location == Routes.splash;
@@ -48,7 +45,10 @@ String? resolveRedirect({
   if (session == null) {
     // The catalogue is intentionally public: the first client-approved
     // screen lets someone browse doctors before deciding to register.
-    return isAuthRoute || location == Routes.landing || location.startsWith('/doctors')
+    return isAuthRoute ||
+            location == Routes.landing ||
+            location.startsWith('/doctors') ||
+            location.startsWith('/hospitals')
         ? null
         : Routes.landing;
   }
@@ -67,12 +67,8 @@ String? resolveRedirect({
 
   switch (session.role) {
     case UserRole.patient:
-      if (!onboardingComplete) {
-        return location == Routes.onboardingPatient
-            ? null
-            : Routes.onboardingPatient;
-      }
-      // A signed-in patient has no business on auth, splash or onboarding.
+      // The old three-page onboarding has been retired. The client-approved
+      // registration flow ends at the patient dashboard.
       if (isAuthRoute || isSplash || location.startsWith('/onboarding')) {
         return Routes.patientHome;
       }
@@ -98,6 +94,15 @@ String? resolveRedirect({
         return Routes.providerToday;
       }
       if (location.startsWith('/patient')) return Routes.providerToday;
+      return null;
+
+    case UserRole.hospital:
+      if (isAuthRoute ||
+          isSplash ||
+          location == Routes.landing ||
+          !location.startsWith('/hospital')) {
+        return Routes.hospitalHome;
+      }
       return null;
 
     case UserRole.supervisor:
@@ -138,7 +143,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         location: state.matchedLocation,
         sessionLoading: sessionAsync.isLoading,
         session: sessionAsync.value,
-        onboardingComplete: ref.read(onboardingControllerProvider),
       );
 
       // A person can browse availability before authenticating. Once a patient
@@ -146,7 +150,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // making them search for that doctor again. Only this exact internal
       // booking path is accepted; an arbitrary return URL must never be a
       // redirect target.
-      if (redirect == Routes.patientHome && state.matchedLocation == Routes.login) {
+      if (redirect == Routes.patientHome &&
+          state.matchedLocation == Routes.login) {
         final returnTo = bookingReturnPath(
           state.uri.queryParameters['returnTo'],
         );

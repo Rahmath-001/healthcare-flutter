@@ -8,6 +8,7 @@ import '../../features/availability/presentation/availability_screen.dart';
 import '../../features/auth/presentation/role_selection_screen.dart';
 import '../../features/auth/presentation/consent_screen.dart';
 import '../../features/auth/presentation/organisation_registration_screen.dart';
+import '../../features/auth/presentation/organisation_sign_in_screen.dart';
 import '../../features/blocked/presentation/blocked_screen.dart';
 import '../../features/booking/presentation/booking_confirmed_screen.dart';
 import '../../features/booking/presentation/booking_screen.dart';
@@ -17,6 +18,10 @@ import '../../features/consultation/presentation/consultation_screen.dart';
 import '../../features/credentials/presentation/credentials_screen.dart';
 import '../../features/mfa/presentation/mfa_enrolment_screen.dart';
 import '../../features/medications/presentation/medications_screen.dart';
+import '../../features/hospitals/presentation/hospital_detail_screen.dart';
+import '../../features/hospitals/presentation/hospital_home_screen.dart';
+import '../../features/hospitals/presentation/hospital_manage_screen.dart';
+import '../../features/hospitals/presentation/hospital_search_screen.dart';
 import '../../features/prescriptions/presentation/prescribe_screen.dart';
 import '../../features/prescriptions/presentation/prescriptions_screen.dart';
 import '../../features/prescriptions/presentation/refills_screen.dart';
@@ -40,7 +45,6 @@ import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/support/presentation/support_screen.dart';
 import '../../screens/login_screen.dart';
-import '../../screens/onboarding_screen.dart';
 import '../../screens/otp_screen.dart';
 import '../../screens/phone_input_screen.dart';
 import '../../screens/signup_screen.dart';
@@ -108,6 +112,25 @@ List<RouteBase> buildRoutes() => [
         ],
       ),
       GoRoute(
+        path: '/hospitals/:id',
+        builder: (_, state) => HospitalDetailScreen(
+          hospitalId: state.pathParameters['id']!,
+          publicBrowse: true,
+        ),
+      ),
+      GoRoute(
+        path: '/hospitals',
+        builder: (_, __) => const HospitalSearchScreen(publicBrowse: true),
+      ),
+      GoRoute(
+        path: Routes.hospitalHome,
+        builder: (_, __) => const HospitalHomeScreen(),
+      ),
+      GoRoute(
+        path: Routes.hospitalManage,
+        builder: (_, __) => const HospitalManageScreen(),
+      ),
+      GoRoute(
         path: Routes.splash,
         builder: (_, __) => const SplashScreen(),
       ),
@@ -138,9 +161,14 @@ List<RouteBase> buildRoutes() => [
         ),
       ),
       GoRoute(
+        path: Routes.organisationSignIn,
+        builder: (_, __) => const OrganisationSignInScreen(),
+      ),
+      GoRoute(
         path: Routes.phone,
         builder: (_, state) => PhoneInputScreen(
           displayName: state.uri.queryParameters['name'],
+          initialPhone: state.uri.queryParameters['phone'],
         ),
       ),
       GoRoute(
@@ -149,12 +177,6 @@ List<RouteBase> buildRoutes() => [
           e164: state.uri.queryParameters['phone'] ?? '',
           displayName: state.uri.queryParameters['name'],
         ),
-      ),
-
-      // --- Onboarding ------------------------------------------------------
-      GoRoute(
-        path: Routes.onboardingPatient,
-        builder: (_, __) => const OnboardingScreen(),
       ),
 
       // --- Patient: pushed over the shell ----------------------------------
@@ -314,6 +336,18 @@ List<RouteBase> buildRoutes() => [
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+            GoRoute(
+              path: Routes.hospitalSearch,
+              builder: (_, __) => const HospitalSearchScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => HospitalDetailScreen(
+                    hospitalId: state.pathParameters['id']!,
+                  ),
                 ),
               ],
             ),

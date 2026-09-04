@@ -246,7 +246,7 @@ class _RecordUploadScreenState extends ConsumerState<RecordUploadScreen> {
                   child: Text(
                     'Your records are private to you. A doctor can only see '
                     'one if you share it, and you can revoke that at any time. '
-                    'Files are checked for viruses before they become '
+                    'Files are validated and private before they become '
                     'available.',
                     style: theme.textTheme.bodySmall,
                   ),

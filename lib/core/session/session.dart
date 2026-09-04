@@ -25,6 +25,7 @@ class Session {
     this.phone,
     this.email,
     this.photoUrl,
+    this.hospitalId,
   });
 
   final String userId;
@@ -53,6 +54,7 @@ class Session {
   final String? phone;
   final String? email;
   final String? photoUrl;
+  final String? hospitalId;
 
   /// Treats the token as expired slightly early, so a request is not sent with
   /// a token that dies in flight.
@@ -96,6 +98,7 @@ class Session {
       phone: json['phone'] as String?,
       email: json['email'] as String?,
       photoUrl: json['photoUrl'] as String?,
+      hospitalId: json['hospitalId'] as String?,
     );
   }
 
@@ -123,6 +126,7 @@ class Session {
       phone: phone,
       email: email,
       photoUrl: photoUrl,
+      hospitalId: hospitalId,
     );
   }
 }

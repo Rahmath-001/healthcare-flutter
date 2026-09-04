@@ -40,6 +40,30 @@ class FixtureOperationsRepository implements OperationsRepository {
 
   Future<void> get _wait => Future<void>.delayed(latency);
 
+  // Organisation applications are never invented for the console fixture: a
+  // directory entry implies a real-world institution and is not demo content.
+  @override
+  Future<List<HospitalApplication>> hospitalApplications() async => const [];
+
+  @override
+  Future<void> approveHospitalApplication(String id) async {
+    throw const Failure(
+      kind: FailureKind.unknown,
+      message: 'Hospital approval requires the live MiDoctor API.',
+      code: 'LIVE_API_REQUIRED',
+    );
+  }
+
+  @override
+  Future<void> rejectHospitalApplication(String id,
+      {required String reason}) async {
+    throw const Failure(
+      kind: FailureKind.unknown,
+      message: 'Hospital review requires the live MiDoctor API.',
+      code: 'LIVE_API_REQUIRED',
+    );
+  }
+
   // --- provider verification ----------------------------------------------
 
   @override

@@ -1,4 +1,7 @@
 import { getStorage } from "firebase-admin/storage";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 import { Problem } from "./errors";
 
@@ -37,6 +40,106 @@ const UPLOAD_URL_TTL_MS = 15 * 60 * 1000;
 
 /** Downloads are one-shot and immediate; they need far less room. */
 const DOWNLOAD_URL_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * The local API can use an on-disk object store while Firebase Storage is not
+ * available on a Spark project.  It exists exclusively to exercise the real
+ * API, Firestore metadata and RBAC flow on a developer machine; Cloud
+ * Functions never set these variables, so production keeps using Cloud
+ * Storage.  URLs remain short-lived capabilities rather than becoming an
+ * unauthenticated file server.
+ */
+const LOCAL_STORAGE_DIR = "LOCAL_DOCUMENT_STORAGE_DIR";
+const LOCAL_STORAGE_BASE_URL = "LOCAL_DOCUMENT_STORAGE_BASE_URL";
+const LOCAL_STORAGE_SECRET = "LOCAL_DOCUMENT_STORAGE_SECRET";
+
+function localConfig(): { directory: string; baseUrl: string; secret: string } | null {
+  const directory = process.env[LOCAL_STORAGE_DIR];
+  const baseUrl = process.env[LOCAL_STORAGE_BASE_URL];
+  const secret = process.env[LOCAL_STORAGE_SECRET];
+  if (!directory || !baseUrl || !secret) return null;
+  return {
+    directory: path.resolve(directory),
+    baseUrl: baseUrl.replace(/\/$/, ""),
+    secret,
+  };
+}
+
+export function usingLocalDocumentStorage(): boolean {
+  return localConfig() !== null;
+}
+
+function localFilePath(objectPath: string): string {
+  const config = localConfig();
+  if (!config) throw new Error("Local document storage is not configured.");
+  if (!/^(quarantine|clean|prescriptions)\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(objectPath)) {
+    throw new Error("Invalid local document object path.");
+  }
+  const target = path.resolve(config.directory, ...objectPath.split("/"));
+  if (target !== config.directory && !target.startsWith(`${config.directory}${path.sep}`)) {
+    throw new Error("Invalid local document object path.");
+  }
+  return target;
+}
+
+function localSignature(
+  method: "PUT" | "GET",
+  objectPath: string,
+  expires: number,
+  contentType = ""
+): string {
+  const config = localConfig();
+  if (!config) throw new Error("Local document storage is not configured.");
+  return createHmac("sha256", config.secret)
+    .update(`${method}\n${objectPath}\n${expires}\n${contentType}`)
+    .digest("base64url");
+}
+
+function localCapabilityUrl(
+  method: "PUT" | "GET",
+  objectPath: string,
+  expires: number,
+  contentType = ""
+): string {
+  const config = localConfig();
+  if (!config) throw new Error("Local document storage is not configured.");
+  const params = new URLSearchParams({
+    path: objectPath,
+    expires: String(expires),
+    signature: localSignature(method, objectPath, expires, contentType),
+  });
+  if (contentType) params.set("contentType", contentType);
+  return `${config.baseUrl}/v1/local-documents/${method === "PUT" ? "upload" : "download"}?${params}`;
+}
+
+/** Validates the opaque, short-lived local URL capability. */
+export function hasValidLocalDocumentCapability(
+  method: "PUT" | "GET",
+  objectPath: unknown,
+  expires: unknown,
+  signature: unknown,
+  contentType = ""
+): objectPath is string {
+  if (
+    typeof objectPath !== "string" ||
+    typeof expires !== "string" ||
+    typeof signature !== "string" ||
+    !/^[0-9]+$/.test(expires)
+  ) {
+    return false;
+  }
+  const expiresAt = Number(expires);
+  if (!Number.isSafeInteger(expiresAt) || expiresAt < Date.now()) return false;
+  try {
+    // Runs the same strict path validation before calculating the signature.
+    localFilePath(objectPath);
+    const expected = Buffer.from(localSignature(method, objectPath, expiresAt, contentType));
+    const supplied = Buffer.from(signature);
+    return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+  } catch {
+    return false;
+  }
+}
 
 export const ALLOWED_CONTENT_TYPES = [
   "application/pdf",
@@ -81,6 +184,12 @@ export async function signedUploadUrl(
   contentType: AllowedContentType
 ): Promise<{ url: string; expiresAt: string }> {
   const expires = Date.now() + UPLOAD_URL_TTL_MS;
+  if (usingLocalDocumentStorage()) {
+    return {
+      url: localCapabilityUrl("PUT", objectPath, expires, contentType),
+      expiresAt: new Date(expires).toISOString(),
+    };
+  }
   const [url] = await bucket().file(objectPath).getSignedUrl({
     version: "v4",
     action: "write",
@@ -91,6 +200,9 @@ export async function signedUploadUrl(
 }
 
 export async function signedDownloadUrl(objectPath: string): Promise<string> {
+  if (usingLocalDocumentStorage()) {
+    return localCapabilityUrl("GET", objectPath, Date.now() + DOWNLOAD_URL_TTL_MS);
+  }
   const [url] = await bucket().file(objectPath).getSignedUrl({
     version: "v4",
     action: "read",
@@ -100,17 +212,30 @@ export async function signedDownloadUrl(objectPath: string): Promise<string> {
 }
 
 export async function objectExists(objectPath: string): Promise<boolean> {
+  if (usingLocalDocumentStorage()) {
+    try {
+      await fs.access(localFilePath(objectPath));
+      return true;
+    } catch {
+      return false;
+    }
+  }
   const [exists] = await bucket().file(objectPath).exists();
   return exists;
 }
 
 export async function deleteObject(objectPath: string): Promise<void> {
+  if (usingLocalDocumentStorage()) {
+    await fs.rm(localFilePath(objectPath), { force: true });
+    return;
+  }
   // `ignoreNotFound` so deleting a record whose upload never completed is not
   // an error — the metadata document is the source of truth, not the object.
   await bucket().file(objectPath).delete({ ignoreNotFound: true });
 }
 
 export async function downloadObject(objectPath: string): Promise<Buffer> {
+  if (usingLocalDocumentStorage()) return fs.readFile(localFilePath(objectPath));
   const [buffer] = await bucket().file(objectPath).download();
   return buffer;
 }
@@ -152,6 +277,16 @@ export async function uploadImmutableObject(
   data: Buffer,
   contentType: string
 ): Promise<void> {
+  if (usingLocalDocumentStorage()) {
+    if (await objectExists(objectPath)) {
+      throw Problem.conflict(
+        "PRESCRIPTION_PDF_EXISTS",
+        "This prescription document has already been stored."
+      );
+    }
+    await uploadObject(objectPath, data, contentType);
+    return;
+  }
   const file = bucket().file(objectPath);
 
   // A hold on an existing object makes `save` fail, which is the point: a
@@ -174,6 +309,12 @@ export async function uploadObject(
   data: Buffer,
   contentType: string
 ): Promise<void> {
+  if (usingLocalDocumentStorage()) {
+    const target = localFilePath(objectPath);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, data);
+    return;
+  }
   await bucket().file(objectPath).save(data, {
     contentType,
     // Public access is never appropriate here; every read goes through a signed

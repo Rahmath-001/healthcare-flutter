@@ -12,17 +12,16 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "healthcare-demo-645ed",
-          "appId": "1:596398082636:android:2127e44b4cb9db33c182e9",
+          "projectId": "midoctor-3dbdb",
+          "appId": "1:570060464266:android:c3ce6887717fc125ff8d73",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "healthcare-demo-645ed",
+          "projectId": "midoctor-3dbdb",
           "configurations": {
-            "android": "1:596398082636:android:2127e44b4cb9db33c182e9",
-            "web": "1:596398082636:web:9b8832004d5cdd81c182e9"
+            "android": "1:570060464266:android:c3ce6887717fc125ff8d73"
           }
         }
       }

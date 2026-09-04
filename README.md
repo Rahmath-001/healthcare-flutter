@@ -22,31 +22,28 @@ before assuming any part of it is production-ready.
 
 ```bash
 flutter pub get
-flutter run                                     # fixtures; no backend needed
+flutter run                                     # real API on the Android emulator
 flutter run -d chrome -t lib/main_admin.dart    # operator console
 ```
 
-`USE_FIXTURES` defaults to `true`, so a plain `flutter run` gives a fully working app backed
-by sample data — tap **Explore with sample data** on the login screen. Every fixture reads and
-writes one shared in-memory store, so the features actually connect: book an appointment and
-it appears in your list, upload a record and it becomes readable once "scanned", grant consent
-and the doctor's view changes. The console works the same way.
+The Android development build uses the real API only. Every
+live Firestore relationship is represented by a stable ID: `users/{uid}` is created after the
+Firebase identity is exchanged with accepted terms; sessions and refresh tokens link to that
+`userId`; doctor profiles link to their `userId`; availability rules link to `doctorId`; and an
+appointment links both `patientId` and `doctorId`. Firestore is a document database, so those
+links are resolved by the API rather than by SQL joins.
 
-When `USE_FIXTURES=false`, the app first uses the live API. A network failure or a server `5xx`
-response automatically switches that app session to fixture sample data and shows a clear in-app
-banner. Authentication, permission, validation, and conflict errors remain visible; they are
-never replaced with mock data.
+Network, server, authentication, permission, validation, and conflict errors are surfaced to the
+UI. No request can be replaced with fixture, mock, or sample records.
 
 To run against the real API:
 
 ```bash
-cd functions && pnpm install && pnpm build     # pnpm, not npm
-firebase emulators:start --only functions,firestore,auth
-FIRESTORE_EMULATOR_HOST=localhost:8080 pnpm seed
+cd functions && pnpm install && pnpm serve:live-firestore
 
 flutter run \
   --dart-define=USE_FIXTURES=false \
-  --dart-define=API_BASE_URL=http://10.0.2.2:5001/<project>/asia-south1/api
+  --dart-define=API_BASE_URL=http://10.0.2.2:5002
 ```
 
 `lib/firebase_options.dart` and `android/app/google-services.json` are gitignored. Generate
@@ -57,8 +54,8 @@ them with `flutterfire configure`, or copy the credential-free stubs from `tool/
 | `--dart-define` | Values | Default |
 | --- | --- | --- |
 | `ENV` | `dev` \| `staging` \| `prod` | `dev` |
-| `API_BASE_URL` | any | per-env (`http://10.0.2.2:8080` on dev) |
-| `USE_FIXTURES` | `true` \| `false` | `true` |
+| `API_BASE_URL` | any | `http://10.0.2.2:5002` on Android emulator |
+| `USE_FIXTURES` | `true` \| `false` | `false` |
 
 ---
 
@@ -96,9 +93,10 @@ router — see the legacy section of [CLAUDE.md](CLAUDE.md) for which files are 
 
 ## Sign-in
 
-Google OAuth, Sign in with Apple (Apple platforms only), and India phone OTP behind a
-Twilio carrier/VoIP check. **No email/password.** Whatever succeeds, the Firebase ID token is
-exchanged for a MiDoctor session via `POST /v1/auth/session`.
+Google OAuth, Sign in with Apple (Apple platforms only), and India phone OTP. Firebase
+Authentication sends and verifies the OTP; the Twilio carrier/VoIP check is only an advisory
+pre-flight check and never receives or returns an OTP. Whatever succeeds, the Firebase ID token
+is exchanged for a MiDoctor session via `POST /v1/auth/session`.
 
 For a newly created account, that exchange includes the accepted Privacy Policy and Terms of
 Service revisions. The API records the acceptance timestamp and a three-year retention date
@@ -121,19 +119,30 @@ token revocation on account deletion is mandatory. See the Sign-in section of
 The client wireframes in `docs/Wireframes (midoctor.in) - Set 2.pdf` define the public
 journey, while the application retains MiDoctor's light-blue theme:
 
-- Guests can browse fixture doctors, open the full doctor profile, and enter the appointment
-  flow without an account.
+- Guests can browse approved doctors and live availability from the API, open the full doctor profile, and enter the appointment
+  flow without an account. Holding or booking a slot remains authenticated. Fixtures are used only when the configured API is unavailable.
 - Selecting an available guest slot opens the full **Sign In with** page from wireframe page 6
   (Google, Apple, Mobile, Register and Login), rather than a bottom sheet. The router only
   accepts an internal booking return path, then returns a successful patient sign-in to the
   selected doctor's booking screen.
 - Patient and independent-provider registration uses progressive accordion sections. Basic
-  information completes first, the two-minute mock OTP verifies it, and Home Address opens
+  information completes first, Firebase phone verification verifies it, and Home Address opens
   while the completed section collapses with a green completion tick. Phone numbers use the
   fixed `+91` prefix and the country/address controls remain India-only.
 - Hospital, laboratory and home-health registration follows the same sequence: Basic
   Organisation Information then Business Address. Submission creates a server-side review
   request; it does not create an account or grant a privileged role.
+- Hospitals appear in the public directory only after an operations user verifies and approves
+  a submitted hospital application. Provider approval requires selecting one of those approved
+  hospitals; the API re-reads that record and never trusts a client-supplied affiliation name or
+  city. The directory can therefore be empty in a new live project — it never falls back to
+  fixture or sample hospitals.
+- A provisioned hospital account has a read-only Hospital workspace for its own verified listing
+  and real approved-provider network. **Manage hospital** adds reviewable organisation-update and
+  provider-affiliation requests; it cannot publish a change or approve a provider. The workspace
+  deliberately displays an honest empty state until an operations-approved clinician is linked.
+  See [Route access and capabilities](docs/ROUTE_ACCESS.md) for every route, role and permitted
+  action. Do not put sample organisations or providers into the client Firebase project.
 - The public directory keeps Speciality and Location side by side. Both controls accept typed
   text as well as a compact suggestion list, use Indian fixture locations, close on their
   arrows or a background tap, and show an explicit right-side scrollbar when doctor results
@@ -144,12 +153,25 @@ colour system or accessibility-focused spacing.
 
 ### Phone OTP notes
 
+Firebase Phone Authentication is the SMS engine. Before testing a real Indian phone number, a
+Firebase project owner must enable **India** in **Authentication → Settings → SMS region policy**.
+New projects use an allow-list and an empty allow-list sends to no countries. Android must also
+have the signing SHA-1 and SHA-256 registered under the `midoctor.in` Firebase Android app.
+Use a physical Android device with current Google Play services for a real-SMS acceptance test:
+an emulator without a working Play Integrity service falls back to browser reCAPTCHA and is not a
+reliable real-phone test environment.
+
 - Twilio Lookup `line_type_intelligence` returns the current carrier and line type
   (`mobile`/`voip`/`landline`). The allow-list is in `functions/src/index.ts`, and it
   degrades to "unverified" rather than blocking sign-in.
 - Real phone-auth SMS on Android emulators is unreliable (Play Integrity/reCAPTCHA fallback
   breaks on emulator WebViews). Use Firebase test phone numbers on an emulator, or a real
   device with Play Services.
+- A Firebase test phone number is configured in Firebase Console → Authentication → Sign-in
+  method → Phone → **Phone numbers for testing**. It uses Firebase's normal verification flow
+  but sends no SMS. For a debug emulator build that uses such a number, add
+  `--dart-define=SKIP_CARRIER_CHECK=true`; this only bypasses the optional Twilio lookup in a
+  debug build and never bypasses Firebase OTP verification.
 
 ---
 

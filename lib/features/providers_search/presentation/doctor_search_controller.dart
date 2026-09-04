@@ -45,6 +45,17 @@ final doctorSearchResultsProvider = FutureProvider<List<Doctor>>((ref) async {
   return ref.watch(doctorRepositoryProvider).search(filters);
 });
 
+/// Directory facets come from the same source as the results. Keeping these
+/// separate from fixture constants means a newly approved provider's city and
+/// specialty appear in the public search controls after refresh.
+final doctorSpecialtiesProvider = FutureProvider<List<Specialty>>((ref) async {
+  return ref.watch(doctorRepositoryProvider).specialties();
+});
+
+final doctorCitiesProvider = FutureProvider<List<String>>((ref) async {
+  return ref.watch(doctorRepositoryProvider).cities();
+});
+
 final doctorByIdProvider =
     FutureProvider.family<Doctor, String>((ref, id) async {
   return ref.watch(doctorRepositoryProvider).byId(id);

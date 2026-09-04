@@ -32,10 +32,24 @@ class CarrierResult {
 class CarrierService {
   final FirebaseFunctions _functions;
 
+  /// Firebase Authentication test phone numbers do not correspond to a real
+  /// carrier, so Twilio Lookup cannot validate them.  This flag is deliberately
+  /// effective only in a debug build: it skips an advisory UX check, never the
+  /// Firebase phone-verification flow that proves possession of the number.
+  static const _skipCarrierCheckForTestPhone =
+      bool.fromEnvironment('SKIP_CARRIER_CHECK');
+
   CarrierService({FirebaseFunctions? functions})
       : _functions = functions ?? FirebaseFunctions.instance;
 
   Future<CarrierResult> verify(String e164) async {
+    if (kDebugMode && _skipCarrierCheckForTestPhone) {
+      return const CarrierResult(
+        ok: true,
+        reason: 'Carrier check skipped for a Firebase test phone number.',
+      );
+    }
+
     try {
       final callable = _functions.httpsCallable('verifyIndianCarrier');
       final res = await callable.call<Map<String, dynamic>>({'phone': e164});
@@ -47,27 +61,29 @@ class CarrierService {
         reason: data['reason'] as String?,
       );
     } on FirebaseFunctionsException catch (e) {
-      // Function not deployed (e.g. Twilio/Blaze not set up yet).
-      //
-      // In debug this degrades to "unverified" so the app is usable without a
-      // deployed backend. In release it fails CLOSED: a healthcare app must not
-      // silently drop a fraud control because a dependency is missing, and an
-      // undeployed function in production is an outage, not a pass.
-      if (e.code == 'not-found') {
-        if (kDebugMode) {
-          return const CarrierResult(
-            ok: true,
-            reason: 'Carrier not verified (server check unavailable, debug).',
-          );
-        }
+      // Carrier Lookup is an optional UX / fraud signal, not the authenticator:
+      // Firebase Phone Auth is what proves possession of the phone number. A
+      // missing Twilio configuration must therefore not turn a valid Firebase
+      // SMS verification into a sign-in outage. Once Lookup is configured, its
+      // successful `ok: false` response still rejects known VoIP/landline
+      // numbers before Firebase sends an SMS.
+      if (e.code == 'not-found' ||
+          e.code == 'unavailable' ||
+          e.code == 'internal' ||
+          e.code == 'failed-precondition') {
         return const CarrierResult(
-          ok: false,
-          reason: 'Verification is temporarily unavailable. Please try again.',
+          ok: true,
+          reason: 'Carrier not verified (optional check unavailable).',
         );
       }
       return CarrierResult(ok: false, reason: e.message ?? 'Lookup failed');
     } catch (e) {
-      return CarrierResult(ok: false, reason: 'Lookup failed: $e');
+      // Same rule for a transport failure that is not surfaced as a Functions
+      // error: do not make an optional pre-flight a second OTP provider.
+      return const CarrierResult(
+        ok: true,
+        reason: 'Carrier not verified (optional check unavailable).',
+      );
     }
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/feature_providers.dart';
+import '../../../core/error/failure.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_palette.dart';
 import '../domain/organisation_registration.dart';
@@ -99,12 +100,10 @@ class _OrganisationRegistrationScreenState
         ),
       );
       context.go(Routes.landing);
-    } catch (_) {
+    } on Failure catch (failure) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not submit the request. Please try again.'),
-        ),
+        SnackBar(content: Text(failure.message)),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

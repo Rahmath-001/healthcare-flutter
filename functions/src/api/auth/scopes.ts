@@ -52,6 +52,18 @@ const UNVERIFIED_PROVIDER_SCOPES = [
   "credentials:submit",
 ] as const;
 
+/**
+ * A hospital account can propose amendments and affiliations for the
+ * organisation assigned to it. Neither scope publishes a change or approves a
+ * clinician; those remain operations decisions.
+ */
+const HOSPITAL_SCOPES = [
+  "profile:read",
+  "hospital:read_own",
+  "hospital:request_change",
+  "hospital:request_affiliation",
+] as const;
+
 const SUPERVISOR_SCOPES = [
   "profile:read",
   "provider:review",
@@ -79,6 +91,8 @@ export function scopesFor(role: Role, providerStatus: ProviderStatus): string[] 
       return providerStatus === "APPROVED"
         ? [...APPROVED_PROVIDER_SCOPES]
         : [...UNVERIFIED_PROVIDER_SCOPES];
+    case "HOSPITAL":
+      return [...HOSPITAL_SCOPES];
     case "SUPERVISOR":
       return [...SUPERVISOR_SCOPES];
     case "SUPPORT_L1":

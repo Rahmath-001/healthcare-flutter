@@ -51,28 +51,63 @@ class SessionController extends AsyncNotifier<Session?> {
   /// missing session, and attempting the call would just be a guaranteed 401.
   bool get _mayHaveServerHeldToken => kIsWeb;
 
-  /// Attempts to resume a session from the stored refresh token. A failure here
-  /// is normal (first launch, expired or revoked token) and yields a signed-out
-  /// state rather than an error.
+  /// Attempts to resume a session from the stored refresh token. If secure
+  /// storage has been cleared but Firebase still remembers the person (for
+  /// example after an app update), re-exchange that existing Firebase identity
+  /// so the router can still send them to their role's dashboard.
+  ///
+  /// A Firebase-only identity that has never accepted the MiDoctor terms does
+  /// *not* create a user here: the API rejects that exchange and this remains
+  /// a signed-out MiDoctor state until the registration flow is completed.
   Future<Session?> _restore() async {
     final refreshToken = await _store.readRefreshToken();
-    if (refreshToken == null && !_mayHaveServerHeldToken) return null;
+    if (refreshToken != null || _mayHaveServerHeldToken) {
+      try {
+        final deviceId = await ref.read(deviceIdProvider.future);
+        final result = await _repository.refresh(
+          refreshToken: refreshToken,
+          deviceId: deviceId,
+        );
+        await _persistRefreshToken(result.refreshToken);
+        _accessToken = result.session.accessToken;
+        unawaited(CrashReporting.setUser(result.session.userId));
+        return result.session;
+      } catch (e) {
+        // Includes refresh-token reuse detection, where the server has revoked
+        // the whole session family. Firebase may still have a valid identity,
+        // so clear the stale local session then try a clean exchange below.
+        if (kDebugMode) debugPrint('Session restore failed: $e');
+        await _clear();
+      }
+    }
+
+    return _restoreFromFirebaseIdentity();
+  }
+
+  Future<Session?> _restoreFromFirebaseIdentity() async {
+    final firebaseIdToken =
+        await ref.read(authServiceProvider).idToken(forceRefresh: true);
+    if (firebaseIdToken == null) return null;
 
     try {
       final deviceId = await ref.read(deviceIdProvider.future);
-      final result = await _repository.refresh(
-        refreshToken: refreshToken,
+      final result = await _exchange(
+        firebaseIdToken: firebaseIdToken,
         deviceId: deviceId,
+        platform: defaultTargetPlatform.name,
+        appVersion: ref.read(appVersionProvider),
+        requestedRole: ref.read(requestedRoleProvider),
+        termsAcceptance: ref.read(registrationTermsAcceptanceProvider),
       );
       await _persistRefreshToken(result.refreshToken);
       _accessToken = result.session.accessToken;
       unawaited(CrashReporting.setUser(result.session.userId));
       return result.session;
     } catch (e) {
-      // Includes refresh-token reuse detection, where the server has revoked
-      // the whole session family. Clearing local state is the correct response.
-      if (kDebugMode) debugPrint('Session restore failed: $e');
-      await _clear();
+      // Preserve the Firebase identity. A new person still needs to accept the
+      // terms through registration; signing them out of Google would make that
+      // recovery route unnecessarily confusing.
+      if (kDebugMode) debugPrint('Firebase session restore failed: $e');
       return null;
     }
   }
@@ -102,45 +137,6 @@ class SessionController extends AsyncNotifier<Session?> {
     }
   }
 
-  /// Signs in against the fixture backend, without Firebase.
-  ///
-  /// Sample data has no identity provider behind it, so every sign-in path in
-  /// fixture mode would otherwise die at `Firebase.initializeApp` or at a
-  /// Google consent sheet that cannot return. That made the mock data
-  /// unreachable: the app opened on a login screen it could not get past.
-  ///
-  /// Only ever reached when `USE_FIXTURES` is true — the token is a placeholder
-  /// that `FixtureSessionRepository` ignores, and `ApiSessionRepository` would
-  /// rightly be refused by the server.
-  Future<void> signInWithSampleData({
-    UserRole requestedRole = UserRole.patient,
-    ProviderStatus? providerStatus,
-  }) async {
-    // Sample data has no operator console in this process, so an approved
-    // doctor cannot be produced by working the verification flow. Asking for
-    // the status directly is the only way the provider shell is reachable at
-    // all; `USE_FIXTURES=false` never reaches this method.
-    final repository = providerStatus == null
-        ? _repository
-        : FixtureSessionRepository(
-            role: requestedRole,
-            providerStatus: providerStatus,
-          );
-
-    state = const AsyncValue<Session?>.loading();
-    state = await AsyncValue.guard(() async {
-      final result = await repository.exchange(
-        firebaseIdToken: 'fixture',
-        deviceId: 'fixture-device',
-        platform: 'fixture',
-        appVersion: ref.read(appVersionProvider),
-        requestedRole: requestedRole,
-      );
-      _accessToken = result.session.accessToken;
-      return result.session;
-    });
-  }
-
   /// Called after Firebase sign-in succeeds. Exchanges the Firebase ID token
   /// for a MiDoctor session.
   Future<void> exchangeFirebaseToken(String firebaseIdToken) async {
@@ -150,7 +146,7 @@ class SessionController extends AsyncNotifier<Session?> {
       final requestedRole = ref.read(requestedRoleProvider);
       final appVersion = ref.read(appVersionProvider);
       final termsAcceptance = ref.read(registrationTermsAcceptanceProvider);
-      final result = await _exchangeOrUseFixtures(
+      final result = await _exchange(
         firebaseIdToken: firebaseIdToken,
         deviceId: deviceId,
         platform: defaultTargetPlatform.name,
@@ -166,22 +162,15 @@ class SessionController extends AsyncNotifier<Session?> {
     });
   }
 
-  /// Completes an outage transition without making a person press a second
-  /// "sample data" button after Firebase sign-in has already succeeded.
-  ///
-  /// [ApiClient] changes [useFixturesProvider] only for transport and 5xx
-  /// failures. Authorization and validation failures leave it false and are
-  /// rethrown here, so a revoked account is never replaced by a fixture one.
-  Future<({Session session, String? refreshToken})> _exchangeOrUseFixtures({
+  /// Exchanges a verified Firebase identity for a live MiDoctor session.
+  Future<({Session session, String? refreshToken})> _exchange({
     required String firebaseIdToken,
     required String deviceId,
     required String platform,
     required String appVersion,
     required UserRole requestedRole,
     required RegistrationTermsAcceptance? termsAcceptance,
-  }) async {
-    try {
-      return await _repository.exchange(
+  }) => _repository.exchange(
         firebaseIdToken: firebaseIdToken,
         deviceId: deviceId,
         platform: platform,
@@ -189,17 +178,6 @@ class SessionController extends AsyncNotifier<Session?> {
         requestedRole: requestedRole,
         termsAcceptance: termsAcceptance,
       );
-    } on Failure {
-      if (!ref.read(useFixturesProvider)) rethrow;
-      return FixtureSessionRepository().exchange(
-        firebaseIdToken: 'fixture',
-        deviceId: 'fixture-device',
-        platform: 'fixture',
-        appVersion: appVersion,
-        requestedRole: requestedRole,
-      );
-    }
-  }
 
   /// Invoked by the auth interceptor on 401/TOKEN_STALE. Throws when the
   /// session cannot be renewed, which the interceptor turns into a sign-out.

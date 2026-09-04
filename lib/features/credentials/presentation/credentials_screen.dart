@@ -250,9 +250,9 @@ class _BodyState extends ConsumerState<_Body> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Your documents are encrypted and only seen by the '
-                      'MiDoctor verification team. We never store a copy of '
-                      'your Aadhaar.',
+                      'Your documents are private and only seen by the '
+                      'MiDoctor verification team after validation. We never '
+                      'store a copy of your Aadhaar.',
                       style: theme.textTheme.bodySmall,
                     ),
                   ),

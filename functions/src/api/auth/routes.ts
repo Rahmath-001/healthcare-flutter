@@ -123,6 +123,7 @@ function sessionPayload(
     phone: user.phone ?? null,
     email: user.email ?? null,
     photoUrl: user.photoUrl ?? null,
+    hospitalId: user.hospitalId ?? null,
   };
 }
 
@@ -209,6 +210,7 @@ export function authRoutes(secret: () => string): Router {
           email: decoded.email ?? null,
           photoUrl: decoded.picture ?? null,
           doctorId: null,
+          hospitalId: null,
           createdAt: at,
           updatedAt: at,
         };
